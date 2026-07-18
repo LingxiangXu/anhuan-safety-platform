@@ -1,0 +1,260 @@
+@import './variables.scss';
+
+html, body {
+  margin: 0; padding: 0;
+  font-family: $font-family;
+  font-size: $font-base;
+  color: $text-primary;
+  background: $bg-page;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+a { text-decoration: none; color: inherit; }
+ul, li { list-style: none; padding: 0; margin: 0; }
+
+::-webkit-scrollbar { width: 5px; height: 5px; }
+::-webkit-scrollbar-thumb { background: $gray-300; border-radius: 3px; }
+::-webkit-scrollbar-track { background: transparent; }
+
+// === 动画关键帧 ===
+@keyframes fadeInUp {
+  from { opacity: 0; transform: translateY(12px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+@keyframes slideInLeft {
+  from { opacity: 0; transform: translateX(-20px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+@keyframes slideInRight {
+  from { opacity: 0; transform: translateX(20px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+@keyframes pulse-glow {
+  0%, 100% { box-shadow: 0 0 4px rgba(220,38,38,0.3); }
+  50%      { box-shadow: 0 0 16px rgba(220,38,38,0.6); }
+}
+@keyframes pulse-scale {
+  0%, 100% { transform: scale(1); }
+  50%      { transform: scale(1.04); }
+}
+@keyframes countUp {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+@keyframes shimmer {
+  0%   { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+@keyframes progress-grow {
+  from { width: 0; }
+}
+@keyframes badge-pulse {
+  0%, 100% { opacity: 1; }
+  50%      { opacity: 0.6; }
+}
+@keyframes rotate {
+  from { transform: rotate(0deg); }
+  to   { transform: rotate(360deg); }
+}
+
+// === 通用卡片（对齐品牌：白底+gray-200边框+hover蓝边） ===
+.glass-card {
+  background: $bg-card;
+  border-radius: $radius-lg;
+  border: 1px solid $border;
+  box-shadow: $shadow-xs;
+  transition: all $transition-base;
+  &:hover { border-color: $brand-300; transform: translateY(-2px); box-shadow: $shadow-md; }
+}
+
+// === 通用渐变卡片 ===
+.gradient-card {
+  border-radius: $radius-lg;
+  color: $text-inverse;
+  padding: $space-5;
+  position: relative;
+  overflow: hidden;
+  box-shadow: $shadow-md;
+  &::after {
+    content: ''; position: absolute; top: -30%; right: -20%;
+    width: 120px; height: 120px; border-radius: 50%;
+    background: rgba(255,255,255,0.1); pointer-events: none;
+  }
+}
+
+// === 统计牌（对齐品牌 stat-card：gray-50 底 + gray-200 边框） ===
+.stat-plate {
+  display: flex; align-items: center; gap: $space-3;
+  padding: $space-4 $space-5; border-radius: $radius-lg;
+  background: $gray-50; border: 1px solid $border;
+  transition: all $transition-base;
+  &:hover { border-color: $brand-300; transform: translateY(-2px); box-shadow: $shadow-md; }
+  .sp-icon {
+    width: 42px; height: 42px; border-radius: $radius-md;
+    display: flex; align-items: center; justify-content: center;
+    font-size: $font-xl; flex-shrink: 0;
+  }
+  .sp-body { display: flex; flex-direction: column; }
+  .sp-label { font-size: $font-xs; color: $text-hint; margin-bottom: 2px; }
+  .sp-value { font-size: $font-2xl; font-weight: 700; line-height: 1.1; }
+  .sp-sub { font-size: $font-xs; color: $text-hint; margin-top: 2px; }
+}
+
+// === 步骤条 ===
+$step-dot-size: 28px;
+.steps {
+  display: flex; align-items: flex-start; gap: 0;
+  .step {
+    flex: 1; display: flex; flex-direction: column; align-items: center;
+    position: relative; min-width: 80px;
+    &-dot {
+      width: $step-dot-size; height: $step-dot-size; border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 11px; font-weight: 600; z-index: 1;
+      border: 2px solid $gray-200; background: $bg-card; color: $text-hint;
+      transition: all $transition-smooth;
+    }
+    &-label { font-size: $font-xs; color: $text-hint; margin-top: 6px; text-align: center; line-height: 1.3; }
+    &-time { font-size: 10px; color: $gray-400; margin-top: 2px; }
+    &::after {
+      content: ''; position: absolute; top: calc(#{$step-dot-size} / 2 - 1px);
+      left: calc(50% + #{$step-dot-size} / 2); width: calc(100% - #{$step-dot-size});
+      height: 2px; background: $gray-200; transition: background $transition-smooth;
+    }
+    &:last-child::after { display: none; }
+    &.done {
+      .step-dot { border-color: $success-500; background: $success-500; color: #fff; }
+      &::after { background: $success-400; }
+      .step-label { color: $text-secondary; }
+    }
+    &.active {
+      .step-dot { border-color: $brand-500; background: $brand-500; color: #fff; box-shadow: $shadow-glow-blue; }
+      .step-label { color: $brand-600; font-weight: 600; }
+    }
+    &.warn {
+      .step-dot { border-color: $warning-500; background: $warning-500; color: #fff; animation: pulse-glow 2s infinite; }
+      .step-label { color: $warning-600; font-weight: 600; }
+    }
+    &.error {
+      .step-dot { border-color: $danger-500; background: $danger-500; color: #fff; animation: pulse-glow 2s infinite; }
+      .step-label { color: $danger-600; font-weight: 600; }
+    }
+  }
+}
+
+// === 仪表盘组件 ===
+.gauge-ring {
+  position: relative; display: inline-flex; flex-direction: column; align-items: center;
+  svg { transform: rotate(-90deg); }
+  .gauge-bg { fill: none; stroke: $gray-100; }
+  .gauge-fill { fill: none; stroke-linecap: round; transition: stroke-dashoffset 1s $transition-spring; }
+  .gauge-center {
+    position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+    text-align: center;
+    .gauge-value { font-size: $font-2xl; font-weight: 700; line-height: 1; }
+    .gauge-unit  { font-size: $font-xs; color: $text-hint; }
+  }
+  .gauge-label { font-size: $font-xs; color: $text-hint; margin-top: $space-2; }
+}
+
+// === 时间线组件 ===
+$tl-dot: 10px;
+.timeline {
+  position: relative; padding-left: $space-6;
+  &::before {
+    content: ''; position: absolute; left: 4px; top: 0; bottom: 0;
+    width: 2px; background: $gray-200;
+  }
+  .tl-item {
+    position: relative; padding-bottom: $space-5;
+    &::before {
+      content: ''; position: absolute; left: calc(-1 * #{$space-6} + 4px - #{$tl-dot}/2);
+      top: 4px; width: $tl-dot; height: $tl-dot; border-radius: 50%;
+      background: $gray-300; border: 2px solid $bg-card;
+      z-index: 1;
+    }
+    &.tl-active::before { background: $brand-500; box-shadow: $shadow-glow-blue; }
+    &.tl-done::before   { background: $success-500; }
+    &.tl-warn::before   { background: $warning-500; box-shadow: 0 0 8px rgba(234,88,12,0.4); }
+  }
+  .tl-time { font-size: $font-xs; color: $text-hint; margin-bottom: 2px; }
+  .tl-content { font-size: $font-sm; color: $text-primary; line-height: 1.5; }
+  .tl-tag { display: inline-block; margin-top: 4px; }
+}
+
+// === 标签（对齐品牌：胶囊形 + letter-spacing） ===
+.tag {
+  display: inline-flex; align-items: center; gap: 3px;
+  font-size: 11px; padding: 3px 10px; border-radius: $radius-full;
+  font-weight: 600; letter-spacing: 0.02em; line-height: 1.4;
+  &.tag-red    { color: $danger-600;  background: $danger-50;  }
+  &.tag-orange { color: $warning-600; background: $warning-50; }
+  &.tag-yellow { color: $risk-yellow; background: $risk-yellow-bg; }
+  &.tag-green  { color: $success-600; background: $success-50; }
+  &.tag-blue   { color: $brand-600;   background: $brand-50;   }
+  &.tag-gray   { color: $text-hint;   background: $gray-100;   }
+  &.tag-dot {
+    &::before { content: ''; width: 6px; height: 6px; border-radius: 50%; display: inline-block; }
+  }
+}
+
+// === 骨架屏 ===
+.skeleton {
+  background: linear-gradient(90deg, $gray-100 25%, $gray-50 50%, $gray-100 75%);
+  background-size: 200% 100%; animation: shimmer 1.5s infinite;
+  border-radius: $radius-sm;
+}
+
+// === 动画辅助类 ===
+.a-fade-up { animation: fadeInUp 0.5s $transition-smooth both; }
+.a-fade-in { animation: fadeIn 0.4s ease both; }
+
+@for $i from 1 through 12 {
+  .a-delay-#{$i} { animation-delay: #{$i * 0.05}s; }
+}
+
+// === 底部双色装饰条（PDF同款：绿+蓝） ===
+.footer-bar {
+  position: fixed; bottom: 0; left: 0; right: 0; z-index: 1000;
+  height: 4px; background: linear-gradient(90deg, $accent-green 0%, $accent-green 40%, $primary 60%, $primary 100%);
+}
+
+// === 分区标题横幅（品牌轻量版：白色底 + 蓝色左竖线） ===
+.sec-header {
+  background: $bg-card;
+  color: $text-primary;
+  padding: $space-base $space-xl;
+  border-radius: $radius-base;
+  border: 1px solid $border;
+  border-left: 3px solid $primary;
+  display: flex; align-items: center; gap: $space-3;
+  margin-bottom: $space-5;
+  font-size: $font-base; font-weight: 600;
+  box-shadow: $shadow-xs;
+  .sec-num {
+    display: inline-flex; align-items: center; justify-content: center;
+    width: 24px; height: 24px; border-radius: $radius-sm;
+    background: $primary-bg; color: $primary; font-size: 11px; font-weight: 700; flex-shrink: 0;
+  }
+}
+
+// === 业务状态指示器 ===
+.status-dot {
+  display: inline-block; width: 8px; height: 8px; border-radius: 50%;
+  &.s-normal  { background: $success-500; }
+  &.s-warning { background: $warning-500; animation: badge-pulse 2s infinite; }
+  &.s-danger  { background: $danger-500;  animation: badge-pulse 1.5s infinite; }
+  &.s-idle    { background: $gray-400; }
+}
+
+// === 页面标题 ===
+.page-hero {
+  margin-bottom: $space-6;
+  .ph-title { font-size: $font-2xl; font-weight: 700; color: $text-primary; margin: 0 0 6px; }
+  .ph-desc  { font-size: $font-sm; color: $text-hint; line-height: 1.5; margin: 0; }
+}
