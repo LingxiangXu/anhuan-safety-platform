@@ -2,7 +2,7 @@
   <nav class="side-nav">
     <div class="nav-brand">
       <BrandLogo variant="mini" />
-      <span class="nav-brand-label">安全平台</span>
+      <span class="nav-brand-label">安全管理平台</span>
     </div>
     <div class="nav-list">
       <template v-for="item in items">

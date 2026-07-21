@@ -47,14 +47,15 @@ export default {
           key: 'roles', label: '角色与终端', icon: '👥', route: '/safety-platform/roles'
         },
         {
-          key: 'pc-workstations', label: 'PC端工作台', icon: '💻', route: '/safety-platform/dashboard',
+          key: 'pc-workstations', label: '业务场景', icon: '💻', route: '/safety-platform/dashboard',
           children: [
-            { key: 'pc-dashboard', label: '📊 集团驾驶舱', route: '/safety-platform/dashboard' },
             { key: 'pc-risk', label: '🎯 风险管理', route: '/safety-platform/risk-management' },
+            { key: 'pc-inspection', label: '📋 巡检任务管理', route: '/safety-platform/inspection-management' },
             { key: 'pc-hazard', label: '⚠️ 隐患与督办', route: '/safety-platform/hazard-supervision' },
             { key: 'pc-work', label: '🔧 特殊作业管控', route: '/safety-platform/special-work' },
-            { key: 'pc-bpm', label: '🔗 BPM审批对接', route: '/safety-platform/bpm-integration' },
-            { key: 'pc-training', label: '📖 培训管理', route: '/safety-platform/training-management' }
+            { key: 'pc-dashboard', label: '📊 驾驶舱', route: '/safety-platform/dashboard' },
+            { key: 'pc-bpm', label: '🔗 OA审批集成', route: '/safety-platform/bpm-integration' },
+            { key: 'pc-training', label: '📖 培训中心集成', route: '/safety-platform/training-management' }
           ]
         },
         {

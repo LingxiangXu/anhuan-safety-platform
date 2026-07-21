@@ -30,7 +30,7 @@
     <div class="map-infobox" v-if="activeInfo" @click="clearInfo">
       <div class="infobox-header">
         <strong>{{ activeInfo.name }}</strong>
-        <span class="infobox-level" :style="{ background: activeInfo.color || '#666' }">{{ activeInfo.level || activeInfo.riskLevel }}</span>
+        <span class="infobox-level" :style="{ background: activeInfo.color || '#666' }">{{ activeInfo.level || activeInfo.riskLevel || '-' }}</span>
       </div>
       <div class="infobox-body">
         <div v-if="activeInfo.desc" class="infobox-row">{{ activeInfo.desc }}</div>
@@ -246,11 +246,18 @@ export default {
         });
         if (this.clickable) {
           marker.on('click', () => {
+            const wNames = (wp.workers && wp.workers.length)
+              ? wp.workers.map(w => w.name || w).join(', ')
+              : '-';
             this.activeInfo = {
-              name: '🔧 ' + wp.workTypeLabel,
-              level: wp.statusLabel || '作业中',
+              name: '🔧 ' + (wp.workTypeLabel || wp.title || '作业票'),
+              level: wp.statusLabel || wp.status || '作业中',
               color: '#f59e0b',
-              desc: wp.desc + ' | ' + wp.location + ' | 作业人: ' + (wp.workers ? wp.workers.join(',') : '')
+              desc: [
+                wp.desc || wp.title || '-',
+                wp.location || wp.zoneName || '-',
+                '作业人: ' + wNames
+              ].join(' | ')
             };
           });
         }

@@ -401,31 +401,206 @@
         <span v-for="r in zoneRisks" :key="r.id" :class="['tag', 'tag-' + getLevelTag(r.level)]" style="cursor:pointer" @click="jumpToLEC(r.id)">⬤ {{ r.id }} {{ r.name }}</span>
       </div>
 
-      <!-- 下方保留 5×5 风险矩阵 -->
-      <div class="section-head" style="border-top:1px solid #e2e8f0">
-        <h3 class="section-title">📐 风险矩阵（5×5 评价法）</h3>
-        <span class="section-sub">横向 = 事故后果严重度 C，纵向 = 事故可能性 L，颜色 = 风险等级</span>
+      <!-- APP 端：现场人员使用流程 -->
+      <div class="section-head" style="border-top:1px solid #e2e8f0; margin-top:16px">
+        <h3 class="section-title">📱 APP 端 — 现场人员使用流程</h3>
+        <span class="section-sub">现场人员登录工作台 → 点击「风险地图」→ 查看厂区四色风险分布，点击风险点下钻详情</span>
       </div>
-      <div class="matrix-wrap">
-        <table class="risk-matrix">
-          <thead><tr><th></th><th v-for="c in 5" :key="'c'+c">C={{ c }}</th></tr></thead>
-          <tbody>
-            <tr v-for="l in 5" :key="'l'+l">
-              <th>L={{ l }}</th>
-              <td v-for="c in 5" :key="'m'+l+c"
-                :class="['matrix-cell', getMatrixClass(l, c)]"
-                :title="'L='+l+' C='+c+' D='+(l*c)+' → '+getMatrixLevel(l,c).level">
-                <span v-if="getMatrixDot(l, c)" class="matrix-dot">⬤</span>
-              </td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
-      <div class="matrix-legend">
-        <span><i class="legend-dot" style="background:#ef4444"></i>重大 D ≥ 20</span>
-        <span><i class="legend-dot" style="background:#f59e0b"></i>较大 10 ≤ D < 20</span>
-        <span><i class="legend-dot" style="background:#eab308"></i>一般 5 ≤ D < 10</span>
-        <span><i class="legend-dot" style="background:#3b82f6"></i>低 D < 5</span>
+      <div class="app-risk-wrap">
+        <!-- 手机壳 -->
+        <div class="phone-frame">
+          <div class="phone-notch"></div>
+          <div class="phone-screen">
+            <div class="app-statusbar">
+              <span class="as-time">9:41</span>
+              <span class="as-icons">📶 🔋</span>
+            </div>
+            <div class="app-navbar">
+              <span class="an-back" v-if="appView !== 'home'" @click="appView='home'">&lsaquo;</span>
+              <span class="an-title" v-if="appView === 'home'">安全管理 · 铸锻件分公司</span>
+              <span class="an-title" v-else-if="appView === 'risk-map'">风险地图</span>
+              <span class="an-title" v-else-if="appView === 'tasks'">我的任务</span>
+              <span class="an-title" v-else-if="appView === 'profile'">个人中心</span>
+              <span class="an-title" v-else>{{ appModuleLabel || '功能模块' }}</span>
+            </div>
+
+            <!-- 主体（滚动） -->
+            <div class="app-body">
+              <!-- 前置页面：移动工作台 -->
+              <template v-if="appView === 'home'">
+                <div class="mob-user-card">
+                  <div class="muc-avatar">👷</div>
+                  <div class="muc-info">
+                    <div class="muc-name">陈文斌</div>
+                    <div class="muc-role">安全监督 · 铸锻件分公司</div>
+                  </div>
+                  <div class="muc-status on">🟢 在岗</div>
+                </div>
+                <div class="mob-menu-grid">
+                  <div class="mm-item" v-for="m in appHomeMenu" :key="m.key" @click="appGo(m.key)">
+                    <div class="mm-icon">{{ m.icon }}</div>
+                    <div class="mm-label">{{ m.label }}</div>
+                    <div class="mm-badge" v-if="m.badge">{{ m.badge }}</div>
+                  </div>
+                </div>
+                <div class="mob-banner" @click="appView='risk-map'">
+                  <div class="mb-icon">🗺️</div>
+                  <div class="mb-text">
+                    <div class="mb-title">厂区风险四色图</div>
+                    <div class="mb-desc">查看重大/较大/一般风险分布，点风险点看详情</div>
+                  </div>
+                  <div class="mb-arrow">›</div>
+                </div>
+                <div class="mob-section-title">今日任务</div>
+                <div class="mob-task-card" @click="appView='tasks'">
+                  <div class="mtc-header">
+                    <span class="mtc-title">📋 起重设备专项巡检</span>
+                    <span class="tag tag-orange">待执行</span>
+                  </div>
+                  <div class="mtc-meta">检查项 8 项 · 截止 今日 17:00</div>
+                  <div class="mtc-bar"><div class="mtc-fill" style="width:0%"></div></div>
+                </div>
+                <div class="mob-section-title">待处理事项</div>
+                <div class="mob-pending-card" @click="appView='tasks'">
+                  <div class="mpc-icon">✅</div>
+                  <div class="mpc-content">
+                    <div class="mpc-title">监护确认待办</div>
+                    <div class="mpc-desc">高处作业 · 厂房屋面通风器检修</div>
+                    <div class="mpc-time">提交于 07-14 16:30</div>
+                  </div>
+                  <div class="mpc-arrow">›</div>
+                </div>
+              </template>
+
+              <!-- 风险地图页 -->
+              <template v-else-if="appView === 'risk-map'">
+                <div class="mob-riskmap">
+                  <div class="mrm-legend">
+                    <span class="mrl-item"><i class="dot major"></i>重大</span>
+                    <span class="mrl-item"><i class="dot larger"></i>较大</span>
+                    <span class="mrl-item"><i class="dot normal"></i>一般</span>
+                    <span class="mrl-tip">点击风险点查看详情</span>
+                  </div>
+                  <div class="mrm-map">
+                    <svg viewBox="0 0 640 440" class="mrm-svg" preserveAspectRatio="xMidYMid meet">
+                      <g v-for="z in appRiskZones" :key="z.id">
+                        <rect :x="z.x" :y="z.y" :width="z.w" :height="z.h" :fill="z.fill" :stroke="z.color" stroke-width="1.5" rx="6"></rect>
+                        <text :x="z.x + 8" :y="z.y + 18" font-size="11" :fill="z.color" font-weight="600">{{ z.name }}</text>
+                        <text :x="z.x + z.w - 8" :y="z.y + 18" font-size="9" :fill="z.color" text-anchor="end">{{ z.level }}</text>
+                      </g>
+                      <g v-for="p in appRiskPoints" :key="p.id" class="mrm-point" @click="appSelectRisk(p.id)">
+                        <circle :cx="p.px" :cy="p.py" r="9" :fill="getRiskColor(p.level)" stroke="#fff" stroke-width="2"></circle>
+                        <circle v-if="p.status !== '正常'" :cx="p.px" :cy="p.py" r="9" fill="none" :stroke="getRiskColor(p.level)" stroke-width="2" class="mrm-pulse"></circle>
+                        <text :x="p.px" :y="p.py + 3.5" font-size="9" fill="#fff" text-anchor="middle" font-weight="700">{{ appRpIndex(p.id) }}</text>
+                      </g>
+                    </svg>
+                  </div>
+                  <div class="mrm-detail" v-if="appSelectedRisk">
+                    <div class="mrmd-head">
+                      <span class="mrmd-name">{{ appSelectedRisk.name }}</span>
+                      <span class="tag" :class="getLevelTag(appSelectedRisk.level)">{{ appSelectedRisk.level }}</span>
+                      <span class="mrmd-close" @click="appSelectedRiskId = null">✕</span>
+                    </div>
+                    <div class="mrmd-grid">
+                      <div class="mrmd-row"><span>风险分类</span><b>{{ appSelectedRisk.category }}</b></div>
+                      <div class="mrmd-row"><span>所属部门</span><b>{{ appSelectedRisk.dept }}</b></div>
+                      <div class="mrmd-row"><span>责任人</span><b>{{ appSelectedRisk.responsible }}</b></div>
+                      <div class="mrmd-row"><span>最近排查</span><b>{{ appSelectedRisk.lastReview }}</b></div>
+                      <div class="mrmd-row"><span>当前状态</span><b :class="appStatusClass(appSelectedRisk.status)">{{ appSelectedRisk.status }}</b></div>
+                    </div>
+                    <div class="mrmd-measures">
+                      <div class="mrmdm-label">管控措施</div>
+                      <div class="mrmdm-text">{{ appSelectedRisk.measures }}</div>
+                    </div>
+                  </div>
+                  <div class="mrm-empty" v-else>👆 点击地图上的风险点，查看风险详情与管控措施</div>
+                  <div class="mrm-list">
+                    <div class="mrmli" v-for="p in appRiskPoints" :key="p.id" :class="{ active: appSelectedRiskId === p.id }" @click="appSelectRisk(p.id)">
+                      <span class="mrmli-dot" :style="{ background: getRiskColor(p.level) }"></span>
+                      <span class="mrmli-name">{{ p.name }}</span>
+                      <span class="mrmli-level" :class="getLevelTag(p.level)">{{ p.level }}</span>
+                    </div>
+                  </div>
+                </div>
+              </template>
+
+              <!-- 我的任务 -->
+              <template v-else-if="appView === 'tasks'">
+                <div class="mob-section-title">今日巡检</div>
+                <div class="mob-task-card" @click="appView='home'">
+                  <div class="mtc-header">
+                    <span class="mtc-title">📋 起重设备专项巡检</span>
+                    <span class="tag tag-orange">待执行</span>
+                  </div>
+                  <div class="mtc-meta">检查项 8 项 · 截止 今日 17:00</div>
+                  <div class="mtc-bar"><div class="mtc-fill" style="width:0%"></div></div>
+                </div>
+                <div class="mob-section-title">待处理事项</div>
+                <div class="mob-pending-card" @click="appView='home'">
+                  <div class="mpc-icon">✅</div>
+                  <div class="mpc-content">
+                    <div class="mpc-title">监护确认待办</div>
+                    <div class="mpc-desc">高处作业 · 厂房屋面通风器检修</div>
+                    <div class="mpc-time">提交于 07-14 16:30</div>
+                  </div>
+                  <div class="mpc-arrow">›</div>
+                </div>
+                <div class="mob-empty">更多任务请在移动工作台查看</div>
+              </template>
+
+              <!-- 个人中心 -->
+              <template v-else-if="appView === 'profile'">
+                <div class="mob-profile">
+                  <div class="mpf-top">
+                    <div class="mpf-avatar">👷</div>
+                    <div class="mpf-name">陈文斌</div>
+                    <div class="mpf-role">安全监督 · 铸锻件分公司</div>
+                  </div>
+                  <div class="mpf-stats">
+                    <div class="mpf-stat"><b>12</b><span>本月巡检</span></div>
+                    <div class="mpf-stat"><b>3</b><span>上报隐患</span></div>
+                    <div class="mpf-stat"><b>5</b><span>监护确认</span></div>
+                  </div>
+                  <div class="mpf-list">
+                    <div class="mpf-row"><span>所属组织</span><b>太原重工 · 铸锻件分公司</b></div>
+                    <div class="mpf-row"><span>证件状态</span><b class="st-ok">有效期内</b></div>
+                    <div class="mpf-row"><span>当前状态</span><b class="st-ok">🟢 在岗</b></div>
+                  </div>
+                </div>
+              </template>
+
+              <!-- 其他模块占位 -->
+              <template v-else>
+                <div class="mob-module">
+                  <div class="mmd-icon">{{ (appHomeMenu.find(m=>m.label===appModuleLabel)||{}).icon || '📦' }}</div>
+                  <div class="mmd-name">{{ appModuleLabel }}</div>
+                  <div class="mmd-desc">该模块与「移动工作台」同源，本演示聚焦风险地图模块，其余功能以同样架构接入。</div>
+                  <button class="ph-btn outline" @click="appView='home'">返回首页</button>
+                </div>
+              </template>
+            </div>
+
+            <!-- 底部 Tab 栏（标准手机导航） -->
+            <div class="app-bottom-bar">
+              <div class="abb-item" :class="{ active: appView === 'home' }" @click="appView='home'">
+                <span class="abb-icon">🏠</span><span class="abb-label">首页</span>
+              </div>
+              <div class="abb-item" :class="{ active: appView === 'tasks' }" @click="appView='tasks'">
+                <span class="abb-icon">📋</span><span class="abb-label">任务</span>
+              </div>
+              <div class="abb-item" :class="{ active: appView === 'profile' }" @click="appView='profile'">
+                <span class="abb-icon">👤</span><span class="abb-label">我的</span>
+              </div>
+            </div>
+          </div>
+        </div>
+        <!-- 右侧注释卡 -->
+        <div class="app-ui-notes">
+          <div class="note-card"><h4>🏠 移动工作台（前置页）</h4><p>现场人员登录后的主面板：顶部展示身份与在岗状态，九宫格覆盖全部现场操作，底部「首页/任务/我的」为标准手机导航。点「风险地图」或横幅进入地图。</p></div>
+          <div class="note-card"><h4>🗺️ 风险四色图</h4><p>APP 自动按风险等级对厂区各区域着色，红/橙/黄呈现重大、较大、一般风险分布。</p></div>
+          <div class="note-card"><h4>👆 点击查看详情</h4><p>现场人员点击地图上的风险点，下钻查看风险分类、责任人、最近排查时间与管控措施。</p></div>
+          <div class="note-card"><h4>🔄 与 PC 端同源</h4><p>APP 风险地图与 PC 端四色图、风险台账数据同源，状态实时同步，发现问题可一键跳转随手拍上报。</p></div>
+        </div>
       </div>
     </div>
 
@@ -687,7 +862,42 @@ export default {
       selectedZone: '',
       zoneData: factoryZones,
       markerData: riskPoints,
-      workPermits
+      workPermits,
+
+      // APP 端风险地图
+      appSelectedRiskId: null,
+      appRiskZones: [
+        { id: 'zone-1', name: '熔炼铸造区', x: 60, y: 45, w: 170, h: 110, level: '重大', color: '#ef4444', fill: '#fef2f2' },
+        { id: 'zone-2', name: '锻压加工区', x: 260, y: 45, w: 160, h: 110, level: '重大', color: '#ef4444', fill: '#fef2f2' },
+        { id: 'zone-3', name: '热处理区', x: 450, y: 45, w: 150, h: 110, level: '较大', color: '#f59e0b', fill: '#fffbeb' },
+        { id: 'zone-4', name: '大型构件吊装区', x: 60, y: 180, w: 180, h: 110, level: '重大', color: '#ef4444', fill: '#fef2f2' },
+        { id: 'zone-5', name: '厂房屋面检修区', x: 270, y: 180, w: 170, h: 110, level: '较大', color: '#f59e0b', fill: '#fffbeb' },
+        { id: 'zone-6', name: '仓储装卸区', x: 470, y: 180, w: 150, h: 110, level: '一般', color: '#eab308', fill: '#fefce8' },
+        { id: 'zone-7', name: '能源介质区', x: 150, y: 320, w: 380, h: 100, level: '较大', color: '#f59e0b', fill: '#fffbeb' }
+      ],
+      appRiskPoints: [
+        { id: 'rp-1', name: '中频炉作业平台', category: '灼烫/爆炸', level: '重大', dept: '铸造车间', responsible: '张建国', measures: '炉前防护挡板、自动测温报警、紧急倾炉装置', lastReview: '2026-07-10', status: '正常', px: 110, py: 100 },
+        { id: 'rp-2', name: '浇注坑区域', category: '灼烫/起重伤害', level: '重大', dept: '铸造车间', responsible: '李明辉', measures: '浇注坑围栏、天车限位装置、高温警示', lastReview: '2026-07-08', status: '正常', px: 150, py: 135 },
+        { id: 'rp-3', name: '8000T锻压机工位', category: '机械伤害/噪声', level: '重大', dept: '锻压车间', responsible: '王志强', measures: '安全光幕、双手操作装置、隔音罩', lastReview: '2026-07-05', status: '正常', px: 350, py: 120 },
+        { id: 'rp-4', name: '桥式起重机A区', category: '起重伤害/物体打击', level: '重大', dept: '铸造车间', responsible: '刘大伟', measures: '吊索具日检、限位器、声光报警、警戒区域', lastReview: '2026-07-12', status: '隐患待整改', px: 150, py: 270 },
+        { id: 'rp-5', name: '厂房屋面通风器检修口', category: '高处坠落', level: '较大', dept: '机修车间', responsible: '孙志明', measures: '安全护栏、生命线系统、防坠落网', lastReview: '2026-07-03', status: '正常', px: 370, py: 270 },
+        { id: 'rp-6', name: '危险品暂存库', category: '火灾/爆炸/中毒', level: '较大', dept: '仓储车间', responsible: '陈文斌', measures: '防爆电气、可燃气体报警、通风联锁、MSDS告知', lastReview: '2026-07-09', status: '正常', px: 575, py: 265 },
+        { id: 'rp-7', name: '35kV变电站', category: '触电/火灾', level: '较大', dept: '动力车间', responsible: '孙志明', measures: '五防系统、绝缘监测、自动灭火装置', lastReview: '2026-07-01', status: '正常', px: 260, py: 415 }
+      ],
+
+      // APP 端视图导航
+      appView: 'home',
+      appModuleLabel: '',
+      appHomeMenu: [
+        { key: 'inspection', icon: '📋', label: '巡检任务' },
+        { key: 'hazard-report', icon: '📸', label: '随手拍' },
+        { key: 'guardian', icon: '🛡️', label: '监护确认', badge: 1 },
+        { key: 'work-permit', icon: '📝', label: '作业票' },
+        { key: 'duty-sign', icon: '🟢', label: '到岗签到' },
+        { key: 'message', icon: '🔔', label: '消息中心' },
+        { key: 'risk-map', icon: '🗺️', label: '风险地图' },
+        { key: 'profile', icon: '👤', label: '个人中心' }
+      ]
     }
   },
   computed: {
@@ -774,6 +984,9 @@ export default {
     zoneRisks() {
       if (!this.selectedZone) return []
       return this.riskLedger.filter(r => r.area === this.selectedZone)
+    },
+    appSelectedRisk() {
+      return this.appRiskPoints.find(p => p.id === this.appSelectedRiskId) || null
     },
     activeWorkPermits() {
       return this.workPermits.filter(w => w.status !== '草稿' && w.status !== '已归档')
@@ -975,13 +1188,18 @@ export default {
       this.selectedZone = this.selectedZone === zone.name ? '' : zone.name
     },
 
-    // ==== 风险矩阵 ====
-    getMatrixClass(l, c) {
-      const d = l * c
-      return d >= 20 ? 'cell-red' : d >= 10 ? 'cell-orange' : d >= 5 ? 'cell-yellow' : 'cell-blue'
-    },
-    getMatrixLevel(l, c) { return getRiskLevelByD(l * c) },
-    getMatrixDot(l, c) { return this.riskLedger.some(r => r.L === l && r.C === c) }
+    // ==== APP 风险地图 ====
+    appSelectRisk(id) { this.appSelectedRiskId = id },
+    appRpIndex(id) { return this.appRiskPoints.findIndex(p => p.id === id) + 1 },
+    appStatusClass(status) { return status === '正常' ? 'st-ok' : 'st-warn' },
+    appGo(key) {
+      if (key === 'risk-map') { this.appView = 'risk-map'; return }
+      if (key === 'profile' || key === '个人中心') { this.appView = 'profile'; return }
+      if (key === 'inspection' || key === 'guardian') { this.appView = 'tasks'; return }
+      const m = this.appHomeMenu.find(x => x.key === key)
+      this.appModuleLabel = m ? m.label : '功能模块'
+      this.appView = 'module'
+    }
   }
 }
 </script>
@@ -1257,20 +1475,122 @@ export default {
 }
 .lec-empty { padding: $space-3xl; text-align: center; color: $text-secondary; font-size: $font-base; }
 
-/* Matrix */
-.matrix-wrap { padding: $space-lg; overflow-x: auto; }
-.risk-matrix {
-  border-collapse: collapse; margin: 0 auto;
-  th, td { width: 72px; height: 52px; text-align: center; border: 1px solid $border; font-size: $font-xs; font-weight: 600; }
-  th { background: $bg-page; color: $text-secondary; }
-  .matrix-cell { position: relative; }
-  .cell-red { background: $danger-100; } .cell-orange { background: #fff7ed; }
-  .cell-yellow { background: #fffbeb; } .cell-blue { background: #e8f0fe; }
+/* ====== APP 端风险地图（手机壳） ====== */
+.app-risk-wrap { display: flex; gap: $space-2xl; align-items: flex-start; padding: 16px; flex-wrap: wrap; }
+.phone-frame { width: 380px; flex-shrink: 0; background: #1a1a2e; border-radius: 36px; padding: 12px; box-shadow: 0 8px 40px rgba(0,0,0,.25); }
+.phone-notch { width: 120px; height: 24px; background: #1a1a2e; margin: 0 auto 8px; border-radius: 0 0 18px 18px; }
+.phone-screen { background: #f5f5f5; border-radius: 24px; overflow: hidden; height: 660px; max-height: 660px; display: flex; flex-direction: column; font-size: 12px; }
+.app-statusbar { display: flex; justify-content: space-between; padding: 8px 20px; background: #2E7D32; color: #fff; font-size: 10px; }
+.app-navbar { display: flex; align-items: center; padding: 8px 16px; background: #fff; border-bottom: 1px solid #eee; min-height: 36px; }
+.app-navbar .an-back { font-size: 22px; color: #2E7D32; cursor: pointer; width: 24px; font-weight: 300; line-height: 1; flex-shrink: 0; }
+.app-navbar .an-title { flex: 1; text-align: center; font-weight: 600; font-size: 13px; color: $text-primary; }
+.app-body { flex: 1; overflow-y: auto; padding: 8px 12px; display: flex; flex-direction: column; gap: 8px; }
+
+.mrm-legend { display: flex; align-items: center; gap: 10px; font-size: 10px; color: #666; flex-wrap: wrap; }
+.mrl-item { display: flex; align-items: center; gap: 3px; }
+.mrl-item .dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
+.mrl-item .dot.major { background: #ef4444; }
+.mrl-item .dot.larger { background: #f59e0b; }
+.mrl-item .dot.normal { background: #eab308; }
+.mrl-tip { margin-left: auto; color: #999; font-style: italic; }
+.mrm-map { background: #fcfcfc; border-radius: 8px; border: 1px solid #eee; padding: 4px; }
+.mrm-svg { width: 100%; height: auto; display: block; }
+.mrm-point { cursor: pointer; }
+.mrm-point:hover circle:first-child { stroke: #2E7D32; }
+.mrm-pulse { animation: mrmPulse 1.6s ease-out infinite; }
+@keyframes mrmPulse { 0% { r: 9; opacity: .8; } 100% { r: 18; opacity: 0; } }
+
+.mrm-detail { background: #fff; border-radius: 8px; padding: 10px; border: 1px solid #e0e0e0; box-shadow: 0 1px 4px rgba(0,0,0,.06); }
+.mrmd-head { display: flex; align-items: center; gap: 6px; margin-bottom: 8px; }
+.mrmd-name { flex: 1; font-size: 13px; font-weight: 700; color: #333; }
+.mrmd-close { font-size: 14px; color: #999; cursor: pointer; width: 18px; text-align: center; }
+.mrmd-grid { display: flex; flex-direction: column; gap: 3px; margin-bottom: 8px; }
+.mrmd-row { display: flex; justify-content: space-between; font-size: 11px; padding: 3px 0; border-bottom: 1px solid #f5f5f5; }
+.mrmd-row span { color: #999; }
+.mrmd-row b { color: #333; font-weight: 500; }
+.mrmd-measures { background: #f0fdf4; border-radius: 6px; padding: 8px; }
+.mrmdm-label { font-size: 10px; color: #43A047; font-weight: 600; margin-bottom: 3px; }
+.mrmdm-text { font-size: 11px; color: #555; line-height: 1.5; }
+.mrm-empty { text-align: center; font-size: 11px; color: #999; padding: 14px; background: #fff; border-radius: 8px; border: 1px dashed #ddd; }
+.mrm-list { display: flex; flex-direction: column; gap: 4px; }
+.mrmli { display: flex; align-items: center; gap: 8px; background: #fff; border-radius: 6px; padding: 7px 8px; font-size: 11px; cursor: pointer; border: 1px solid transparent; }
+.mrmli.active { border-color: #43A047; background: #f0fdf4; }
+.mrmli-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+.mrmli-name { flex: 1; color: #333; }
+.mrmli-level { font-size: 9px; padding: 1px 7px; border-radius: 9px; font-weight: 600; }
+.lv-major { background: #fee2e2; color: #dc2626; }
+.lv-larger { background: #fef3c7; color: #d97706; }
+.lv-normal { background: #fef9c3; color: #a16207; }
+.st-ok { color: #16a34a !important; }
+.st-warn { color: #dc2626 !important; }
+
+/* 底部 Tab 栏（标准手机导航） */
+.app-bottom-bar { display: flex; border-top: 1px solid #e5e5e5; background: #fff; flex-shrink: 0; }
+.abb-item { flex: 1; text-align: center; padding: 6px 0 8px; cursor: pointer; color: #9aa0a6; transition: color .15s; }
+.abb-item.active { color: #2E7D32; }
+.abb-icon { font-size: 17px; display: block; line-height: 1.2; }
+.abb-label { font-size: 9px; display: block; margin-top: 1px; }
+
+/* 移动工作台（前置页） */
+.mob-user-card { background: linear-gradient(135deg, #43A047, #66BB6A); border-radius: 10px; padding: 12px; color: #fff; display: flex; align-items: center; gap: 10px; }
+.muc-avatar { font-size: 30px; }
+.muc-info { flex: 1; }
+.muc-name { font-size: 14px; font-weight: 700; }
+.muc-role { font-size: 10px; opacity: .85; }
+.muc-status { font-size: 10px; background: rgba(255,255,255,.2); border-radius: 12px; padding: 3px 10px; font-weight: 500; }
+
+.mob-menu-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+.mm-item { background: #fff; border-radius: 8px; padding: 12px 6px; text-align: center; box-shadow: 0 1px 3px rgba(0,0,0,.06); position: relative; cursor: pointer; &:active { background: #f0f0f0; } }
+.mm-icon { font-size: 22px; margin-bottom: 4px; }
+.mm-label { font-size: 10px; color: #333; font-weight: 500; }
+.mm-badge { position: absolute; top: 4px; right: 4px; background: #F44336; color: #fff; font-size: 8px; min-width: 14px; height: 14px; line-height: 14px; border-radius: 7px; text-align: center; padding: 0 3px; }
+
+.mob-banner { display: flex; align-items: center; gap: 10px; background: linear-gradient(135deg, #e3f2fd, #f0f9ff); border: 1px solid #bfdbfe; border-radius: 10px; padding: 10px 12px; cursor: pointer; }
+.mb-icon { font-size: 24px; }
+.mb-text { flex: 1; }
+.mb-title { font-size: 12px; font-weight: 700; color: #1565C0; }
+.mb-desc { font-size: 10px; color: #555; margin-top: 1px; }
+.mb-arrow { font-size: 20px; color: #1565C0; }
+
+.mob-section-title { font-size: 12px; font-weight: 600; color: #333; padding-left: 2px; margin-top: 4px; }
+
+.mob-task-card { background: #fff; border-radius: 10px; padding: 10px; box-shadow: 0 1px 4px rgba(0,0,0,.06); cursor: pointer; &.done { opacity: .7; }
+  .mtc-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px; }
+  .mtc-title { font-size: 12px; font-weight: 600; color: #333; }
+  .mtc-meta { font-size: 10px; color: #999; margin-bottom: 6px; }
+  .mtc-bar { height: 4px; background: #e0e0e0; border-radius: 2px; overflow: hidden; }
+  .mtc-fill { height: 100%; background: linear-gradient(90deg, #43A047, #66BB6A); border-radius: 2px; }
 }
-.matrix-dot { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); font-size: 8px; }
-.matrix-legend { display: flex; gap: $space-lg; justify-content: center; padding: 0 $space-lg $space-lg; font-size: $font-xs; color: $text-secondary; flex-wrap: wrap; }
-.matrix-legend span { display: flex; align-items: center; gap: 6px; padding: 4px 12px; border-radius: 999px; background: #f8fafc; border: 1px solid $gray-200; }
-.legend-dot { display: inline-block; width: 10px; height: 10px; border-radius: 3px; margin-right: 0; }
+.mob-pending-card { display: flex; align-items: center; gap: 10px; background: #fff; border-radius: 10px; padding: 10px; box-shadow: 0 1px 4px rgba(0,0,0,.06); cursor: pointer; border-left: 3px solid #f59e0b;
+  .mpc-icon { font-size: 24px; }
+  .mpc-content { flex: 1; }
+  .mpc-title { font-size: 12px; font-weight: 600; color: #333; }
+  .mpc-desc { font-size: 10px; color: #666; }
+  .mpc-time { font-size: 9px; color: #999; }
+  .mpc-arrow { font-size: 18px; color: #ccc; }
+}
+
+/* 个人中心 */
+.mob-profile { display: flex; flex-direction: column; gap: 10px; }
+.mpf-top { background: linear-gradient(135deg, #43A047, #66BB6A); border-radius: 12px; padding: 16px; text-align: center; color: #fff; }
+.mpf-avatar { font-size: 40px; }
+.mpf-name { font-size: 16px; font-weight: 700; margin-top: 4px; }
+.mpf-role { font-size: 11px; opacity: .85; }
+.mpf-stats { display: flex; background: #fff; border-radius: 10px; padding: 12px 0; box-shadow: 0 1px 4px rgba(0,0,0,.06); }
+.mpf-stat { flex: 1; text-align: center; b { font-size: 18px; color: #2E7D32; display: block; } span { font-size: 9px; color: #999; } }
+.mpf-list { background: #fff; border-radius: 10px; overflow: hidden; box-shadow: 0 1px 4px rgba(0,0,0,.06); }
+.mpf-row { display: flex; justify-content: space-between; padding: 10px 12px; font-size: 11px; border-bottom: 1px solid #f5f5f5; &:last-child { border: none; } span { color: #999; } b { color: #333; } }
+
+/* 模块占位 */
+.mob-module { text-align: center; padding: 30px 16px; }
+.mmd-icon { font-size: 44px; margin-bottom: 10px; }
+.mmd-name { font-size: 16px; font-weight: 700; color: #333; margin-bottom: 8px; }
+.mmd-desc { font-size: 11px; color: #999; line-height: 1.6; margin-bottom: 16px; }
+
+.app-ui-notes { flex: 1; display: flex; flex-direction: column; gap: $space-base; min-width: 240px; }
+.note-card { background: #fff; border-radius: $radius-base; padding: $space-base $space-lg; border: 1px solid $border; border-left: 3px solid #4CAF50; }
+.note-card h4 { font-size: $font-sm; color: $text-primary; margin-bottom: $space-xs; }
+.note-card p { font-size: $font-xs; color: $text-secondary; line-height: 1.5; }
 
 /* Drawer */
 .drawer-mask { position: fixed; inset: 0; background: rgba(15, 23, 42, .36); z-index: 90; }

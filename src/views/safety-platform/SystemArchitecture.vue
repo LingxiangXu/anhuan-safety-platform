@@ -13,7 +13,7 @@
           <div class="layer-items">
             <span class="layer-tag">目标职责</span><span class="layer-tag">制度化管理</span><span class="layer-tag">教育培训</span>
             <span class="layer-tag">现场管理</span><span class="layer-tag">风险管理</span>
-            <span class="layer-tag">BPM审批对接</span><span class="layer-tag">隐患治理</span>
+            <span class="layer-tag">OA审批集成</span><span class="layer-tag">隐患治理</span>
             <span class="layer-tag">持续改进</span><span class="layer-tag">系统管理</span>
           </div>
         </div>

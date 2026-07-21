@@ -12,6 +12,7 @@ import Roles from '@/views/safety-platform/Roles.vue';
 
 import Dashboard from '@/views/safety-platform/Dashboard.vue';
 import HazardSupervision from '@/views/safety-platform/HazardSupervision.vue';
+import InspectionManagement from '@/views/safety-platform/InspectionManagement.vue';
 import SpecialWork from '@/views/safety-platform/SpecialWork.vue';
 import RiskManagement from '@/views/safety-platform/RiskManagement.vue';
 import TrainingManagement from '@/views/safety-platform/TrainingManagement.vue';
@@ -43,6 +44,7 @@ const routes = [
 
       { path: 'dashboard', name: 'Dashboard', component: Dashboard },
       { path: 'hazard-supervision', name: 'HazardSupervision', component: HazardSupervision },
+      { path: 'inspection-management', name: 'InspectionManagement', component: InspectionManagement },
       { path: 'special-work', name: 'SpecialWork', component: SpecialWork },
       { path: 'risk-management', name: 'RiskManagement', component: RiskManagement },
       { path: 'bpm-integration', name: 'BpmIntegration', component: BpmIntegration },

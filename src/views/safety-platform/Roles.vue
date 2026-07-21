@@ -8,9 +8,9 @@
         <table class="role-table">
           <thead><tr><th>组织层级</th><th>数据范围</th><th>日常业务责任</th></tr></thead>
           <tbody>
-            <tr><td><strong>太重集团</strong></td><td>查看全部组织及明细</td><td>集团安环可发起/跟踪/关闭集团级督办；集团领导只查看和下钻</td></tr>
-            <tr><td>太原重工</td><td>查看本公司及下属各分子公司</td><td>只办理本公司所属事项，不代替下级公司办理其事项</td></tr>
-            <tr><td>太原重工各分子公司</td><td>查看并办理本公司事项</td><td>在本公司内部完成隐患、作业、人员和台账管理</td></tr>
+            <tr><td>太重集团</td><td>查看全部组织及明细</td><td>集团安环可发起/跟踪/关闭集团级督办；集团领导只查看和下钻</td></tr>
+            <tr><td><strong>太原重工</strong></td><td>查看本公司及下属各分子公司</td><td>只办理本公司所属事项，不代替下级公司办理其事项</td></tr>
+            <tr><td><strong>太原重工各分子公司</strong></td><td>查看并办理本公司事项</td><td>在本公司内部完成隐患、作业、人员和台账管理</td></tr>
           </tbody>
         </table>
       </div>
@@ -23,12 +23,12 @@
           <thead><tr><th>角色</th><th>主要终端</th><th>权限</th><th>关键动作</th></tr></thead>
           <tbody>
             <tr>
-              <td><span class="role-icon">👨‍💼</span> 集团领导</td><td><span class="tag tag-blue">📊 驾驶舱端</span></td><td><span class="tag tag-gray">全集团只读</span></td>
+              <td><span class="role-icon">👨‍💼</span> 公司领导</td><td><span class="tag tag-blue">📊 驾驶舱端</span></td><td><span class="tag tag-gray">全公司只读</span></td>
               <td>看驾驶舱、四色图、下钻异常和督办成效</td>
             </tr>
             <tr>
-              <td><span class="role-icon">👮</span> 集团安环管理人员</td><td><span class="tag tag-gray">💻 PC端</span></td><td><span class="tag tag-orange">督办权限</span></td>
-              <td>发起、催办、查看反馈、关闭集团级督办</td>
+              <td><span class="role-icon">👮</span> 公司安环管理人员</td><td><span class="tag tag-gray">💻 PC端</span></td><td><span class="tag tag-orange">督办权限</span></td>
+              <td>发起、催办、查看反馈、关闭公司级督办</td>
             </tr>
             <tr>
               <td><span class="role-icon">👨‍⚖️</span> 分子公司领导/授权审批领导</td><td><span class="tag tag-gray">💻 PC端</span></td><td><span class="tag tag-blue">审批权限</span></td>
@@ -54,32 +54,18 @@
     <section class="ov-section">
       <h3 class="section-title">关键权限原则</h3>
       <div class="principle-box">
-        <div class="p-item"><span class="p-num">01</span> <div><strong>能看见不等于能办理</strong><p>数据权限按集团—二级—三级穿透可见；业务流程始终由事项所属公司及其内部组织完成。</p></div></div>
-        <div class="p-item"><span class="p-num">02</span> <div><strong>集团督办独立于原业务流程</strong><p>集团安环对重大或逾期事项发起督办，督办为关联原单的独立单据，不替代所属公司办理原业务。</p></div></div>
+        <div class="p-item"><span class="p-num">01</span> <div><strong>能看见不等于能办理</strong><p>数据权限按公司—下属单位—基层现场穿透可见；业务流程始终由事项所属公司及其内部组织完成。</p></div></div>
+        <div class="p-item"><span class="p-num">02</span> <div><strong>安全督办独立于原业务流程</strong><p>公司安环对重大或逾期事项发起督办，督办为关联原单的独立单据，不替代所属公司办理原业务。</p></div></div>
         <div class="p-item"><span class="p-num">03</span> <div><strong>角色切换数据隔离</strong><p>切换角色后，组织树、数据范围、按钮权限和待办数量保持一致；上级只能查看下级数据，不能代办原单。</p></div></div>
       </div>
     </section>
 
-    <section class="ov-section">
-      <h3 class="section-title">示例：铸锻件分公司</h3>
-      <div class="dept-grid">
-        <div class="dept-card" v-for="d in depts" :key="d.name">
-          <span class="dept-icon">🏭</span>
-          <span class="dept-name">{{ d.name }}</span>
-          <span class="dept-zone">关联区域：{{ d.zone }}</span>
-        </div>
-      </div>
-    </section>
   </div>
 </template>
 
 <script>
-import { departments } from '@/store/safeData';
 export default {
-  name: 'Roles',
-  data() {
-    return { depts: JSON.parse(JSON.stringify(departments)) };
-  }
+  name: 'Roles'
 };
 </script>
 
@@ -109,13 +95,5 @@ export default {
   .p-num { width: 28px; height: 28px; border-radius: $radius-sm; background: $primary-bg; color: $primary; font-weight: 600; font-size: 12px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
   strong { font-size: $font-sm; color: $text-primary; display: block; margin-bottom: 2px; }
   p { font-size: $font-xs; color: $text-secondary; }
-}
-
-.dept-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: $space-sm; }
-.dept-card {
-  background: $gray-50; border-radius: $radius-base; padding: $space-base; text-align: center; border: 1px solid $border;
-  .dept-icon { font-size: 20px; display: block; margin-bottom: 4px; }
-  .dept-name { font-size: $font-sm; font-weight: 500; color: $text-primary; display: block; }
-  .dept-zone { font-size: 10px; color: $text-hint; }
 }
 </style>

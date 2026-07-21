@@ -152,7 +152,7 @@
         <span>🔧</span> 申请作业票
       </button>
       <button class="qbv2-btn" @click="$router.push('/safety-platform/bpm-integration')">
-        <span>🔗</span> BPM审批对接
+        <span>🔗</span> OA审批集成
       </button>
       <button class="qbv2-btn" @click="$router.push('/safety-platform/risk-management')">
         <span>🎯</span> 评价风险点
@@ -192,7 +192,7 @@ export default {
         { label: '待处置隐患', value: ds.pendingHazards, icon: '⏳', color: '#d97706', grad: 'linear-gradient(135deg, #d97706 0%, #fbbf24 100%)', sub: '需立即处理', unit: '' },
         { label: '进行中作业', value: ds.activeWorkPermits, icon: '🔧', color: '#2563eb', grad: 'linear-gradient(135deg, #2563eb 0%, #60a5fa 100%)', sub: '含阻断 ' + this.blockedPermits.length + ' 项', unit: '' },
         { label: '集团督办', value: ds.activeSupervisions, icon: '📨', color: '#dc2626', grad: 'linear-gradient(135deg, #b91c1c 0%, #ef4444 100%)', sub: '跟进中', unit: '' },
-        { label: 'BPM待审批', value: ds.bpmPendingCount || 3, icon: '🔗', color: '#0058AD', grad: 'linear-gradient(135deg, #0058AD 0%, #0075E6 100%)', sub: '平均' + (ds.bpmAvgTime || '4.6') + 'h审批', unit: '' },
+        { label: 'OA待审批', value: ds.bpmPendingCount || 3, icon: '🔗', color: '#0058AD', grad: 'linear-gradient(135deg, #0058AD 0%, #0075E6 100%)', sub: '平均' + (ds.bpmAvgTime || '4.6') + 'h审批', unit: '' },
         { label: '本月闭环', value: ds.closedThisMonth, icon: '✅', color: '#16a34a', grad: 'linear-gradient(135deg, #16a34a 0%, #4ade80 100%)', sub: '整改率 ' + ds.rectificationRate + '%', unit: '' }
       ];
     },

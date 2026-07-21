@@ -60,7 +60,7 @@ export default {
       msgTab: 'all',
       typeIcons: { alert: '🚨', todo: '📋', notice: '📢', info: 'ℹ️' },
       messages: [
-        { id: 1, type: 'alert', title: 'BPM审批超时预警', desc: '特种作业票（编号 ZYP-2026-0042）审批超48小时未处理', time: '今天 09:15', read: false },
+        { id: 1, type: 'alert', title: 'OA审批超时预警', desc: '特种作业票（编号 ZYP-2026-0042）审批超48小时未处理', time: '今天 09:15', read: false },
         { id: 2, type: 'todo', title: '隐患复查待办', desc: '锻压车间吊索具磨损隐患已整改待复查', time: '今天 08:30', read: false },
         { id: 3, type: 'alert', title: '特殊作业超时提醒', desc: '厂房屋面通风器高处作业已超计划时间', time: '昨天 17:40', read: false },
         { id: 4, type: 'todo', title: '监护确认待办', desc: '临时用电作业等待监护人现场确认', time: '昨天 16:20', read: false },

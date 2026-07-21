@@ -64,20 +64,20 @@ export const personnel = [
 ];
 
 // ==== 厂区区域定义 ====
-// ==== 厂区中心点（铸锻件分公司，太原市清徐县东大街1号） ====
-export const FACTORY_CENTER = { lng: 112.3538, lat: 37.605, address: '太原市清徐县东大街1号' };
+// ==== 厂区中心点 ====
+export const FACTORY_CENTER = { lng: 112.3538, lat: 37.605 };
 
 export const factoryZones = [
   { id: 'zone-1', name: '熔炼铸造区', x: 80, y: 60, w: 160, h: 110, riskLevel: '重大', riskColor: '#ef4444', deptId: 1, desc: '高温熔炼、浇注作业区域',
-    path: [[112.3520,37.6065],[112.3533,37.6065],[112.3533,37.6055],[112.3520,37.6055]] },
+    path: [[112.352,37.6065],[112.3533,37.6065],[112.3533,37.6055],[112.352,37.6055]] },
   { id: 'zone-2', name: '锻压加工区', x: 280, y: 60, w: 150, h: 110, riskLevel: '重大', riskColor: '#ef4444', deptId: 2, desc: '大型锻压设备运行区域',
     path: [[112.3536,37.6065],[112.3548,37.6065],[112.3548,37.6055],[112.3536,37.6055]] },
   { id: 'zone-3', name: '热处理区', x: 470, y: 60, w: 140, h: 110, riskLevel: '较大', riskColor: '#f59e0b', deptId: 3, desc: '热处理炉与淬火作业区域',
-    path: [[112.3550,37.6065],[112.3560,37.6065],[112.3560,37.6055],[112.3550,37.6055]] },
+    path: [[112.355,37.6065],[112.356,37.6065],[112.356,37.6055],[112.355,37.6055]] },
   { id: 'zone-4', name: '大型构件吊装区', x: 80, y: 210, w: 170, h: 120, riskLevel: '重大', riskColor: '#ef4444', deptId: 2, desc: '大型构件吊装与转运区域',
-    path: [[112.3520,37.6053],[112.3533,37.6053],[112.3533,37.6043],[112.3520,37.6043]] },
+    path: [[112.352,37.6053],[112.3533,37.6053],[112.3533,37.6043],[112.352,37.6043]] },
   { id: 'zone-5', name: '厂房屋面检修区', x: 290, y: 210, w: 180, h: 120, riskLevel: '较大', riskColor: '#f59e0b', deptId: 4, desc: '厂房屋面及高处设备检修区域',
-    path: [[112.3536,37.6053],[112.3550,37.6053],[112.3550,37.6043],[112.3536,37.6043]] },
+    path: [[112.3536,37.6053],[112.355,37.6053],[112.355,37.6043],[112.3536,37.6043]] },
   { id: 'zone-6', name: '仓储装卸区', x: 510, y: 210, w: 140, h: 120, riskLevel: '一般', riskColor: '#eab308', deptId: 5, desc: '物料仓储与装卸作业区域',
     path: [[112.3552,37.6053],[112.3563,37.6053],[112.3563,37.6043],[112.3552,37.6043]] },
   { id: 'zone-7', name: '能源介质区', x: 200, y: 370, w: 300, h: 100, riskLevel: '较大', riskColor: '#f59e0b', deptId: 4, desc: '变配电、压缩空气、燃气调压区域',
@@ -371,7 +371,7 @@ export const majorHazardSources = [
     deptId: 1,
     deptName: '铸造车间',
     zoneId: 'zone-1',
-    lng: 112.3526, lat: 37.6060,
+    lng: 112.3526, lat: 37.606,
     responsibleId: 1,
     responsibleName: '张建国',
     supervisorId: 2,
@@ -569,7 +569,7 @@ export const hazards = [
   }
 ];
 
-// ==== 集团督办状态枚举 ====
+// ==== 安全督办状态枚举 ====
 export const SUPERVISION_STATUS = {
   PENDING_RECEIVE: '待接收',
   FOLLOWING: '跟进中',
@@ -577,18 +577,18 @@ export const SUPERVISION_STATUS = {
   CLOSED: '已关闭'
 };
 
-// ==== 集团督办数据 ====
+// ==== 安全督办数据 ====
 export const supervisions = [
   {
     id: 'DB20260713001',
     hazardId: 'YH20260712001', hazardTitle: '桥式起重机A区吊索具磨损超标',
     severity: '重大', orgId: 3, orgName: '铸锻件分公司',
-    initiatorName: '集团安环·王总监', status: '跟进中',
+    initiatorName: '公司安环·王总监', status: '跟进中',
     opinion: '桥式起重机吊索具磨损涉及重大起重伤害风险，请铸锻件分公司立即组织排查、更换，并在2日内反馈处置进度',
     createTime: '2026-07-13 10:00', receiveTime: '2026-07-13 10:30',
     feedback: [],
     timeline: [
-      { time: '2026-07-13 10:00', action: '集团安环发起重大隐患督办', operator: '集团安环·王总监' },
+      { time: '2026-07-13 10:00', action: '公司安环发起重大隐患督办', operator: '公司安环·王总监' },
       { time: '2026-07-13 10:30', action: '铸锻件分公司确认接收督办', operator: '李明辉' }
     ]
   },
@@ -596,14 +596,14 @@ export const supervisions = [
     id: 'DB20260714001',
     hazardId: 'YH20260710001', hazardTitle: '中频炉冷却水系统压力偏低',
     severity: '重大', orgId: 3, orgName: '铸锻件分公司',
-    initiatorName: '集团安环·王总监', status: '跟进中',
+    initiatorName: '公司安环·王总监', status: '跟进中',
     opinion: '中频炉属于重大危险源，请每日汇报冷却系统检修进度，确保7月20日前完成',
     createTime: '2026-07-14 09:00', receiveTime: '2026-07-14 09:15',
     feedback: [
       { time: '2026-07-14 16:00', content: '已完成管路排查，发现两处微漏点，正在更换密封件，预计7月16日完成', operator: '李明辉' }
     ],
     timeline: [
-      { time: '2026-07-14 09:00', action: '集团安环就冷却系统隐患发起督办', operator: '集团安环·王总监' },
+      { time: '2026-07-14 09:00', action: '公司安环就冷却系统隐患发起督办', operator: '公司安环·王总监' },
       { time: '2026-07-14 09:15', action: '铸锻件分公司接收督办', operator: '李明辉' },
       { time: '2026-07-14 16:00', action: '提交首次处置进度反馈', operator: '李明辉' }
     ]
@@ -644,7 +644,7 @@ export const WORK_PERMIT_STEPS = [
 export const workPermits = [
   // 草稿状态 — 展示新建申请流程的起点
   {
-    id: 'GZ20260716001', workType: 'TEMPORARY_ELECTRICITY', status: '草稿',
+    id: 'GZ20260716003', workType: 'TEMPORARY_ELECTRICITY', status: '草稿',
     orgId: 3, deptId: 5, zoneId: 'zone-3', zoneName: '机加工车间南跨',
     title: '机加工车间南跨临时用电接线',
     applicantId: 9, applicantName: '赵明辉', applicantDept: '机加工车间',
@@ -876,11 +876,105 @@ export const dashboardStats = {
 // ==== 巡检任务 ====
 export const inspectionTasks = [
   { id: 'XJ20260715001', type: '日常巡检', title: '铸造车间区域巡检', assigneeId: 6, assigneeName: '陈文斌',
-    zoneId: 'zone-1', status: 'pending', deadline: '2026-07-15 17:00', checkItems: 12 },
+    zoneId: 'zone-1', zoneName: '熔炼铸造区', status: 'pending', deadline: '2026-07-15 17:00', checkItems: 12,
+    checklist: [
+      { label: '炉前防护挡板完好', done: false, result: '正常' },
+      { label: '自动测温报警装置运行正常', done: false, result: '正常' },
+      { label: '紧急倾炉装置测试合格', done: false, result: '正常' },
+      { label: '浇注坑围栏无损坏', done: false, result: '正常' },
+      { label: '天车限位装置灵敏', done: false, result: '正常' },
+      { label: '高温警示标识清晰', done: false, result: '正常' },
+      { label: '作业人员劳保穿戴规范', done: false, result: '正常' },
+      { label: '消防器材在位有效', done: false, result: '正常' },
+      { label: '安全通道畅通', done: false, result: '正常' },
+      { label: '电气线路无裸露', done: false, result: '正常' },
+      { label: '通风系统运行正常', done: false, result: '正常' },
+      { label: '应急照明测试合格', done: false, result: '正常' }
+    ] },
   { id: 'XJ20260715002', type: '日常巡检', title: '锻压车间区域巡检', assigneeId: 6, assigneeName: '陈文斌',
-    zoneId: 'zone-2', status: 'completed', deadline: '2026-07-15 12:00', checkItems: 10,
-    completedAt: '2026-07-15 10:30', result: '正常，发现吊索具磨损已上报' }
+    zoneId: 'zone-2', zoneName: '锻压加工区', status: 'completed', deadline: '2026-07-15 12:00', checkItems: 10,
+    completedAt: '2026-07-15 10:30', result: '正常，发现吊索具磨损已上报',
+    checklist: [
+      { label: '锻压设备安全光幕完好', done: true, result: '正常' },
+      { label: '双手操作装置灵敏', done: true, result: '正常' },
+      { label: '设备接地可靠', done: true, result: '正常' },
+      { label: '液压系统无泄漏', done: true, result: '正常' },
+      { label: '吊装作业警戒到位', done: true, result: '正常' },
+      { label: '作业人员劳保穿戴规范', done: true, result: '正常' },
+      { label: '设备急停按钮有效', done: true, result: '正常' },
+      { label: '安全通道畅通', done: true, result: '正常' },
+      { label: '消防设施在位有效', done: true, result: '正常' },
+      { label: '交接班记录完整', done: true, result: '正常' }
+    ] },
+
+  // 周期自动下发任务（模板，可按周期生成执行实例）
+  { id: 'XJ-CYCLE-001', type: '日常巡检', title: '熔炼铸造区班前安全巡检', assigneeId: 6, assigneeName: '陈文斌',
+    zoneId: 'zone-1', zoneName: '熔炼铸造区', status: 'cycle', dispatchMode: 'cycle', cycle: '每日', nextDispatch: '2026-07-21 07:30',
+    checkItems: 8, desc: '每班次开班前由现场人员完成安全确认后上岗',
+    checklist: [
+      { label: '炉前防护挡板完好无变形', done: false, result: '正常' },
+      { label: '自动测温报警装置运行正常', done: false, result: '正常' },
+      { label: '紧急倾炉装置现场测试合格', done: false, result: '正常' },
+      { label: '浇注坑围栏及盖板完好', done: false, result: '正常' },
+      { label: '天车大车/小车限位器灵敏', done: false, result: '正常' },
+      { label: '作业人员安全帽/防护镜/阻燃服穿戴规范', done: false, result: '正常' },
+      { label: '炉前消防沙箱及灭火器在位有效', done: false, result: '正常' },
+      { label: '应急通道畅通无堆积', done: false, result: '正常' }
+    ] },
+  { id: 'XJ-CYCLE-002', type: '专项巡检', title: '全厂起重设备周安全巡检', assigneeId: 3, assigneeName: '王志强',
+    zoneId: 'zone-4', zoneName: '大型构件吊装区', status: 'cycle', dispatchMode: 'cycle', cycle: '每周一', nextDispatch: '2026-07-20 08:00',
+    checkItems: 6, desc: '每周一由车间主任组织起重设备专项安全确认',
+    checklist: [
+      { label: '桥式起重机吊索具无磨损/无断丝', done: false, result: '正常' },
+      { label: '吊钩防脱装置有效', done: false, result: '正常' },
+      { label: '起升/运行限位器动作灵敏', done: false, result: '正常' },
+      { label: '声光报警及警示装置正常', done: false, result: '正常' },
+      { label: '钢丝绳润滑及排列状态良好', done: false, result: '正常' },
+      { label: '起重机轨道及行走区域无障碍', done: false, result: '正常' }
+    ] }
 ];
+
+// 通用巡检检查项模板（用于 PC 端新建任务时生成检查清单）
+export const COMMON_CHECK_ITEMS = [
+  '安全防护设施完好',
+  '设备运行正常无异常声响',
+  '安全警示标识清晰',
+  '作业人员劳保穿戴规范',
+  '消防器材在位有效',
+  '安全通道畅通',
+  '电气线路无裸露',
+  '应急照明测试合格',
+  '通风/除尘系统运行正常',
+  '作业区域无杂物堆积',
+  '特种作业人员持证上岗',
+  '交接班记录完整'
+];
+
+// 根据检查项数生成检查清单
+export function buildInspectionChecklist(n) {
+  const list = [];
+  const count = Math.max(1, Math.min(20, Number(n) || 10));
+  for (let i = 0; i < count; i++) {
+    list.push({ label: COMMON_CHECK_ITEMS[i % COMMON_CHECK_ITEMS.length], done: false, result: '正常' });
+  }
+  return list;
+}
+
+// 生成巡检任务编号：XJ + 日期 + 序号
+export function generateInspectionId() {
+  const d = new Date();
+  const p = (x) => String(x).padStart(2, '0');
+  const ymd = `${d.getFullYear()}${p(d.getMonth() + 1)}${p(d.getDate())}`;
+  const seq = String(inspectionTasks.length + 1).padStart(3, '0');
+  return `XJ${ymd}${seq}`;
+}
+
+// 计算巡检任务完成进度（百分比）
+export function getInspectionProgress(task) {
+  if (!task || !task.checklist || !task.checklist.length) return task && task.status === 'completed' ? 100 : 0;
+  const done = task.checklist.filter((i) => i.done).length;
+  return Math.round((done / task.checklist.length) * 100);
+}
 
 // ==== 风险等级枚举（LEC评价法） ====
 export const RISK_LEVEL = {
@@ -978,7 +1072,7 @@ export function getRiskLevelByD(D) {
   return { level: '低', color: '#0075E6', tag: 'blue' };
 }
 
-// ==== 培训管理状态枚举 ====
+// ==== 培训中心集成状态枚举 ====
 export const TRAINING_STATUS = {
   DRAFT: '待发布',
   IN_PROGRESS: '进行中',

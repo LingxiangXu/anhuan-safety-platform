@@ -1,8 +1,8 @@
 <template>
   <div class="bpm-integration">
     <div class="page-header">
-      <h2>BPM审批接口对接</h2>
-      <p class="page-subtitle">对接集团已有BPM流程引擎，实现安全审批业务统一流转：特殊作业许可、隐患整改督办、风险评价复核等审批环节推送至BPM，审批结果实时回调同步</p>
+      <h2>OA审批集成对接</h2>
+      <p class="page-subtitle">对接企业OA审批系统，实现安全审批业务统一流转：特殊作业许可、隐患整改督办、风险评价复核等审批环节推送至OA审批，审批结果实时回调同步</p>
     </div>
 
     <!-- 统计卡片 -->
@@ -23,7 +23,7 @@
     <div class="section-card">
       <div class="section-head">
         <h3 class="section-title">🏗️ 对接架构总览</h3>
-        <span class="section-sub">安全平台通过标准RESTful API与集团BPM流程引擎双向通信</span>
+        <span class="section-sub">安全平台通过标准RESTful API与OA审批平台双向通信</span>
       </div>
       <div class="arch-diagram">
         <div class="arch-layer arch-source">
@@ -47,7 +47,7 @@
         </div>
         <div class="arch-arrow">→</div>
         <div class="arch-layer arch-target">
-          <div class="arch-layer-title">集团BPM流程引擎（审批执行方）</div>
+          <div class="arch-layer-title">企业OA审批平台（审批执行方）</div>
           <div class="arch-nodes">
             <div class="arch-node bpm-node" v-for="b in bpmFunctions" :key="b">
               <span class="arch-node-name">{{ b }}</span>
@@ -61,7 +61,7 @@
     <div class="section-card">
       <div class="section-head">
         <h3 class="section-title">⚙️ 审批流程配置</h3>
-        <span class="section-sub">以下业务审批环节已配置为走BPM流程引擎</span>
+        <span class="section-sub">以下业务审批环节已配置为走OA审批</span>
       </div>
       <table class="data-table">
         <thead>
@@ -69,7 +69,7 @@
             <th style="width: 60px">序号</th>
             <th>业务模块</th>
             <th>审批环节</th>
-            <th>BPM流程编码</th>
+            <th>OA审批流程编码</th>
             <th>审批节点</th>
             <th style="width: 80px">状态</th>
           </tr>
@@ -91,7 +91,7 @@
     <div class="section-card">
       <div class="section-head">
         <h3 class="section-title">🔌 接口清单</h3>
-        <span class="section-sub">安全平台与BPM系统之间的标准接口定义</span>
+        <span class="section-sub">安全平台与OA审批系统之间的标准接口定义</span>
       </div>
       <table class="data-table">
         <thead>
@@ -145,7 +145,7 @@
     <div class="section-card">
       <div class="section-head">
         <h3 class="section-title">📝 最近审批记录</h3>
-        <span class="section-sub">通过BPM系统流转的审批记录（最近10条）</span>
+        <span class="section-sub">通过OA审批系统流转的审批记录（最近10条）</span>
       </div>
       <table class="data-table">
         <thead>
@@ -206,8 +206,7 @@ export default {
       sourceModules: [
         { icon: '⚙️', name: '特殊作业管控' },
         { icon: '🔍', name: '隐患治理督办' },
-        { icon: '⚠️', name: '风险管理' },
-        { icon: '📚', name: '培训管理' }
+        { icon: '⚠️', name: '风险管理' }
       ],
       bpmFunctions: [
         '流程定义引擎',
@@ -223,43 +222,42 @@ export default {
         { module: '特殊作业管控', step: '完工验收', bpmCode: 'SW-ACCEPTANCE-003', nodes: '安环专员→安环主管', status: '已上线' },
         { module: '隐患治理督办', step: '隐患整改分派', bpmCode: 'HZ-DISPATCH-001', nodes: '安环科→责任部门', status: '待上线' },
         { module: '隐患治理督办', step: '复查验收闭环', bpmCode: 'HZ-REVIEW-002', nodes: '整改人→安环科', status: '待上线' },
-        { module: '风险管理', step: 'LEC评价复核', bpmCode: 'RM-LEC-REVIEW-001', nodes: '安环专员→安环主管', status: '已上线' },
-        { module: '培训管理', step: '培训计划审批', bpmCode: 'TR-PLAN-APPROVAL-001', nodes: '培训专员→安环主管→分管副总', status: '待上线' }
+        { module: '风险管理', step: 'LEC评价复核', bpmCode: 'RM-LEC-REVIEW-001', nodes: '安环专员→安环主管', status: '已上线' }
       ],
       apiList: [
-        { method: 'POST', path: '/api/bpm/flow/start', desc: '发起审批流程（推送业务数据到BPM）', direction: '安全平台→BPM', status: '已联调' },
-        { method: 'GET', path: '/api/bpm/flow/status', desc: '查询流程审批状态（待办/已办/已驳回）', direction: '安全平台→BPM', status: '已联调' },
-        { method: 'GET', path: '/api/bpm/todo/list', desc: '获取当前用户待办任务列表', direction: '安全平台→BPM', status: '已联调' },
-        { method: 'GET', path: '/api/bpm/flow/history', desc: '获取流程审批历史记录', direction: '安全平台→BPM', status: '已联调' },
-        { method: 'POST', path: '/api/bpm/flow/urge', desc: '催办待审批任务（超时自动触发）', direction: '安全平台→BPM', status: '已联调' },
-        { method: 'POST', path: '/api/safety/approval/callback', desc: '审批结果回调（BPM推送审批结果到安全平台）', direction: 'BPM→安全平台', status: '已联调' },
-        { method: 'POST', path: '/api/safety/approval/terminate', desc: '流程终止通知（BPM通知安全平台流程被终止）', direction: 'BPM→安全平台', status: '已联调' },
-        { method: 'GET', path: '/api/bpm/user/approvers', desc: '获取可用的审批人列表（按角色/部门）', direction: '安全平台→BPM', status: '已联调' }
+        { method: 'POST', path: '/api/oa/flow/start', desc: '发起审批流程（推送业务数据到OA）', direction: '安全平台→OA', status: '已联调' },
+        { method: 'GET', path: '/api/oa/flow/status', desc: '查询流程审批状态（待办/已办/已驳回）', direction: '安全平台→OA', status: '已联调' },
+        { method: 'GET', path: '/api/oa/todo/list', desc: '获取当前用户待办任务列表', direction: '安全平台→OA', status: '已联调' },
+        { method: 'GET', path: '/api/oa/flow/history', desc: '获取流程审批历史记录', direction: '安全平台→OA', status: '已联调' },
+        { method: 'POST', path: '/api/oa/flow/urge', desc: '催办待审批任务（超时自动触发）', direction: '安全平台→OA', status: '已联调' },
+        { method: 'POST', path: '/api/safety/approval/callback', desc: '审批结果回调（OA推送审批结果到安全平台）', direction: 'OA→安全平台', status: '已联调' },
+        { method: 'POST', path: '/api/safety/approval/terminate', desc: '流程终止通知（OA通知安全平台流程被终止）', direction: 'OA→安全平台', status: '已联调' },
+        { method: 'GET', path: '/api/oa/user/approvers', desc: '获取可用的审批人列表（按角色/部门）', direction: '安全平台→OA', status: '已联调' }
       ],
       implSteps: [
-        { label: '需求分析', role: '业务+研发', desc: '梳理安全审批场景，确认走BPM的审批环节，定义流程编码和审批节点' },
+        { label: '需求分析', role: '业务+研发', desc: '梳理安全审批场景，确认走OA的审批环节，定义流程编码和审批节点' },
         { label: '接口设计', role: '双方研发', desc: '设计RESTful接口规范，定义请求/响应JSON结构，约定鉴权方式（OAuth2 Token）' },
-        { label: '接口开发', role: '双方研发', desc: '安全平台开发推送逻辑，BPM侧配置流程模板和回调接口' },
+        { label: '接口开发', role: '双方研发', desc: '安全平台开发推送逻辑，OA侧配置流程模板和回调接口' },
         { label: '联调测试', role: '双方研发+测试', desc: '端到端联调，覆盖正常审批/驳回/超时/终止等场景，验证数据一致性' },
         { label: '上线运行', role: '运维+业务', desc: '灰度上线，监控接口调用成功率和响应时间，逐步全量切换' }
       ],
       approvalRecords: [
-        { id: 'BPM-20260717-008', type: '特殊作业', title: 'GZ20260716001 临时用电作业许可', applicant: '王志强', approver: '李明亮（安环主管）', time: '2026-07-17 09:15', status: '审批中', badge: 'info' },
-        { id: 'BPM-20260717-007', type: '风险管理', title: 'LEC-006 风险评价复核', applicant: '赵海峰', approver: '李明亮（安环主管）', time: '2026-07-17 08:40', status: '已通过', badge: 'success' },
-        { id: 'BPM-20260716-012', type: '特殊作业', title: 'GZ20260715003 高处作业许可', applicant: '孙伟', approver: '张建国（车间主任）', time: '2026-07-16 16:20', status: '已通过', badge: 'success' },
-        { id: 'BPM-20260716-011', type: '特殊作业', title: 'GZ20260715002 吊装作业许可', applicant: '刘洋', approver: '张建国（车间主任）', time: '2026-07-16 14:05', status: '已驳回', badge: 'danger' },
-        { id: 'BPM-20260716-010', type: '风险管理', title: 'LEC-005 风险评价复核', applicant: '赵海峰', approver: '李明亮（安环主管）', time: '2026-07-16 10:30', status: '已通过', badge: 'success' },
-        { id: 'BPM-20260715-009', type: '特殊作业', title: 'GZ20260714001 高处作业许可', applicant: '孙伟', approver: '张建国（车间主任）', time: '2026-07-15 15:45', status: '已通过', badge: 'success' },
-        { id: 'BPM-20260715-008', type: '特殊作业', title: 'GZ20260714002 临时用电作业许可', applicant: '王志强', approver: '李明亮（安环主管）', time: '2026-07-15 11:20', status: '已通过', badge: 'success' },
-        { id: 'BPM-20260714-007', type: '风险管理', title: 'LEC-004 风险评价复核', applicant: '赵海峰', approver: '李明亮（安环主管）', time: '2026-07-14 09:30', status: '已通过', badge: 'success' },
-        { id: 'BPM-20260714-006', type: '特殊作业', title: 'GZ20260713001 吊装作业许可', applicant: '刘洋', approver: '张建国（车间主任）', time: '2026-07-14 08:15', status: '已通过', badge: 'success' },
-        { id: 'BPM-20260713-005', type: '特殊作业', title: 'GZ20260712002 高处作业许可', applicant: '孙伟', approver: '张建国（车间主任）', time: '2026-07-13 14:50', status: '已通过', badge: 'success' }
+        { id: 'OA-20260717-008', type: '特殊作业', title: 'GZ20260716001 临时用电作业许可', applicant: '王志强', approver: '李明亮（安环主管）', time: '2026-07-17 09:15', status: '审批中', badge: 'info' },
+        { id: 'OA-20260717-007', type: '风险管理', title: 'LEC-006 风险评价复核', applicant: '赵海峰', approver: '李明亮（安环主管）', time: '2026-07-17 08:40', status: '已通过', badge: 'success' },
+        { id: 'OA-20260716-012', type: '特殊作业', title: 'GZ20260715003 高处作业许可', applicant: '孙伟', approver: '张建国（车间主任）', time: '2026-07-16 16:20', status: '已通过', badge: 'success' },
+        { id: 'OA-20260716-011', type: '特殊作业', title: 'GZ20260715002 吊装作业许可', applicant: '刘洋', approver: '张建国（车间主任）', time: '2026-07-16 14:05', status: '已驳回', badge: 'danger' },
+        { id: 'OA-20260716-010', type: '风险管理', title: 'LEC-005 风险评价复核', applicant: '赵海峰', approver: '李明亮（安环主管）', time: '2026-07-16 10:30', status: '已通过', badge: 'success' },
+        { id: 'OA-20260715-009', type: '特殊作业', title: 'GZ20260714001 高处作业许可', applicant: '孙伟', approver: '张建国（车间主任）', time: '2026-07-15 15:45', status: '已通过', badge: 'success' },
+        { id: 'OA-20260715-008', type: '特殊作业', title: 'GZ20260714002 临时用电作业许可', applicant: '王志强', approver: '李明亮（安环主管）', time: '2026-07-15 11:20', status: '已通过', badge: 'success' },
+        { id: 'OA-20260714-007', type: '风险管理', title: 'LEC-004 风险评价复核', applicant: '赵海峰', approver: '李明亮（安环主管）', time: '2026-07-14 09:30', status: '已通过', badge: 'success' },
+        { id: 'OA-20260714-006', type: '特殊作业', title: 'GZ20260713001 吊装作业许可', applicant: '刘洋', approver: '张建国（车间主任）', time: '2026-07-14 08:15', status: '已通过', badge: 'success' },
+        { id: 'OA-20260713-005', type: '特殊作业', title: 'GZ20260712002 高处作业许可', applicant: '孙伟', approver: '张建国（车间主任）', time: '2026-07-13 14:50', status: '已通过', badge: 'success' }
       ],
       notes: [
-        { icon: '🔐', title: '鉴权方式', text: '采用OAuth2 Client Credentials模式，安全平台和BPM系统互为可信客户端，Token有效期2小时，自动刷新。' },
+        { icon: '🔐', title: '鉴权方式', text: '采用OAuth2 Client Credentials模式，安全平台和OA审批系统互为可信客户端，Token有效期2小时，自动刷新。' },
         { icon: '🔄', title: '数据同步', text: '审批状态变更通过Webhook回调实时同步，同时每5分钟全量轮询补偿，确保数据最终一致性。' },
         { icon: '📄', title: '数据格式', text: '统一使用JSON格式，业务数据包含流程编码、业务ID、标题、发起人、审批人列表、附件URL等字段。' },
-        { icon: '⏰', title: '超时处理', text: 'BPM侧配置审批超时规则（普通24h/紧急4h），超时自动催办并通知安全平台，安全平台同步展示预警。' },
+        { icon: '⏰', title: '超时处理', text: 'OA侧配置审批超时规则（普通24h/紧急4h），超时自动催办并通知安全平台，安全平台同步展示预警。' },
         { icon: '🔁', title: '重试机制', text: '接口调用失败自动重试3次（间隔10s/30s/60s），仍失败则记录异常日志并告警运维。' },
         { icon: '📡', title: '监控告警', text: '接口调用成功率、响应时间、待办积压量等指标接入统一监控面板，异常自动钉钉/邮件告警。' }
       ]
