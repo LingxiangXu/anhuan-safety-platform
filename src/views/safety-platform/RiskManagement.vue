@@ -384,11 +384,11 @@
     <div class="section-card" v-show="activeTab === 'map'">
       <div class="section-head">
         <h3 class="section-title">🗺️ 风险四色图</h3>
-        <span class="section-sub">基于高德地图真实地理位置，展现厂区 7 大风险区域与 7 个风险点、3 个重点风险源</span>
+        <span class="section-sub">基于高德地图真实地理位置，展现厂区 7 大风险区域与 7 个风险点</span>
       </div>
       <div class="map-wrap">
         <RealMap
-          :height="'460px'"
+          :height="'520px'"
           :zones="zoneData"
           :markers="markerData"
           :work-permits="activeWorkPermits"

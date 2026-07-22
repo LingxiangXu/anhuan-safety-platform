@@ -92,7 +92,7 @@
           <span>铸锻件分公司 · 厂区风险四色图</span>
           <span class="tag tag-blue">高德地图</span>
         </div>
-        <RealMap :height="'100%'" />
+        <RealMap :height="'100%'" :zoom="19" :fit-view="false" />
       </div>
 
       <!-- 右侧：特殊作业 + 督办 -->

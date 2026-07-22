@@ -21,9 +21,6 @@
       <div class="stat-item" @click="setFilter('danger')" :class="{ active: activeFilter === 'danger' }">
         <span class="stat-num stat-orange">{{ dangerCount }}</span><span class="stat-label">较大</span>
       </div>
-      <div class="stat-item" @click="setFilter('major')" :class="{ active: activeFilter === 'major' }">
-        <span class="stat-num stat-red">{{ majorHazardCount }}</span><span class="stat-label">重点风险源</span>
-      </div>
     </div>
 
     <!-- 覆盖层：信息面板 -->
@@ -48,13 +45,12 @@
 </template>
 
 <script>
-import { factoryZones, riskPoints, majorHazardSources, FACTORY_CENTER, PARK_BOUNDARY } from '@/store/safeData';
+import { factoryZones, riskPoints, FACTORY_CENTER, PARK_BOUNDARY } from '@/store/safeData';
 
 // 风险等级 → 填充色映射
 const LEVEL_COLORS = { '重大': '#fef2f2', '较大': '#fff7ed', '一般': '#fffbeb', '低': '#ecfdf5' };
 const LEVEL_STROKES = { '重大': '#ef4444', '较大': '#f59e0b', '一般': '#eab308', '低': '#3b82f6' };
 const MARKER_COLORS = { '重大': '#ef4444', '较大': '#f59e0b', '一般': '#eab308', '低': '#3b82f6' };
-const HAZARD_LEVEL_COLORS = { '一级': '#7f1d1d', '二级': '#ef4444', '三级': '#f59e0b', '四级': '#3b82f6' };
 
 export default {
   name: 'RealMap',
@@ -66,7 +62,7 @@ export default {
     markers: { type: Array, default: () => [] },
     workPermits: { type: Array, default: () => [] },
     center: { type: Object, default: () => ({ lng: 112.51, lat: 37.58 }) },
-    zoom: { type: Number, default: 16 },
+    zoom: { type: Number, default: 18 },
     fitView: { type: Boolean, default: true },
     clickable: { type: Boolean, default: true }
   },
@@ -75,7 +71,6 @@ export default {
       map: null,
       polygons: [],
       markerList: [],
-      hazardMarkers: [],
       activeFilter: 'all',
       activeInfo: null,
       loaded: false
@@ -84,10 +79,8 @@ export default {
   computed: {
     zoneData() { return this.zones.length ? this.zones : factoryZones; },
     markerData() { return this.markers.length ? this.markers : riskPoints; },
-    hazardData() { return majorHazardSources; },
     criticalCount() { return this.zoneData.filter(z => z.riskLevel === '重大').length; },
-    dangerCount() { return this.zoneData.filter(z => z.riskLevel === '较大').length; },
-    majorHazardCount() { return this.hazardData.length; }
+    dangerCount() { return this.zoneData.filter(z => z.riskLevel === '较大').length; }
   },
   mounted() {
     this.waitForAMap();
@@ -108,8 +101,16 @@ export default {
         mapStyle: 'amap://styles/light',
         features: ['bg', 'road', 'building', 'point'],
         viewMode: '2D',
-        resizeEnable: true
+        resizeEnable: true,
+        scrollWheel: true,
+        zoomEnable: true
       });
+      // 添加 +/- 缩放控件，方便演示现场手动放大/缩小
+      try {
+        if (window.AMap && window.AMap.Zoom) {
+          this.map.addControl(new window.AMap.Zoom({ position: 'LT' }));
+        }
+      } catch (e) { /* 控件不可用不影响主功能 */ }
       this.map.on('complete', () => {
         this.loaded = true;
         this.buildLayers();
@@ -118,11 +119,19 @@ export default {
     buildLayers() {
       this.drawZones();
       this.drawRiskPoints();
-      this.drawMajorHazards();
       this.drawWorkPermits();
       this.drawParkBoundary();
       if (this.fitView) {
-        this.map.setFitView(null, false, [80, 80, 80, 280]);
+        // 仅按风险区域与风险点自适应，排除庞大的厂区边界，避免整图被缩得太小
+        const overlays = [
+          ...this.polygons.map(p => p.poly),
+          ...this.markerList.map(m => m.marker)
+        ];
+        this.map.setFitView(overlays.length ? overlays : null, false, [40, 40, 80, 40]);
+        // 设最低缩放下限，保证默认视野足够大、看得清
+        if (this.map.getZoom() < this.zoom) {
+          this.map.setZoom(this.zoom);
+        }
       } else {
         this.map.setZoomAndCenter(this.zoom, [this.center.lng, this.center.lat]);
       }
@@ -198,44 +207,6 @@ export default {
         marker.setMap(this.map);
         label.setMap(this.map);
         this.markerList.push({ marker, riskPoint: rp, label });
-      });
-    },
-    drawMajorHazards() {
-      this.hazardData.forEach(mh => {
-        if (!mh.lng || !mh.lat) return;
-        const color = HAZARD_LEVEL_COLORS[mh.level] || '#ef4444';
-        const icon = this.createDangerMarker(color);
-        const marker = new window.AMap.Marker({
-          position: [mh.lng, mh.lat],
-          icon: icon,
-          offset: new window.AMap.Pixel(-14, -14),
-          extData: { hazard: mh }
-        });
-        if (this.clickable) {
-          marker.on('click', () => {
-            this.activeInfo = {
-              name: '☢ ' + mh.name,
-              level: mh.level + '重大危险源',
-              color: color,
-              desc: 'R值: ' + mh.R_value + ' | ' + mh.classification.basis,
-              monitoring: mh.monitoring
-            };
-          });
-        }
-        marker.setMap(this.map);
-        // 名称标签
-        const label = new window.AMap.Text({
-          text: '☢ ' + mh.name.slice(0, 10),
-          position: [mh.lng, mh.lat],
-          offset: new window.AMap.Pixel(18, -4),
-          style: {
-            'font-size': '10px', 'font-weight': '600', 'color': color,
-            'background': 'rgba(255,255,255,0.95)', 'border': '1px solid ' + color,
-            'border-radius': '3px', 'padding': '1px 5px', 'white-space': 'nowrap', 'pointer-events': 'none'
-          }
-        });
-        label.setMap(this.map);
-        this.hazardMarkers.push({ marker, hazard: mh, label });
       });
     },
     drawWorkPermits() {
@@ -320,14 +291,6 @@ export default {
       return new window.AMap.Icon({
         size: new window.AMap.Size(24, 24),
         imageSize: new window.AMap.Size(24, 24),
-        image: 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svg)
-      });
-    },
-    createDangerMarker(color) {
-      const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="28" height="28"><polygon points="14,2 26,24 2,24" fill="${color}" opacity="0.9" stroke="#fff" stroke-width="2"/><text x="14" y="18" text-anchor="middle" font-size="11" fill="#fff" font-weight="bold">!</text></svg>`;
-      return new window.AMap.Icon({
-        size: new window.AMap.Size(28, 28),
-        imageSize: new window.AMap.Size(28, 28),
         image: 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svg)
       });
     }
