@@ -129,7 +129,7 @@
           </div>
 
           <div class="dv2-divider"></div>
-          <div class="dv2-mini-label">📨 集团督办</div>
+          <div class="dv2-mini-label">📨 安全督办</div>
           <div class="wlv2-item" v-for="s in activeSupervisions" :key="s.id"
             @click="$router.push('/safety-platform/hazard-supervision')">
             <span class="wlv2-dot dot-warn"></span>
@@ -191,7 +191,7 @@ export default {
         { label: '隐患总数', value: ds.totalHazards, icon: '⚠️', color: '#dc2626', grad: 'linear-gradient(135deg, #dc2626 0%, #f87171 100%)', sub: '含重大 ' + ds.criticalHazards + ' 项', unit: '' },
         { label: '待处置隐患', value: ds.pendingHazards, icon: '⏳', color: '#d97706', grad: 'linear-gradient(135deg, #d97706 0%, #fbbf24 100%)', sub: '需立即处理', unit: '' },
         { label: '进行中作业', value: ds.activeWorkPermits, icon: '🔧', color: '#2563eb', grad: 'linear-gradient(135deg, #2563eb 0%, #60a5fa 100%)', sub: '含阻断 ' + this.blockedPermits.length + ' 项', unit: '' },
-        { label: '集团督办', value: ds.activeSupervisions, icon: '📨', color: '#dc2626', grad: 'linear-gradient(135deg, #b91c1c 0%, #ef4444 100%)', sub: '跟进中', unit: '' },
+        { label: '安全督办', value: ds.activeSupervisions, icon: '📨', color: '#dc2626', grad: 'linear-gradient(135deg, #b91c1c 0%, #ef4444 100%)', sub: '跟进中', unit: '' },
         { label: 'OA待审批', value: ds.bpmPendingCount || 3, icon: '🔗', color: '#0058AD', grad: 'linear-gradient(135deg, #0058AD 0%, #0075E6 100%)', sub: '平均' + (ds.bpmAvgTime || '4.6') + 'h审批', unit: '' },
         { label: '本月闭环', value: ds.closedThisMonth, icon: '✅', color: '#16a34a', grad: 'linear-gradient(135deg, #16a34a 0%, #4ade80 100%)', sub: '整改率 ' + ds.rectificationRate + '%', unit: '' }
       ];

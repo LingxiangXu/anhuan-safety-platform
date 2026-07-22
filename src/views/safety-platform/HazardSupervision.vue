@@ -419,7 +419,7 @@ export default {
       orgOptions: [
         { id: 3, name: '铸锻件分公司' },
         { id: 4, name: '矿山分公司' },
-        { id: 5, name: '山西太重工程机械有限公司' },
+        { id: 5, name: '工程起重机公司' },
         { id: 6, name: '太原重工各分子公司' }
       ]
     };

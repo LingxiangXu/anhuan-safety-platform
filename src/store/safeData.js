@@ -8,7 +8,7 @@ export const organizations = [
   { id: 1, name: '太重集团', parentId: null, level: 'group' },
   { id: 2, name: '太原重工', parentId: 1, level: 'company' },
   { id: 3, name: '铸锻件分公司', parentId: 2, level: 'branch' },
-  { id: 4, name: '山西太重工程机械有限公司', parentId: 1, level: 'branch' },
+  { id: 4, name: '工程起重机公司', parentId: 1, level: 'branch' },
   { id: 5, name: '矿山分公司', parentId: 2, level: 'branch' },
   { id: 6, name: '齿轮分公司', parentId: 2, level: 'branch' },
   { id: 7, name: '核电分公司', parentId: 2, level: 'branch' },
@@ -865,6 +865,10 @@ export const dashboardStats = {
   pendingHazards: 3,   // 待受理+待整改+整改中+待复查
   overdueHazards: 0,
   closedThisMonth: 2,
+  criticalHazards: 3,        // 重大隐患数（severity=重大）
+  rectificationRate: 40,     // 整改率 % = 已闭环 / 隐患总数
+  bpmPendingCount: 3,        // OA 待审批（兜底值，与 BPM 页口径一致）
+  bpmAvgTime: '4.6',         // OA 平均审批时长（小时）
   activeSupervisions: 2,
   activeWorkPermits: 4,
   majorHazardTotal: 3,
@@ -876,7 +880,7 @@ export const dashboardStats = {
   ],
   orgComparison: [
     { name: '铸锻件分公司', hazards: 5, activePermits: 2, supervisions: 2, riskLevel: '橙色' },
-    { name: '山西太重工程机械有限公司', hazards: 1, activePermits: 0, supervisions: 0, riskLevel: '蓝色' }
+    { name: '工程起重机公司', hazards: 1, activePermits: 0, supervisions: 0, riskLevel: '蓝色' }
   ]
 };
 

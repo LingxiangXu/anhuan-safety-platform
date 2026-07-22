@@ -295,7 +295,7 @@ export default {
         { key: 'work_approve', label: '作业审批' },
         { key: 'work_guardian', label: '现场监护' },
         { key: 'work_execute', label: '作业执行' },
-        { key: 'supervision', label: '集团督办' },
+        { key: 'supervision', label: '安全督办' },
         { key: 'training', label: '培训中心集成' }
       ],
       matrixRoles: [
