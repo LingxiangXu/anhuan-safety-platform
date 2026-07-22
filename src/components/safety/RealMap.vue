@@ -48,7 +48,7 @@
 </template>
 
 <script>
-import { factoryZones, riskPoints, majorHazardSources, FACTORY_CENTER } from '@/store/safeData';
+import { factoryZones, riskPoints, majorHazardSources, FACTORY_CENTER, PARK_BOUNDARY } from '@/store/safeData';
 
 // 风险等级 → 填充色映射
 const LEVEL_COLORS = { '重大': '#fef2f2', '较大': '#fff7ed', '一般': '#fffbeb', '低': '#ecfdf5' };
@@ -65,8 +65,9 @@ export default {
     zones: { type: Array, default: () => [] },
     markers: { type: Array, default: () => [] },
     workPermits: { type: Array, default: () => [] },
-    center: { type: Object, default: () => ({ lng: 112.3538, lat: 37.605 }) },
-    zoom: { type: Number, default: 15 },
+    center: { type: Object, default: () => ({ lng: 112.51, lat: 37.58 }) },
+    zoom: { type: Number, default: 16 },
+    fitView: { type: Boolean, default: true },
     clickable: { type: Boolean, default: true }
   },
   data() {
@@ -119,7 +120,12 @@ export default {
       this.drawRiskPoints();
       this.drawMajorHazards();
       this.drawWorkPermits();
-      this.map.setFitView(null, false, [80, 80, 80, 280]);
+      this.drawParkBoundary();
+      if (this.fitView) {
+        this.map.setFitView(null, false, [80, 80, 80, 280]);
+      } else {
+        this.map.setZoomAndCenter(this.zoom, [this.center.lng, this.center.lat]);
+      }
     },
     drawZones() {
       const zones = this.zoneData.filter(z => z.path && z.path.length);
@@ -264,6 +270,19 @@ export default {
         marker.setMap(this.map);
       });
     },
+    drawParkBoundary() {
+      if (!PARK_BOUNDARY || !PARK_BOUNDARY.length) return;
+      const poly = new window.AMap.Polygon({
+        path: PARK_BOUNDARY,
+        fillColor: '#0075E6',
+        fillOpacity: 0.04,
+        strokeColor: '#0075E6',
+        strokeWeight: 3,
+        strokeStyle: 'solid',
+        zIndex: 10
+      });
+      poly.setMap(this.map);
+    },
     onZoneClick(zone, e) {
       const zoneRisks = this.markerData.filter(r => r.zoneId === zone.id);
       this.activeInfo = {
@@ -285,7 +304,7 @@ export default {
     },
     clearInfo() { this.activeInfo = null; },
     getPolygonCenter(path) {
-      if (!path || !path.length) return [112.3538, 37.605];
+      if (!path || !path.length) return [112.51, 37.58];
       const sum = path.reduce((acc, p) => [acc[0] + p[0], acc[1] + p[1]], [0, 0]);
       return [sum[0] / path.length, sum[1] / path.length];
     },

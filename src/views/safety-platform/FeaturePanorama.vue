@@ -2,7 +2,7 @@
   <div class="panorama-page">
     <div class="page-header">
       <h2>功能全景</h2>
-      <p class="page-subtitle">安全管理平台覆盖8大一级模块、30+二级功能，支撑公司-现场两级安全管理体系</p>
+      <p class="page-subtitle">安全管理平台覆盖6大一级模块、30+二级功能，支撑公司-现场两级安全管理体系</p>
     </div>
 
     <!-- 模块全景概览 -->

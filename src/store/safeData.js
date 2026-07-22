@@ -65,41 +65,48 @@ export const personnel = [
 
 // ==== 厂区区域定义 ====
 // ==== 厂区中心点 ====
-export const FACTORY_CENTER = { lng: 112.3538, lat: 37.605 };
+export const FACTORY_CENTER = { lng: 112.51, lat: 37.58, name: '太重智能高端产业园区·机加厂房' };
+// ==== 机加联合厂房边界（约500㎡，顺时针 NW,NE,SE,SW）====
+export const PARK_BOUNDARY = [
+  [112.509870,37.580110],
+  [112.510130,37.580110],
+  [112.510130,37.579890],
+  [112.509870,37.579890]
+];
 
 export const factoryZones = [
-  { id: 'zone-1', name: '熔炼铸造区', x: 80, y: 60, w: 160, h: 110, riskLevel: '重大', riskColor: '#ef4444', deptId: 1, desc: '高温熔炼、浇注作业区域',
-    path: [[112.352,37.6065],[112.3533,37.6065],[112.3533,37.6055],[112.352,37.6055]] },
-  { id: 'zone-2', name: '锻压加工区', x: 280, y: 60, w: 150, h: 110, riskLevel: '重大', riskColor: '#ef4444', deptId: 2, desc: '大型锻压设备运行区域',
-    path: [[112.3536,37.6065],[112.3548,37.6065],[112.3548,37.6055],[112.3536,37.6055]] },
-  { id: 'zone-3', name: '热处理区', x: 470, y: 60, w: 140, h: 110, riskLevel: '较大', riskColor: '#f59e0b', deptId: 3, desc: '热处理炉与淬火作业区域',
-    path: [[112.355,37.6065],[112.356,37.6065],[112.356,37.6055],[112.355,37.6055]] },
-  { id: 'zone-4', name: '大型构件吊装区', x: 80, y: 210, w: 170, h: 120, riskLevel: '重大', riskColor: '#ef4444', deptId: 2, desc: '大型构件吊装与转运区域',
-    path: [[112.352,37.6053],[112.3533,37.6053],[112.3533,37.6043],[112.352,37.6043]] },
-  { id: 'zone-5', name: '厂房屋面检修区', x: 290, y: 210, w: 180, h: 120, riskLevel: '较大', riskColor: '#f59e0b', deptId: 4, desc: '厂房屋面及高处设备检修区域',
-    path: [[112.3536,37.6053],[112.355,37.6053],[112.355,37.6043],[112.3536,37.6043]] },
-  { id: 'zone-6', name: '仓储装卸区', x: 510, y: 210, w: 140, h: 120, riskLevel: '一般', riskColor: '#eab308', deptId: 5, desc: '物料仓储与装卸作业区域',
-    path: [[112.3552,37.6053],[112.3563,37.6053],[112.3563,37.6043],[112.3552,37.6043]] },
-  { id: 'zone-7', name: '能源介质区', x: 200, y: 370, w: 300, h: 100, riskLevel: '较大', riskColor: '#f59e0b', deptId: 4, desc: '变配电、压缩空气、燃气调压区域',
-    path: [[112.3528,37.6041],[112.3556,37.6041],[112.3556,37.6035],[112.3528,37.6035]] }
+  { id: 'zone-1', name: '原料存放区', x: 80, y: 60, w: 160, h: 110, riskLevel: '一般', riskColor: '#eab308', deptId: 1, desc: '原材料与坯料存放区域',
+    path: [[112.5098908,37.5800185],[112.5099474,37.5800185],[112.5099474,37.5800924],[112.5098908,37.5800924]] },
+  { id: 'zone-2', name: '机加工区', x: 280, y: 60, w: 150, h: 110, riskLevel: '较大', riskColor: '#f59e0b', deptId: 2, desc: '车铣刨磨机械加工区域',
+    path: [[112.5099474,37.5800185],[112.5100040,37.5800185],[112.5100040,37.5800924],[112.5099474,37.5800924]] },
+  { id: 'zone-3', name: '焊接作业区', x: 470, y: 60, w: 140, h: 110, riskLevel: '重大', riskColor: '#ef4444', deptId: 3, desc: '电焊与气体保护焊作业区域',
+    path: [[112.5100040,37.5800185],[112.5100606,37.5800185],[112.5100606,37.5800924],[112.5100040,37.5800924]] },
+  { id: 'zone-4', name: '装配区', x: 80, y: 210, w: 170, h: 120, riskLevel: '较大', riskColor: '#f59e0b', deptId: 2, desc: '结构件装配与调试区域',
+    path: [[112.5100606,37.5800185],[112.5101092,37.5800185],[112.5101092,37.5800924],[112.5100606,37.5800924]] },
+  { id: 'zone-5', name: '涂装/危化作业区', x: 290, y: 210, w: 180, h: 120, riskLevel: '重大', riskColor: '#ef4444', deptId: 4, desc: '涂装及危险化学品使用区域',
+    path: [[112.5098908,37.5799076],[112.5099663,37.5799076],[112.5099663,37.5799815],[112.5098908,37.5799815]] },
+  { id: 'zone-6', name: '仓储区', x: 510, y: 210, w: 140, h: 120, riskLevel: '较大', riskColor: '#f59e0b', deptId: 5, desc: '成品与物料仓储区域',
+    path: [[112.5099663,37.5799076],[112.5100417,37.5799076],[112.5100417,37.5799815],[112.5099663,37.5799815]] },
+  { id: 'zone-7', name: '设备动力/通道区', x: 200, y: 370, w: 300, h: 100, riskLevel: '一般', riskColor: '#eab308', deptId: 4, desc: '设备动力与物流通道区域',
+    path: [[112.5100417,37.5799076],[112.5101092,37.5799076],[112.5101092,37.5799815],[112.5100417,37.5799815]] }
 ];
 
 // ==== 风险点 ====
 export const riskPoints = [
-  { id: 'rp-1', zoneId: 'zone-1', name: '中频炉作业平台', category: '灼烫/爆炸', level: '重大', deptId: 1, responsibleName: '张建国',
-    measures: '炉前防护挡板、自动测温报警、紧急倾炉装置', lastReview: '2026-07-10', status: '正常', lng: 112.3526, lat: 37.6062 },
-  { id: 'rp-2', zoneId: 'zone-1', name: '浇注坑区域', category: '灼烫/起重伤害', level: '重大', deptId: 1, responsibleName: '李明辉',
-    measures: '浇注坑围栏、天车限位装置、高温警示', lastReview: '2026-07-08', status: '正常', lng: 112.3523, lat: 37.6059 },
-  { id: 'rp-3', zoneId: 'zone-2', name: '8000T锻压机工位', category: '机械伤害/噪声', level: '重大', deptId: 2, responsibleName: '王志强',
-    measures: '安全光幕、双手操作装置、隔音罩', lastReview: '2026-07-05', status: '正常', lng: 112.3542, lat: 37.6062 },
-  { id: 'rp-4', zoneId: 'zone-4', name: '桥式起重机A区', category: '起重伤害/物体打击', level: '重大', deptId: 2, responsibleName: '刘大伟',
-    measures: '吊索具日检、限位器、声光报警、警戒区域', lastReview: '2026-07-12', status: '隐患待整改', lng: 112.3525, lat: 37.6049 },
-  { id: 'rp-5', zoneId: 'zone-5', name: '厂房屋面通风器检修口', category: '高处坠落', level: '较大', deptId: 4, responsibleName: '孙志明',
-    measures: '安全护栏、生命线系统、防坠落网', lastReview: '2026-07-03', status: '正常', lng: 112.3544, lat: 37.6049 },
+  { id: 'rp-1', zoneId: 'zone-1', name: '原料堆垛区', category: '物体打击/坍塌', level: '一般', deptId: 1, responsibleName: '张建国',
+    measures: '限高码放、防倾倒支护、通道畅通', lastReview: '2026-07-10', status: '正常', lng: 112.5099191, lat: 37.58007 },
+  { id: 'rp-2', zoneId: 'zone-1', name: '坯料吊装点', category: '起重伤害', level: '较大', deptId: 1, responsibleName: '李明辉',
+    measures: '吊索具日检、限位器、声光报警、警戒区域', lastReview: '2026-07-08', status: '正常', lng: 112.5099191, lat: 37.580041 },
+  { id: 'rp-3', zoneId: 'zone-2', name: '机加工设备工位', category: '机械伤害/噪声', level: '较大', deptId: 2, responsibleName: '王志强',
+    measures: '安全光幕、双手操作装置、隔音罩', lastReview: '2026-07-05', status: '正常', lng: 112.5099757, lat: 37.58005545 },
+  { id: 'rp-4', zoneId: 'zone-4', name: '装配起重作业区', category: '起重伤害/物体打击', level: '较大', deptId: 2, responsibleName: '刘大伟',
+    measures: '吊索具日检、限位器、声光报警、警戒区域', lastReview: '2026-07-12', status: '隐患待整改', lng: 112.5100849, lat: 37.58005545 },
+  { id: 'rp-5', zoneId: 'zone-5', name: '涂装作业点', category: '火灾/中毒', level: '重大', deptId: 4, responsibleName: '孙志明',
+    measures: '防爆电气、可燃气体报警、通风联锁、MSDS告知', lastReview: '2026-07-03', status: '正常', lng: 112.50992855, lat: 37.57994455 },
   { id: 'rp-6', zoneId: 'zone-6', name: '危险品暂存库', category: '火灾/爆炸/中毒', level: '较大', deptId: 5, responsibleName: '陈文斌',
-    measures: '防爆电气、可燃气体报警、通风联锁、MSDS告知', lastReview: '2026-07-09', status: '正常', lng: 112.3557, lat: 37.6049 },
-  { id: 'rp-7', zoneId: 'zone-7', name: '35kV变电站', category: '触电/火灾', level: '较大', deptId: 4, responsibleName: '孙志明',
-    measures: '五防系统、绝缘监测、自动灭火装置', lastReview: '2026-07-01', status: '正常', lng: 112.3532, lat: 37.6038 }
+    measures: '防爆电气、可燃气体报警、通风联锁、MSDS告知', lastReview: '2026-07-09', status: '正常', lng: 112.5100040, lat: 37.57994455 },
+  { id: 'rp-7', zoneId: 'zone-7', name: '配电与动力点', category: '触电/火灾', level: '较大', deptId: 4, responsibleName: '孙志明',
+    measures: '五防系统、绝缘监测、自动灭火装置', lastReview: '2026-07-01', status: '正常', lng: 112.51007545, lat: 37.57994455 }
 ];
 
 // ==== 重大危险源等级枚举（GB 18218-2018）====
@@ -190,7 +197,7 @@ export const majorHazardSources = [
     deptId: 5,
     deptName: '生产保障部',
     zoneId: 'zone-6',
-    lng: 112.3557, lat: 37.6049,
+    lng: 112.5100040, lat: 37.57994455,
     responsibleId: 6,
     responsibleName: '陈文斌',
     supervisorId: 2,
@@ -287,7 +294,7 @@ export const majorHazardSources = [
     deptId: 4,
     deptName: '设备动力部',
     zoneId: 'zone-7',
-    lng: 112.3533, lat: 37.6038,
+    lng: 112.51007545, lat: 37.57994455,
     responsibleId: 5,
     responsibleName: '孙志明',
     supervisorId: 2,
@@ -371,7 +378,7 @@ export const majorHazardSources = [
     deptId: 1,
     deptName: '铸造车间',
     zoneId: 'zone-1',
-    lng: 112.3526, lat: 37.606,
+    lng: 112.5099191, lat: 37.58005545,
     responsibleId: 1,
     responsibleName: '张建国',
     supervisorId: 2,
