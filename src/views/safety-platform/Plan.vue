@@ -36,7 +36,7 @@
       <p class="section-note">以下为项目整体报价，实际价格以商务合同为准。</p>
       <div class="pricing-block">
         <!-- 项目报价明细（11 行 × 6 列） -->
-        <p class="section-note">按任务逐项测算：人天单价 1,500 元/人天；小计 = 人天/数量 × 单价，各小计之和见合计行。开发人天按项目总预算 72 万元、服务器资源 5 万元，等比放大至 447 人天（小计合计约 72.05 万元）。</p>
+        <p class="section-note">按任务逐项测算：人天单价 1,500 元/人天；小计 = 人天/数量 × 单价，各任务小计与服务器资源费用之和即为项目预计费用成本。项目预计费用成本为 720,500 元（其中开发人天 447 人天、服务器资源 50,000 元）。</p>
         <div class="section-card" style="padding:0; overflow:hidden">
           <table class="data-table pricing-table">
             <thead>
@@ -58,7 +58,7 @@
               <tr><td class="tc">7</td><td class="tc">移动端开发</td><td class="tc">136</td><td class="tc">1,500</td><td class="tc">204,000</td></tr>
               <tr><td class="tc">8</td><td class="tc">项目实施</td><td class="tc">68</td><td class="tc">1,500</td><td class="tc">102,000</td></tr>
               <tr><td class="tc">9</td><td class="tc">服务器资源</td><td class="tc">—</td><td class="tc">—</td><td class="tc">50,000</td></tr>
-              <tr class="total-row"><td class="tc">—</td><td class="tc"><strong>合计</strong></td><td class="tc"><strong>447</strong></td><td class="tc">—</td><td class="tc"><strong>720,500</strong></td></tr>
+              <tr class="total-row"><td class="tc">—</td><td class="tc"><strong>项目预计费用成本</strong></td><td class="tc"><strong>447</strong></td><td class="tc">—</td><td class="tc"><strong>720,500</strong></td></tr>
             </tbody>
           </table>
         </div>
