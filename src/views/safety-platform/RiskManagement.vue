@@ -1,5 +1,6 @@
 ﻿<template>
   <div class="risk-management">
+    <SceneFlow flow-key="risk" />
     <!-- 标签切换 -->
     <div class="tab-bar">
       <button
@@ -802,6 +803,7 @@
 <script>
 import { riskLedger, getRiskLevelByD, personnel, factoryZones, riskPoints, workPermits } from '@/store/safeData'
 import RealMap from '@/components/safety/RealMap.vue'
+import SceneFlow from '@/components/safety/SceneFlow.vue';
 
 const L_options = [
   { value: 1, label: '完全不可能' }, { value: 2, label: '较不可能' },
@@ -822,7 +824,7 @@ let _idCounter = 7 // 从 RK-2026-007 开始
 
 export default {
   name: 'RiskManagement',
-  components: { RealMap },
+  components: { RealMap, SceneFlow },
   data() {
     return {
       activeTab: 'identify',

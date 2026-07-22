@@ -1,5 +1,6 @@
 <template>
   <div class="work-page">
+    <SceneFlow flow-key="specialwork" />
     <div class="page-header">
       <h2>特殊作业管控</h2>
       <p class="page-subtitle">高处、吊装与临时用电作业统一流程：申请→前置核验→安环审核→领导审批→监护确认→作业→验收→归档</p>
@@ -288,10 +289,11 @@
 <script>
 import { workPermits, WORK_TYPE, WORK_PERMIT_STATUS, WORK_PERMIT_STEPS } from '@/store/safeData';
 import MobileField from '@/views/safety-platform/MobileField.vue';
+import SceneFlow from '@/components/safety/SceneFlow.vue';
 
 export default {
   name: 'SpecialWork',
-  components: { MobileField },
+  components: { MobileField, SceneFlow },
   data() {
     return {
       localPermits: workPermits,

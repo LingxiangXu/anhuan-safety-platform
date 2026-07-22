@@ -1,5 +1,6 @@
 <template>
   <div class="inspection-mgmt">
+    <SceneFlow flow-key="inspection" />
     <!-- 头部 -->
     <div class="ov-header">
       <div class="ov-head-left">
@@ -172,10 +173,11 @@ import {
   COMMON_CHECK_ITEMS, generateInspectionId, getInspectionProgress
 } from '@/store/safeData';
 import MobileField from './MobileField.vue';
+import SceneFlow from '@/components/safety/SceneFlow.vue';
 
 export default {
   name: 'InspectionManagement',
-  components: { MobileField },
+  components: { MobileField, SceneFlow },
   data() {
     return {
       tasks: inspectionTasks,

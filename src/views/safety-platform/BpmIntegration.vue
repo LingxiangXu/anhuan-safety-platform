@@ -192,6 +192,7 @@
 </template>
 
 <script>
+
 export default {
   name: 'BpmIntegration',
   data() {

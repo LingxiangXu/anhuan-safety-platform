@@ -1,5 +1,6 @@
 ﻿<template>
   <div class="hazard-page">
+    <SceneFlow flow-key="hazard" />
     <div class="page-header">
       <h2>隐患治理与安全督办</h2>
       <p class="page-subtitle">本公司隐患闭环 + 安全督办独立流转，两张单据可互查但不替代</p>
@@ -361,10 +362,11 @@
 <script>
 import { hazards, supervisions, HAZARD_STATUS } from '@/store/safeData';
 import MobileField from './MobileField.vue';
+import SceneFlow from '@/components/safety/SceneFlow.vue';
 
 export default {
   name: 'HazardSupervision',
-  components: { MobileField },
+  components: { MobileField, SceneFlow },
   data() {
     return {
       // 直接引用 store，使 PC 登记与 APP 移动端上报同源联动（Vue 初始化时 observe 该数组）
