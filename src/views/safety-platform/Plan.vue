@@ -2,7 +2,7 @@
   <div class="plan-page">
     <div class="page-header">
       <h2>建设规划</h2>
-      <p class="page-subtitle">分两期交付：一期重工2个试点单位上线，二期重工深化并面向全集团推广使用</p>
+      <p class="page-subtitle">分两期交付：一期重工 2 个试点单位上线跑通核心业务，二期重工深化并面向各生产经营单位推广复用，从"数字化"迈向"数智化"</p>
     </div>
     <!-- 一期 / 二期 卡片 -->
     <section class="ov-section">
@@ -20,9 +20,29 @@
               <span class="pc-tl-text">{{ t }}</span>
             </div>
           </div>
+          <div class="pc-progress" v-if="p.progress && p.progress.length">
+            <div class="pc-progress-bar">
+              <div class="pc-progress-seg p1" v-for="(seg, sgi) in p.progress" :key="sgi" :style="{ flex: seg.weight || 1 }">
+                <span>{{ seg.label }}</span>
+              </div>
+            </div>
+            <div class="pc-progress-caption" v-if="p.progressNote">{{ p.progressNote }}</div>
+          </div>
+          <div class="pc-deliver" v-if="p.deliverables && p.deliverables.length">
+            <div class="pc-deliver-label">{{ p.deliverLabel || '核心交付成果' }}</div>
+            <div class="pc-deliver-item" v-for="(d, di) in p.deliverables" :key="di">{{ d }}</div>
+          </div>
           <div class="pc-feat">
             <div class="pc-feat-label">{{ p.featLabel }}</div>
-            <div class="pc-feat-tags">
+            <template v-if="p.directions && p.directions.length">
+              <div class="pc-dir" v-for="(d, di) in p.directions" :key="di">
+                <div class="pc-dir-title">{{ d.title }}</div>
+                <div class="pc-feat-tags">
+                  <span class="pc-tag" :class="p.future ? 'p2' : 'p1'" v-for="(f, fi) in d.items" :key="fi">{{ f }}</span>
+                </div>
+              </div>
+            </template>
+            <div class="pc-feat-tags" v-else>
               <span class="pc-tag" :class="p.future ? 'p2' : 'p1'" v-for="(f, fi) in p.features" :key="fi">{{ f }}</span>
             </div>
           </div>
@@ -74,19 +94,50 @@ export default {
       phases: [
         {
           tag: '一期', future: false,
-          title: '重工2个试点单位上线',
-          goal: '以重工2个试点单位率先上线，跑通安全管理核心业务全流程，打通公司-现场数据联动，实现"从纸质到数字"的跨越。',
-          timeline: ['2 个月主要功能上线', '4 个月收尾（优化、培训、验收）'],
+          title: '重工 2 个试点单位上线',
+          goal: '以重工 2 个试点单位率先上线，覆盖 PC 端、APP 端与微信小程序（企业微信扫码发起）三端协同，跑通安全管理核心业务全流程，打通公司-现场数据联动，实现"从纸质到数字"的跨越。',
+          progress: [
+            { label: '2 个月', weight: 1 },
+            { label: '4 个月', weight: 2 }
+          ],
+          progressNote: '里程碑：2 个月主要功能上线 → 4 个月收尾（优化·培训·验收）',
+          deliverLabel: '核心交付成果',
+          deliverables: [
+            '7 大核心模块上线（风险 / 巡检 / 隐患 / 作业 / 驾驶舱 / OA / 培训）',
+            'PC · APP · 微信小程序三端协同打通',
+            '纸质安全台账全面数字化，公司-现场数据联动'
+          ],
           featLabel: '核心功能模块',
           features: ['风险管理', '巡检任务管理', '隐患与督办', '特殊作业管控', '驾驶舱', 'OA审批集成', '培训中心集成']
         },
         {
           tag: '二期', future: true,
-          title: '重工深化 · 全集团推广',
-          goal: '在一期试点经验与数据积累基础上深化重工应用能力，并面向全集团各单位推广使用，实现安全管理从"数字化"到"数智化"升级。',
-          timeline: [],
+          title: '重工深化 · 多单位推广复用',
+          goal: '在一期核心业务跑通与数据积累基础上，深化应用能力并向各生产经营单位推广复用，从"数字化"迈向"数智化"——补齐双控体系与现场管理短板、贯通制度与培训管理体系、以预测预警与 AI 实现主动防控。',
           featLabel: '深化与推广方向',
-          features: ['重工应用深化', '面向全集团推广', '多单位数据汇聚', '制度化管理', '应急管理', '设备设施安全', '双控统计与预测预警']
+          directions: [
+            { title: '一、业务广度深化', items: [
+              '重大危险源管理',
+              '设备·相关方·职业健康·劳保',
+              '双控数据统计与预警'
+            ]},
+            { title: '二、管理体系贯通', items: [
+              '制度化管理',
+              '教育培训全体系',
+              '目标职责与全员履职'
+            ]},
+            { title: '三、数智化升级', items: [
+              '预测预警',
+              '应急管理',
+              'AI 赋能',
+              '持续改进（标准化与报表自动化）'
+            ]},
+            { title: '四、推广与生态', items: [
+              '多单位标准化复用',
+              '系统集成扩展',
+              '相关方门禁联动'
+            ]}
+          ]
         }
       ],
     };
@@ -105,7 +156,7 @@ export default {
 .section-title { font-size: $font-md; font-weight: 600; color: $text-primary; margin-bottom: $space-lg; padding-left: 12px; border-left: 3px solid $primary; }
 .section-card { background: #fff; border-radius: $radius-lg; padding: $space-lg $space-xl; border: 1px solid $border; }
 // Phase Cards
-.phase-cards { display: grid; grid-template-columns: 1fr 1fr; gap: $space-lg; align-items: stretch; }
+.phase-cards { display: grid; grid-template-columns: 1fr 1fr; gap: $space-lg; align-items: start; }
 .phase-card { background: #fff; border-radius: $radius-lg; border: 1px solid $border; padding: $space-xl; display: flex; flex-direction: column; position: relative; overflow: hidden; transition: box-shadow .2s, transform .2s;
   &::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 4px; background: linear-gradient(90deg, $primary, $brand-600); }
   &.future::before { background: linear-gradient(90deg, $accent-green-500, #4ade80); }
@@ -126,13 +177,26 @@ export default {
   &.p2 { background: $accent-green-500; }
 }
 .pc-tl-text { font-size: $font-sm; color: $text-primary; font-weight: 500; }
-.pc-feat { margin-top: auto; }
+.pc-feat { margin-top: $space-lg; }
 .pc-feat-label { font-size: $font-xs; color: $text-hint; margin-bottom: $space-sm; }
 .pc-feat-tags { display: flex; flex-wrap: wrap; gap: $space-xs; }
+.pc-dir { margin-top: $space-base; }
+.pc-dir:first-of-type { margin-top: 0; }
+.pc-dir-title { font-size: $font-xs; font-weight: 600; color: $text-secondary; margin-bottom: $space-xs; line-height: 1.5; }
 .pc-tag { font-size: 12px; padding: 4px 12px; border-radius: 6px; font-weight: 500;
   &.p1 { background: #e8f0fe; color: #1d4ed8; }
   &.p2 { background: #dcfce7; color: #15803d; }
 }
+.pc-progress { margin-bottom: $space-lg; }
+.pc-progress-bar { display: flex; height: 30px; border-radius: $radius-base; overflow: hidden; background: #f1f5f9; }
+.pc-progress-seg { display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 500; color: #fff;
+  &.p1 { background: $primary; }
+}
+.pc-progress-caption { font-size: $font-xs; color: $text-hint; margin-top: $space-xs; line-height: 1.5; }
+.pc-deliver { margin-bottom: $space-lg; }
+.pc-deliver-label { font-size: $font-xs; color: $text-hint; margin-bottom: $space-xs; }
+.pc-deliver-item { position: relative; padding-left: 16px; font-size: $font-sm; color: $text-secondary; line-height: 1.8; }
+.pc-deliver-item::before { content: ''; position: absolute; left: 2px; top: 10px; width: 6px; height: 6px; border-radius: 50%; background: $primary; }
 @media (max-width: 720px) {
   .phase-cards { grid-template-columns: 1fr; }
 }
