@@ -66,8 +66,8 @@ export const personnel = [
 // ==== 厂区区域定义 ====
 // ==== 厂区中心点 ====
 export const FACTORY_CENTER = { lng: 112.51, lat: 37.58, name: '太重智能高端产业园区·机加厂房' };
-// 演示优化：区域范围整体放大一倍（绕厂区中心均匀缩放），降低四色图密集感
-const MAP_SCALE = 2;
+// 演示优化：区域范围整体放大（绕厂区中心均匀缩放，累计 4 倍），降低四色图密集感、突出重点
+const MAP_SCALE = 4;
 function scaleLngLat(lng, lat) {
   const f = (v, c) => +(c + MAP_SCALE * (v - c)).toFixed(7);
   return [f(lng, FACTORY_CENTER.lng), f(lat, FACTORY_CENTER.lat)];
@@ -116,11 +116,11 @@ export const riskPoints = [
     measures: '五防系统、绝缘监测、自动灭火装置', lastReview: '2026-07-01', status: '正常', lng: 112.51007545, lat: 37.57994455 }
 ];
 
-// 演示优化：风险点坐标随区域一同放大一倍（与 factoryZones / PARK_BOUNDARY 保持一致，点仍落在其所属区域内）
+// 演示优化：风险点坐标随区域一同放大（累计 4 倍，与 factoryZones / PARK_BOUNDARY 保持一致，点仍落在其所属区域内）
 riskPoints.forEach(rp => {
   if (rp.lng && rp.lat) { const s = scaleLngLat(rp.lng, rp.lat); rp.lng = s[0]; rp.lat = s[1]; }
 });
-// 演示优化：区域多边形随厂区范围一同放大一倍（x/y/w/h 为 2D 平面图布局坐标，保持不动，避免影响平面图）
+// 演示优化：区域多边形随厂区范围一同放大（累计 4 倍；x/y/w/h 为 2D 平面图布局坐标，保持不动，避免影响平面图）
 factoryZones.forEach(z => { if (z.path && z.path.length) z.path = scalePath(z.path); });
 
 // ==== 责任书签订流程步骤 ====

@@ -392,7 +392,7 @@
           :zones="zoneData"
           :markers="markerData"
           :work-permits="activeWorkPermits"
-          :zoom="19"
+          :zoom="18"
           :fit-view="false"
           @zone-click="onMapZoneClick"
           @risk-click="jumpToLEC"

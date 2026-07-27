@@ -53,8 +53,8 @@
 <script>
 import { factoryZones, riskPoints, FACTORY_CENTER, PARK_BOUNDARY } from '@/store/safeData';
 
-// 风险等级 → 填充色映射
-const LEVEL_COLORS = { '重大': '#fef2f2', '较大': '#fff7ed', '一般': '#fffbeb', '低': '#ecfdf5' };
+// 风险等级 → 填充色映射（深色底图下用饱和色，形成"发光色块"质感）
+const LEVEL_COLORS = { '重大': '#ef4444', '较大': '#f59e0b', '一般': '#eab308', '低': '#3b82f6' };
 const LEVEL_STROKES = { '重大': '#ef4444', '较大': '#f59e0b', '一般': '#eab308', '低': '#3b82f6' };
 const MARKER_COLORS = { '重大': '#ef4444', '较大': '#f59e0b', '一般': '#eab308', '低': '#3b82f6' };
 // 风险等级排序：用于取"区内最高风险等级"（双重预防机制：区域等级=下属风险点最大值）
@@ -124,7 +124,7 @@ export default {
       this.map = new window.AMap.Map(this.$refs.mapContainer, {
         center: [this.center.lng, this.center.lat],
         zoom: this.zoom,
-        mapStyle: 'amap://styles/light',
+        mapStyle: 'amap://styles/dark',
         features: ['bg', 'road', 'building', 'point'],
         viewMode: '2D',
         resizeEnable: true,
@@ -164,8 +164,8 @@ export default {
     },
     drawZones() {
       const zones = this.enrichedZones.filter(z => z.path && z.path.length);
-      // 弱化低等级区域、突出重大/较大，降低视觉密集感
-      const levelOpacity = { '重大': 0.5, '较大': 0.5, '一般': 0.22, '低': 0.12 };
+      // 深色底图下：饱和色半透明填充形成发光质感，低等级更淡、不抢视线
+      const levelOpacity = { '重大': 0.42, '较大': 0.36, '一般': 0.28, '低': 0.18 };
       const levelStrokeW = { '重大': 2.5, '较大': 2, '一般': 1, '低': 1 };
       zones.forEach(z => {
         const lvl = z.effectiveLevel;
@@ -378,16 +378,16 @@ export default {
   position: relative;
   border-radius: 8px;
   overflow: hidden;
-  border: 1px solid $gray-200;
+  border: 1px solid rgba(255,255,255,0.12);
 }
 .map-canvas { width: 100%; height: 100%; }
 
 .map-legend {
   position: absolute; bottom: 56px; left: 10px;
   display: flex; gap: 12px; padding: 6px 10px;
-  background: rgba(255,255,255,0.92); border-radius: 6px;
-  font-size: 11px; color: #475569;
-  box-shadow: 0 1px 4px rgba(0,0,0,0.1); z-index: 100;
+  background: rgba(15,23,42,0.85); border: 1px solid rgba(255,255,255,0.12); border-radius: 6px;
+  font-size: 11px; color: #cbd5e1;
+  box-shadow: 0 1px 6px rgba(0,0,0,0.45); z-index: 100;
 }
 .legend-item { display: flex; align-items: center; gap: 4px; }
 .legend-dot { display: inline-block; width: 10px; height: 10px; border-radius: 2px; }
@@ -397,39 +397,39 @@ export default {
   display: flex; gap: 4px; z-index: 100;
   .stat-item {
     flex: 1; text-align: center; padding: 4px 0;
-    background: rgba(255,255,255,0.9); border-radius: 6px;
+    background: rgba(15,23,42,0.85); border-radius: 6px;
     cursor: pointer; transition: all .15s;
-    font-size: 11px; color: $gray-500;
-    box-shadow: 0 1px 4px rgba(0,0,0,0.08);
-    &:hover { background: #fff; }
-    &.active { background: #1e293b; color: #fff; }
+    font-size: 11px; color: #cbd5e1;
+    box-shadow: 0 1px 6px rgba(0,0,0,0.4);
+    &:hover { background: rgba(30,41,59,0.95); }
+    &.active { background: rgba(0,117,230,0.92); color: #fff; }
     .stat-num { display: block; font-size: 16px; font-weight: 700; }
     .stat-label { font-size: 10px; }
-    .stat-red { color: $danger; } .stat-orange { color: $warning-500; }
+    .stat-red { color: #f87171; } .stat-orange { color: #fbbf24; }
   }
 }
 
 .map-infobox {
   position: absolute; top: 10px; right: 10px; left: 10px; z-index: 101;
-  background: rgba(255,255,255,0.96); border-radius: 8px;
-  padding: 10px 12px; box-shadow: 0 2px 12px rgba(0,0,0,0.15);
+  background: rgba(15,23,42,0.92); border: 1px solid rgba(255,255,255,0.12); border-radius: 8px;
+  padding: 10px 12px; box-shadow: 0 2px 16px rgba(0,0,0,0.5);
   cursor: pointer;
   .infobox-header {
     display: flex; align-items: center; gap: 8px; margin-bottom: 4px;
-    strong { font-size: 13px; color: #1e293b; }
+    strong { font-size: 13px; color: #f1f5f9; }
     .infobox-level {
       padding: 1px 8px; border-radius: 10px; font-size: 10px; color: #fff; font-weight: 600;
     }
   }
-  .infobox-body { font-size: 11px; color: #475569; }
+  .infobox-body { font-size: 11px; color: #cbd5e1; }
   .infobox-row { margin-bottom: 4px; }
   .monitor-tag {
     display: inline-block; margin: 2px 4px 2px 0; padding: 1px 6px;
-    border-radius: 8px; font-size: 10px; background: #e8f5e9; color: #2e7d32;
-    &.warning { background: #fff3e0; color: #e65100; }
-    &.alarm { background: #ffebee; color: #c62828; }
+    border-radius: 8px; font-size: 10px; background: #14331f; color: #86efac;
+    &.warning { background: #3a2a10; color: #fdba74; }
+    &.alarm { background: #3a1717; color: #fca5a5; }
   }
-  .risk-link { color: $primary; cursor: pointer; text-decoration: underline; margin-right: 8px; }
+  .risk-link { color: #60a5fa; cursor: pointer; text-decoration: underline; margin-right: 8px; }
   .text-xs { font-size: 10px; }
 
   .comp-tag {
@@ -439,7 +439,8 @@ export default {
   .risk-list { max-height: 132px; overflow-y: auto; }
   .risk-item {
     display: flex; align-items: center; gap: 6px; padding: 2px 0; cursor: pointer;
-    &:hover { color: $primary; }
+    color: #e2e8f0;
+    &:hover { color: #fff; }
     .risk-dot { width: 8px; height: 8px; border-radius: 50%; flex: none; }
   }
 }
