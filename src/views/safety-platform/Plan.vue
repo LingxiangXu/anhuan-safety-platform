@@ -117,7 +117,6 @@ export default {
           featLabel: '深化与推广方向',
           directions: [
             { title: '一、业务广度深化', items: [
-              '重大危险源管理',
               '设备·相关方·职业健康·劳保',
               '双控数据统计与预警'
             ]},
