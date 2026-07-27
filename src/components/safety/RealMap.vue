@@ -64,7 +64,8 @@ export default {
     center: { type: Object, default: () => ({ lng: 112.51, lat: 37.58 }) },
     zoom: { type: Number, default: 18 },
     fitView: { type: Boolean, default: true },
-    clickable: { type: Boolean, default: true }
+    clickable: { type: Boolean, default: true },
+    showLabels: { type: Boolean, default: false }
   },
   data() {
     return {
@@ -73,6 +74,7 @@ export default {
       markerList: [],
       activeFilter: 'all',
       activeInfo: null,
+      pinned: false,
       loaded: false
     };
   },
@@ -138,36 +140,45 @@ export default {
     },
     drawZones() {
       const zones = this.zoneData.filter(z => z.path && z.path.length);
+      // 弱化低等级区域、突出重大/较大，降低视觉密集感
+      const levelOpacity = { '重大': 0.5, '较大': 0.5, '一般': 0.22, '低': 0.12 };
+      const levelStrokeW = { '重大': 2.5, '较大': 2, '一般': 1, '低': 1 };
       zones.forEach(z => {
         const color = LEVEL_STROKES[z.riskLevel] || '#999';
         const fillColor = LEVEL_COLORS[z.riskLevel] || '#fafbfc';
         const poly = new window.AMap.Polygon({
           path: z.path,
           fillColor: fillColor,
-          fillOpacity: 0.45,
+          fillOpacity: levelOpacity[z.riskLevel] || 0.4,
           strokeColor: color,
-          strokeWeight: 2,
+          strokeWeight: levelStrokeW[z.riskLevel] || 2,
           strokeStyle: 'dashed',
           strokeDasharray: [8, 4],
           extData: { zone: z }
         });
         if (this.clickable) {
           poly.on('click', (e) => this.onZoneClick(z, e));
+          // 悬浮即显示区域信息，点击则固定（点到哪、讲到哪）
+          poly.on('mouseover', () => this.onZoneOver(z));
+          poly.on('mouseout', () => this.onZoneOut());
         }
-        // 区域标签
-        const centerPt = this.getPolygonCenter(z.path);
-        const label = new window.AMap.Text({
-          text: z.name,
-          position: centerPt,
-          offset: new window.AMap.Pixel(0, -6),
-          style: {
-            'font-size': '12px', 'font-weight': '600', 'color': '#1e293b',
-            'background': 'rgba(255,255,255,0.85)', 'border-radius': '4px',
-            'padding': '2px 6px', 'white-space': 'nowrap', 'pointer-events': 'none'
-          }
-        });
+        // 区域标签默认隐藏（showLabels 时显示）：用颜色传达信息，减少文字密集
+        let label = null;
+        if (this.showLabels) {
+          const centerPt = this.getPolygonCenter(z.path);
+          label = new window.AMap.Text({
+            text: z.name,
+            position: centerPt,
+            offset: new window.AMap.Pixel(0, -6),
+            style: {
+              'font-size': '12px', 'font-weight': '600', 'color': '#1e293b',
+              'background': 'rgba(255,255,255,0.85)', 'border-radius': '4px',
+              'padding': '2px 6px', 'white-space': 'nowrap', 'pointer-events': 'none'
+            }
+          });
+          label.setMap(this.map);
+        }
         poly.setMap(this.map);
-        label.setMap(this.map);
         this.polygons.push({ poly, zone: z, label });
       });
     },
@@ -183,31 +194,38 @@ export default {
           extData: { riskPoint: rp }
         });
         if (this.clickable) {
-          marker.on('click', () => {
-            this.activeInfo = {
-              name: rp.name,
-              level: rp.level,
-              color: color,
-              desc: rp.category + ' | 责任人: ' + rp.responsibleName + ' | ' + rp.measures,
-              risks: []
-            };
-          });
+          // 悬浮预览、点击固定；名称不再常显，避免与区域标签叠加密集
+          marker.on('mouseover', () => { if (!this.pinned) this.activeInfo = this.buildRiskInfo(rp, color); });
+          marker.on('mouseout', () => { if (!this.pinned) this.activeInfo = null; });
+          marker.on('click', () => { this.pinned = true; this.activeInfo = this.buildRiskInfo(rp, color); });
         }
-        // 风险点名称标签
-        const label = new window.AMap.Text({
-          text: rp.name,
-          position: [rp.lng, rp.lat],
-          offset: new window.AMap.Pixel(16, -4),
-          style: {
-            'font-size': '10px', 'color': '#475569',
-            'background': 'rgba(255,255,255,0.9)', 'border-radius': '3px',
-            'padding': '1px 5px', 'white-space': 'nowrap', 'pointer-events': 'none'
-          }
-        });
+        // 风险点名称标签默认隐藏（showLabels 时显示）
+        let label = null;
+        if (this.showLabels) {
+          label = new window.AMap.Text({
+            text: rp.name,
+            position: [rp.lng, rp.lat],
+            offset: new window.AMap.Pixel(16, -4),
+            style: {
+              'font-size': '10px', 'color': '#475569',
+              'background': 'rgba(255,255,255,0.9)', 'border-radius': '3px',
+              'padding': '1px 5px', 'white-space': 'nowrap', 'pointer-events': 'none'
+            }
+          });
+          label.setMap(this.map);
+        }
         marker.setMap(this.map);
-        label.setMap(this.map);
         this.markerList.push({ marker, riskPoint: rp, label });
       });
+    },
+    buildRiskInfo(rp, color) {
+      return {
+        name: rp.name,
+        level: rp.level,
+        color: color,
+        desc: rp.category + ' | 责任人: ' + rp.responsibleName + ' | ' + rp.measures,
+        risks: []
+      };
     },
     drawWorkPermits() {
       if (!this.workPermits.length) return;
@@ -256,6 +274,7 @@ export default {
     },
     onZoneClick(zone, e) {
       const zoneRisks = this.markerData.filter(r => r.zoneId === zone.id);
+      this.pinned = true;
       this.activeInfo = {
         name: zone.name,
         level: zone.riskLevel,
@@ -265,6 +284,21 @@ export default {
       };
       this.$emit('zone-click', { zone, risks: zoneRisks });
     },
+    onZoneOver(zone) {
+      if (this.pinned) return;
+      const zoneRisks = this.markerData.filter(r => r.zoneId === zone.id);
+      this.activeInfo = {
+        name: zone.name,
+        level: zone.riskLevel,
+        color: LEVEL_STROKES[zone.riskLevel],
+        desc: zone.desc,
+        risks: zoneRisks
+      };
+    },
+    onZoneOut() {
+      if (this.pinned) return;
+      this.activeInfo = null;
+    },
     setFilter(type) {
       this.activeFilter = type;
       this.polygons.forEach(({ poly, zone }) => {
@@ -273,7 +307,7 @@ export default {
         if (type === 'danger') { poly.setOptions({ fillOpacity: zone.riskLevel === '较大' ? 0.6 : 0.1 }); return; }
       });
     },
-    clearInfo() { this.activeInfo = null; },
+    clearInfo() { this.activeInfo = null; this.pinned = false; },
     getPolygonCenter(path) {
       if (!path || !path.length) return [112.51, 37.58];
       const sum = path.reduce((acc, p) => [acc[0] + p[0], acc[1] + p[1]], [0, 0]);

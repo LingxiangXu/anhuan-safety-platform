@@ -66,13 +66,20 @@ export const personnel = [
 // ==== 厂区区域定义 ====
 // ==== 厂区中心点 ====
 export const FACTORY_CENTER = { lng: 112.51, lat: 37.58, name: '太重智能高端产业园区·机加厂房' };
+// 演示优化：区域范围整体放大一倍（绕厂区中心均匀缩放），降低四色图密集感
+const MAP_SCALE = 2;
+function scaleLngLat(lng, lat) {
+  const f = (v, c) => +(c + MAP_SCALE * (v - c)).toFixed(7);
+  return [f(lng, FACTORY_CENTER.lng), f(lat, FACTORY_CENTER.lat)];
+}
+function scalePath(path) { return path.map(([lng, lat]) => scaleLngLat(lng, lat)); }
 // ==== 机加联合厂房边界（约500㎡，顺时针 NW,NE,SE,SW）====
-export const PARK_BOUNDARY = [
+export const PARK_BOUNDARY = scalePath([
   [112.509870,37.580110],
   [112.510130,37.580110],
   [112.510130,37.579890],
   [112.509870,37.579890]
-];
+]);
 
 export const factoryZones = [
   { id: 'zone-1', name: '原料存放区', x: 80, y: 60, w: 160, h: 110, riskLevel: '一般', riskColor: '#eab308', deptId: 1, desc: '原材料与坯料存放区域',
@@ -108,6 +115,13 @@ export const riskPoints = [
   { id: 'rp-7', zoneId: 'zone-7', name: '配电与动力点', category: '触电/火灾', level: '较大', deptId: 4, responsibleName: '孙志明',
     measures: '五防系统、绝缘监测、自动灭火装置', lastReview: '2026-07-01', status: '正常', lng: 112.51007545, lat: 37.57994455 }
 ];
+
+// 演示优化：风险点坐标随区域一同放大一倍（与 factoryZones / PARK_BOUNDARY 保持一致，点仍落在其所属区域内）
+riskPoints.forEach(rp => {
+  if (rp.lng && rp.lat) { const s = scaleLngLat(rp.lng, rp.lat); rp.lng = s[0]; rp.lat = s[1]; }
+});
+// 演示优化：区域多边形随厂区范围一同放大一倍（x/y/w/h 为 2D 平面图布局坐标，保持不动，避免影响平面图）
+factoryZones.forEach(z => { if (z.path && z.path.length) z.path = scalePath(z.path); });
 
 // ==== 责任书签订流程步骤 ====
 export const RESPONSIBILITY_STEPS = [
