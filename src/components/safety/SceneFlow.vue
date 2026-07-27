@@ -8,6 +8,7 @@
     </button>
     <transition name="sf-expand">
       <div v-show="!collapsed" class="sf-body">
+        <div v-if="flow.subtitle" class="sf-subtitle">📌 {{ flow.subtitle }}</div>
         <div class="sf-steps">
           <template v-for="(s, i) in flow.steps">
             <div class="sf-step" :key="'step-' + i">
@@ -86,6 +87,16 @@ export default {
   border-radius: 20px;
   padding: 2px 10px;
   font-weight: 600;
+}
+.sf-subtitle {
+  margin: 0 16px 12px;
+  padding: 7px 12px;
+  background: #fff7e6;
+  border: 1px solid #ffe0a3;
+  border-radius: 8px;
+  font-size: 12.5px;
+  color: #8a5a00;
+  line-height: 1.5;
 }
 .sf-toggle {
   margin-left: auto;

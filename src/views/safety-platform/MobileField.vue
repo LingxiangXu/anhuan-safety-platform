@@ -12,6 +12,10 @@
 
 
 
+    <SceneFlow flow-key="mobile" v-if="!embedded" />
+
+
+
     <!-- 功能概述 -->
 
     <section class="ov-section" v-if="!embedded">
@@ -596,7 +600,7 @@
 
                     <div class="mrf-pills">
 
-                      <span class="mrfp" v-for="wt in workTypeOptions" :key="wt.value" :class="{ active: permitApplyForm.workType === wt.value }" @click="permitApplyForm.workType = wt.value">{{ wt.emoji }} {{ wt.label }}</span>
+                      <span class="mrfp" v-for="wt in workTypeOptions" :key="wt.value" :class="{ active: permitApplyForm.workType === wt.value }" @click="pickWorkType(wt.value)">{{ wt.emoji }} {{ wt.label }}</span>
 
                     </div>
 
@@ -650,6 +654,22 @@
 
                   <div class="mrf-group" v-if="permitApplyForm.workType === 'HIGH_ALTITUDE'">
 
+                    <div class="mrf-label">作业级别 <span class="req">*</span></div>
+
+                    <select class="mrf-select filled" v-model="permitApplyForm.workLevel">
+
+                      <option value="" disabled>请选择作业级别</option>
+
+                      <option v-for="o in workLevelOptions.HIGH_ALTITUDE" :key="o.value" :value="o.value">{{ o.label }}</option>
+
+                    </select>
+
+                    <div class="mp-chain-hint" v-if="applyPreview">审批链：{{ applyPreview }}</div>
+
+                  </div>
+
+                  <div class="mrf-group" v-if="permitApplyForm.workType === 'HIGH_ALTITUDE'">
+
                     <div class="mrf-label">作业高度</div>
 
                     <input class="mrf-input filled" v-model="permitApplyForm.height" placeholder="如：8.5m" />
@@ -669,6 +689,22 @@
                     <div class="mrf-label">电压 / 功率</div>
 
                     <input class="mrf-input filled" v-model="permitApplyForm.voltage" placeholder="如：380V / 30kW" />
+
+                  </div>
+
+                  <div class="mrf-group" v-if="permitApplyForm.workType === 'FIRE'">
+
+                    <div class="mrf-label">动火级别 <span class="req">*</span></div>
+
+                    <select class="mrf-select filled" v-model="permitApplyForm.workLevel">
+
+                      <option value="" disabled>请选择动火级别</option>
+
+                      <option v-for="o in workLevelOptions.FIRE" :key="o.value" :value="o.value">{{ o.label }}</option>
+
+                    </select>
+
+                    <div class="mp-chain-hint" v-if="applyPreview">审批链：{{ applyPreview }}</div>
 
                   </div>
 
@@ -736,7 +772,11 @@
 
                     <div class="phri-row"><span>作业类型</span><span>{{ WORK_TYPE[lastPermit.workType] ? WORK_TYPE[lastPermit.workType].label : lastPermit.workType }}</span></div>
 
+                    <div class="phri-row" v-if="lastPermit.workLevel"><span>作业级别</span><span>{{ lastPermit.workLevel }}</span></div>
+
                     <div class="phri-row"><span>作业区域</span><span>{{ lastPermit.zoneName }}</span></div>
+
+                    <div class="phri-row" v-if="lastPermit.validity"><span>许可证有效期</span><span>{{ lastPermit.validity }}</span></div>
 
                     <div class="phri-row"><span>申请人</span><span>{{ lastPermit.applicantName }}</span></div>
 
@@ -815,11 +855,14 @@
 
 
 <script>
-import { hazards, inspectionTasks, workPermits, WORK_TYPE } from '@/store/safeData';
+import { hazards, inspectionTasks, workPermits, WORK_TYPE, getApprovalChain, getWorkValidity } from '@/store/safeData';
+import SceneFlow from '@/components/safety/SceneFlow.vue';
 
 export default {
 
   name: 'MobileField',
+
+  components: { SceneFlow },
 
   props: {
 
@@ -940,9 +983,25 @@ export default {
 
       workTypeOptions: [
         { value: 'HIGH_ALTITUDE', label: '高处作业', emoji: '🏗️' },
-        { value: 'LIFTING', label: '吊装作业', emoji: '⛓️' },
-        { value: 'TEMPORARY_ELECTRICITY', label: '临时用电', emoji: '⚡' }
+        { value: 'LIFTING', label: '起重吊装', emoji: '⛓️' },
+        { value: 'TEMPORARY_ELECTRICITY', label: '临时用电', emoji: '⚡' },
+        { value: 'FIRE', label: '动火作业', emoji: '🔥' }
       ],
+
+      // 按类型可选的作业级别（用于移动端新建作业票时计算分级审批链）
+      workLevelOptions: {
+        HIGH_ALTITUDE: [
+          { value: '一级', label: '一级（2m–5m）' },
+          { value: '二级', label: '二级（5m–15m）' },
+          { value: '三级', label: '三级（15m–30m）' },
+          { value: '特级', label: '特级（30m以上）' }
+        ],
+        FIRE: [
+          { value: '二级', label: '二级（一般动火·72h）' },
+          { value: '一级', label: '一级（较大动火·8h）' },
+          { value: '特级', label: '特级（重大动火·8h）' }
+        ]
+      },
 
       safetyMeasureOptions: [
         '安全帽+安全带', '生命线系统', '防坠落网', '警戒区域设置',
@@ -952,6 +1011,7 @@ export default {
 
       permitApplyForm: {
         workType: 'HIGH_ALTITUDE',
+        workLevel: '',
         title: '', zoneName: '', applicantName: '陈文斌', guardianName: '', duration: '',
         height: '', loadWeight: '', voltage: '', workers: [], measures: [], risks: ''
       },
@@ -1064,6 +1124,18 @@ export default {
         ? { ...m, badge: this.pendingTaskCount || undefined }
         : m);
 
+    },
+
+    // 新建作业票时，按「类型 + 级别」实时预览分级审批链（依据危险作业安全管控制度）
+    applyPreview() {
+
+      const t = this.permitApplyForm.workType;
+      if (!t) return '';
+      let lvl = '';
+      if (t === 'LIFTING') lvl = '特殊';
+      else if (t === 'HIGH_ALTITUDE' || t === 'FIRE') lvl = this.permitApplyForm.workLevel || '二级';
+      return getApprovalChain(t, lvl);
+
     }
 
   },
@@ -1142,7 +1214,7 @@ export default {
       const rectifierName = areaPoint ? areaPoint.responsible : this.currentUser.name;
       const newHazard = {
         id: `YH${ymd}${String(hazards.length + 1).padStart(3, '0')}`,
-        source: '移动巡检',
+        source: '隐患随手拍',
         severity: this.reportForm.level,
         status: '待受理',
         orgId: 3,
@@ -1200,7 +1272,7 @@ export default {
 
     typeIcon(type) {
 
-      return { HIGH_ALTITUDE: '🏗️', LIFTING: '⛓️', TEMPORARY_ELECTRICITY: '⚡' }[type] || '📝';
+      return { HIGH_ALTITUDE: '🏗️', LIFTING: '⛓️', TEMPORARY_ELECTRICITY: '⚡', FIRE: '🔥' }[type] || '📝';
 
     },
 
@@ -1238,6 +1310,14 @@ export default {
 
     },
 
+    // 选择作业类型时重置级别（不同级别的审批链不同）
+    pickWorkType(v) {
+
+      this.permitApplyForm.workType = v;
+      this.permitApplyForm.workLevel = '';
+
+    },
+
     submitPermitApply() {
 
       const f = this.permitApplyForm;
@@ -1249,6 +1329,14 @@ export default {
         alert('请选择作业区域');
         return;
       }
+      if ((f.workType === 'HIGH_ALTITUDE' || f.workType === 'FIRE') && !f.workLevel) {
+        alert('请选择作业级别');
+        return;
+      }
+      // 按「作业类型 + 级别」从审批矩阵计算分级审批链与有效期（依据危险作业安全管控制度）
+      const workLevel = f.workType === 'LIFTING' ? '特殊' : (f.workLevel || '二级');
+      const approvalChain = getApprovalChain(f.workType, workLevel);
+      const validity = getWorkValidity(f.workType, workLevel);
 
       const now = new Date();
       const pad = n => String(n).padStart(2, '0');
@@ -1271,7 +1359,7 @@ export default {
         applicantId: this.currentUser.id, applicantName: f.applicantName.trim(), applicantDept: '',
         duration: f.duration.trim() || `${y}-${m}-${d} 08:00 ~ ${y}-${m}-${d} 18:00`,
         height: f.height || '', loadWeight: f.loadWeight || '', voltage: f.voltage || '',
-        approvalChain: '部门负责人 → 安环室 → 分管领导',
+        workLevel, validity, approvalChain,
         workers: f.workers.map(n => ({ name: n, role: '作业人' })),
         guardianId: null, guardianName: hasGuardian ? f.guardianName.trim() : null,
         safetyMeasures: [...f.measures],
@@ -1289,15 +1377,15 @@ export default {
         newPermit.blocked = true;
         newPermit.blockReasons = [{
           person: '系统', issue: '未指定监护人（监护确认前需补齐）',
-          action: '请在安环审核阶段补充监护人员信息'
+          action: '请在分级审批链阶段补充监护人员信息'
         }];
       }
 
       workPermits.unshift(newPermit);
 
-      this.lastPermit = { id, workType: f.workType, zoneName: f.zoneName, applicantName: f.applicantName.trim(), status: newPermit.status };
+      this.lastPermit = { id, workType: f.workType, workLevel, validity, zoneName: f.zoneName, applicantName: f.applicantName.trim(), status: newPermit.status };
       this.permitApplyForm = {
-        workType: 'HIGH_ALTITUDE', title: '', zoneName: '', applicantName: '陈文斌',
+        workType: 'HIGH_ALTITUDE', workLevel: '', title: '', zoneName: '', applicantName: '陈文斌',
         guardianName: '', duration: '', height: '', loadWeight: '', voltage: '',
         workers: [], measures: [], risks: ''
       };
@@ -1607,6 +1695,8 @@ export default {
 .mob-permit { display: flex; flex-direction: column; gap: 8px; }
 
 .mp-hint { font-size: 10px; color: #999; padding: 2px 2px 0; }
+
+.mp-chain-hint { font-size: 9px; color: #2E7D32; background: #E3F2FD; border-radius: 6px; padding: 5px 8px; margin-top: 4px; line-height: 1.4; }
 
 .mp-list { display: flex; flex-direction: column; gap: 6px; }
 

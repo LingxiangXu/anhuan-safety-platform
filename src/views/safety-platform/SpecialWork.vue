@@ -3,7 +3,7 @@
     <SceneFlow flow-key="specialwork" />
     <div class="page-header">
       <h2>特殊作业管控</h2>
-      <p class="page-subtitle">高处、吊装与临时用电作业统一流程：申请→前置核验→安环审核→领导审批→监护确认→作业→验收→归档</p>
+      <p class="page-subtitle">高处、起重吊装、临时用电与动火作业统一流程：申请→前置核验→分级审批链→监护确认→作业→验收→归档（审批链按「类型+级别」逐级加签，含领导审批节点）</p>
     </div>
 
     <!-- 作业票申请入口 -->
@@ -38,7 +38,8 @@
     <div class="work-type-tabs">
       <button class="type-tab" :class="{ active: activeType === 'ALL' }" @click="activeType = 'ALL'">全部作业</button>
       <button class="type-tab" :class="{ active: activeType === 'HIGH_ALTITUDE' }" @click="activeType = 'HIGH_ALTITUDE'">🏗️ 高处作业</button>
-      <button class="type-tab" :class="{ active: activeType === 'LIFTING' }" @click="activeType = 'LIFTING'">⛓ 吊装作业</button>
+      <button class="type-tab" :class="{ active: activeType === 'FIRE' }" @click="activeType = 'FIRE'">🔥 动火作业</button>
+      <button class="type-tab" :class="{ active: activeType === 'LIFTING' }" @click="activeType = 'LIFTING'">⛓ 起重吊装</button>
       <button class="type-tab" :class="{ active: activeType === 'TEMPORARY_ELECTRICITY' }" @click="activeType = 'TEMPORARY_ELECTRICITY'">⚡ 临时用电</button>
     </div>
 
@@ -69,12 +70,12 @@
       <div class="section-card">
         <!-- 流程节点 -->
         <div class="flow-steps">
-          <div class="flow-step" v-for="(step, i) in flowSteps" :key="step.key"
-            :class="{ done: stepIndex(step.key) < currentStepIndex, current: step.key === currentStep, blocked: selectedPermit.blocked }">
-            <div class="step-dot" :class="{ active: stepIndex(step.key) <= currentStepIndex }">{{ step.icon }}</div>
+          <div class="flow-step" v-for="(step, i) in dynamicFlowSteps" :key="step.key + i"
+            :class="{ done: dynamicStepIndex(step.key, i) < currentDynamicStepIndex, current: step.key === currentStep, blocked: selectedPermit.blocked }">
+            <div class="step-dot" :class="{ active: dynamicStepIndex(step.key, i) <= currentDynamicStepIndex }">{{ step.icon }}</div>
             <div class="step-label">{{ step.label }}</div>
             <div class="step-role">{{ step.role }}</div>
-            <div v-if="i < flowSteps.length - 1" class="step-line" :class="{ active: stepIndex(step.key) < currentStepIndex }"></div>
+            <div v-if="i < dynamicFlowSteps.length - 1" class="step-line" :class="{ active: dynamicStepIndex(step.key, i) < currentDynamicStepIndex }"></div>
           </div>
         </div>
 
@@ -87,13 +88,25 @@
           <div class="info-item" v-if="selectedPermit.workType === 'HIGH_ALTITUDE'"><label>作业高度</label><span>{{ selectedPermit.height }}</span></div>
           <div class="info-item" v-if="selectedPermit.workType === 'HIGH_ALTITUDE' && selectedPermit.workLevel"><label>作业等级</label><span class="work-level-tag" :class="'level-' + selectedPermit.workLevel">{{ selectedPermit.workLevel }}（{{ selectedPermit.heightLevel }}）</span></div>
           <div class="info-item" v-if="selectedPermit.workType === 'LIFTING'"><label>吊载重量</label><span>{{ selectedPermit.loadWeight }}</span></div>
+          <div class="info-item" v-if="selectedPermit.workType === 'LIFTING' && selectedPermit.workLevel"><label>作业类别</label><span class="work-level-tag level-特殊">{{ selectedPermit.workLevel }}起重吊装</span></div>
           <div class="info-item" v-if="selectedPermit.workType === 'TEMPORARY_ELECTRICITY'"><label>用电参数</label><span>{{ selectedPermit.voltage }} / {{ selectedPermit.power }}</span></div>
+          <div class="info-item" v-if="selectedPermit.workType === 'FIRE'"><label>动火级别</label><span class="work-level-tag" :class="'level-' + selectedPermit.workLevel">{{ selectedPermit.fireLevel || selectedPermit.workLevel }}动火</span></div>
+          <div class="info-item" v-if="selectedPermit.validity"><label>许可证有效期</label><span class="validity-tag">⏱ {{ selectedPermit.validity }}</span></div>
         </div>
 
-        <!-- 分级审批链 -->
-        <div class="approval-chain" v-if="selectedPermit.approvalChain">
-          <span class="chain-label">审批层级</span>
-          <span class="chain-path">{{ selectedPermit.approvalChain }}</span>
+        <!-- 分级审批链（按作业类型+级别差异化，依据危险作业安全管控制度） -->
+        <div class="approval-chain-box" v-if="selectedPermit.approvalChain">
+          <div class="chain-head">
+            <span class="chain-label">分级审批链</span>
+            <span class="chain-tip">按「{{ getWorkType(selectedPermit.workType) }}
+              <template v-if="selectedPermit.workLevel">· {{ selectedPermit.workLevel }}</template>」逐级审批（{{ approvalNodes.length }} 个节点）</span>
+          </div>
+          <div class="chain-nodes">
+            <template v-for="(node, i) in approvalNodes">
+              <span class="chain-node" :key="'n-' + i">{{ node }}</span>
+              <span v-if="i < approvalNodes.length - 1" class="chain-sep" :key="'s-' + i">→</span>
+            </template>
+          </div>
         </div>
 
         <!-- 作业人员 -->
@@ -240,6 +253,26 @@
               <label class="form-label">电压 / 功率</label>
               <input class="form-input" v-model="newPermit.voltage" placeholder="如：380V / 30kW" />
             </div>
+            <div class="form-group" v-if="newPermit.workType === 'FIRE'">
+              <label class="form-label">动火级别</label>
+              <select class="form-input" v-model="newPermit.workLevel">
+                <option value="二级">二级动火（有效期72小时）</option>
+                <option value="一级">一级动火（有效期8小时）</option>
+                <option value="特级">特级动火（有效期8小时）</option>
+              </select>
+            </div>
+          </div>
+          <!-- 高处作业级别选择 -->
+          <div class="form-row" v-if="newPermit.workType === 'HIGH_ALTITUDE'">
+            <div class="form-group">
+              <label class="form-label">作业级别（按高度自动对应审批链）</label>
+              <select class="form-input" v-model="newPermit.workLevel">
+                <option value="一级">一级（2m–5m）</option>
+                <option value="二级">二级（5m–15m）</option>
+                <option value="三级">三级（15m–30m）</option>
+                <option value="特级">特级（30m以上）</option>
+              </select>
+            </div>
           </div>
 
           <!-- 作业人员 -->
@@ -287,7 +320,7 @@
 </template>
 
 <script>
-import { workPermits, WORK_TYPE, WORK_PERMIT_STATUS, WORK_PERMIT_STEPS } from '@/store/safeData';
+import { workPermits, WORK_TYPE, WORK_PERMIT_STATUS, WORK_PERMIT_STEPS, getApprovalChain, getWorkValidity } from '@/store/safeData';
 import MobileField from '@/views/safety-platform/MobileField.vue';
 import SceneFlow from '@/components/safety/SceneFlow.vue';
 
@@ -307,7 +340,8 @@ export default {
       newPermit: this.createEmptyPermit(),
       workTypeOptions: [
         { value: 'HIGH_ALTITUDE', label: '高处作业', emoji: '🏗️' },
-        { value: 'LIFTING', label: '吊装作业', emoji: '⛓' },
+        { value: 'FIRE', label: '动火作业', emoji: '🔥' },
+        { value: 'LIFTING', label: '起重吊装', emoji: '⛓' },
         { value: 'TEMPORARY_ELECTRICITY', label: '临时用电', emoji: '⚡' }
       ],
       safetyMeasureOptions: [
@@ -331,8 +365,40 @@ export default {
     currentStepIndex() {
       if (!this.selectedPermit) return 0;
       const key = this.mapStatusToKey(this.selectedPermit.status);
-      const idx = WORK_PERMIT_STEPS.findIndex(s => s.key === key);
+      // 动态流程条：用 dynamicFlowSteps 查找
+      const idx = this.dynamicFlowSteps.findIndex(s => s.key === key);
       return idx >= 0 ? idx : 0;
+    },
+    /** 当前步骤在动态流程条中的索引（审批区已合并为单一「分级审批链」步） */
+    currentDynamicStepIndex() {
+      return this.currentStepIndex;
+    },
+    approvalNodes() {
+      if (!this.selectedPermit || !this.selectedPermit.approvalChain) return [];
+      return this.selectedPermit.approvalChain.split('→').map(s => s.trim()).filter(Boolean);
+    },
+    /**
+     * 动态流程条：步骤 1-2 / 5-7 固定，中间审批区统一为一个「分级审批链」步骤，
+     * 按「类型+级别」从矩阵取真实链路（含领导审批节点）完整展示，不再单列"领导审批"步。
+     */
+    dynamicFlowSteps() {
+      if (!this.selectedPermit) return WORK_PERMIT_STEPS;
+      const chain = this.approvalNodes;
+      // 无审批链时回退到静态步骤
+      if (!chain.length) return WORK_PERMIT_STEPS;
+      const fixedStart = WORK_PERMIT_STEPS.slice(0, 2); // 提交申请 + 前置核验
+      const fixedEnd = WORK_PERMIT_STEPS.slice(3);        // 监护确认 ~ 归档
+      // 审批区统一为一个「分级审批链」步骤，按「类型+级别」展示完整审批链（含领导审批节点）
+      const steps = [
+        ...fixedStart,
+        {
+          key: 'PENDING_SAFETY_REVIEW',
+          label: '分级审批链',
+          role: chain.join(' → ') || '公司安环人员',
+          icon: '👀'
+        }
+      ];
+      return [...steps, ...fixedEnd];
     },
     swStats() {
       return [
@@ -355,13 +421,15 @@ export default {
       return 'tag-orange';
     },
     selectPermit(wp) { this.selectedPermit = wp; },
+    dynamicStepIndex(key, i) { return i; },
+    /** 保留原 stepIndex 用于非动态场景（如 timeline 构建等） */
     stepIndex(key) { return WORK_PERMIT_STEPS.findIndex(s => s.key === key); },
     mapStatusToKey(status) {
       const map = {
         '草稿': 'DRAFT',
         '待前置核验': 'PENDING_CHECK',
         '待安环审核': 'PENDING_SAFETY_REVIEW',
-        '待领导审批': 'PENDING_LEADER_APPROVAL',
+        '待领导审批': 'PENDING_SAFETY_REVIEW',
         '待监护确认': 'PENDING_GUARDIAN',
         '作业中': 'IN_PROGRESS',
         '待完工验收': 'PENDING_ACCEPTANCE',
@@ -419,8 +487,9 @@ export default {
         id: '', workType: 'HIGH_ALTITUDE', status: '草稿',
         orgId: 3, deptId: 5, zoneId: '', zoneName: '',
         title: '', applicantId: 9, applicantName: '', applicantDept: '',
-        duration: '', height: '', workLevel: '', loadWeight: '', voltage: '',
-        approvalChain: '部门负责人 → 安环室 → 分管领导',
+        duration: '', height: '', workLevel: '二级', loadWeight: '', voltage: '',
+        fireLevel: '', validity: '',
+        approvalChain: getApprovalChain('HIGH_ALTITUDE', '二级'),
         workers: [], guardianId: null, guardianName: '',
         safetyMeasures: [], riskHighlights: [],
         checks: [], timeline: [],
@@ -450,11 +519,20 @@ export default {
       const seq = (this.localPermits.length + 1).toString().padStart(3, '0');
       return `GZ${y}${m}${d}${seq}`;
     },
+    syncApprovalMeta() {
+      // 按作业类型+级别自动对齐审批链与有效期（依据危险作业安全管控制度）
+      const t = this.newPermit.workType;
+      const lvl = this.newPermit.workLevel;
+      this.newPermit.approvalChain = getApprovalChain(t, lvl);
+      this.newPermit.validity = getWorkValidity(t, lvl);
+      if (t === 'FIRE') this.newPermit.fireLevel = lvl;
+    },
     saveDraft() {
       if (!this.newPermit.title.trim()) {
         alert('请至少填写作业标题');
         return;
       }
+      this.syncApprovalMeta();
       this.newPermit.id = this.generatePermitId();
       this.newPermit.status = '草稿';
       const now = new Date().toISOString().replace('T', ' ').slice(0, 16);
@@ -481,6 +559,8 @@ export default {
       if (this.newPermit.workType === 'HIGH_ALTITUDE' && !this.newPermit.height) this.newPermit.height = '待确认';
       if (this.newPermit.workType === 'LIFTING' && !this.newPermit.loadWeight) this.newPermit.loadWeight = '待确认';
       if (this.newPermit.workType === 'TEMPORARY_ELECTRICITY' && !this.newPermit.voltage) this.newPermit.voltage = '待确认';
+      if (this.newPermit.workType === 'LIFTING') this.newPermit.workLevel = '特殊';
+      this.syncApprovalMeta();
 
       this.newPermit.id = this.generatePermitId();
       const now = new Date().toISOString().replace('T', ' ').slice(0, 16);
@@ -488,7 +568,7 @@ export default {
       // 风险输入按行分割
       this.newPermit.riskHighlights = this.riskInput.split('\n').map(s => s.trim()).filter(Boolean);
 
-      // 构建时间线：申请提交 → 前置核验 → 进入安环审核
+      // 构建时间线：申请提交 → 前置核验 → 进入分级审批链
       this.newPermit.timeline = [
         { time: now, action: `${this.newPermit.applicantName}提交${this.getWorkType(this.newPermit.workType)}作业申请`, operator: this.newPermit.applicantName },
         { time: now, action: '系统自动前置核验：待安环人员复核', operator: '系统' }
@@ -503,7 +583,7 @@ export default {
         this.newPermit.blocked = true;
         this.newPermit.blockReasons = [{
           person: '系统', issue: '未指定监护人（监护确认前需补齐）',
-          action: '请在安环审核阶段补充监护人员信息'
+          action: '请在分级审批链阶段补充监护人员信息'
         }];
       }
 
@@ -646,11 +726,22 @@ export default {
 .chain-label { color: $text-hint; flex-shrink: 0; }
 .chain-path { color: $primary; font-weight: 700; }
 
+.approval-chain-box { margin-bottom: $space-lg; padding: 12px 16px; background: $info-bg; border-radius: 10px; border: 1px solid #bae6fd; }
+.chain-head { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; flex-wrap: wrap; }
+.chain-head .chain-label { font-size: $font-sm; font-weight: 700; color: $primary; }
+.chain-tip { font-size: 12px; color: $text-hint; font-weight: 500; }
+.chain-nodes { display: flex; align-items: center; flex-wrap: wrap; gap: 6px; }
+.chain-node { display: inline-block; padding: 4px 12px; background: #fff; border: 1px solid $primary; border-radius: 16px; font-size: 12px; font-weight: 600; color: $primary; }
+.chain-sep { color: $primary; font-weight: 700; margin: 0 1px; }
+
+.validity-tag { display: inline-block; padding: 1px 8px; border-radius: 10px; font-size: 11px; font-weight: 600; background: #fef3c7; color: #92600a; }
+
 .work-level-tag { display: inline-block; padding: 1px 8px; border-radius: 10px; font-size: 11px; font-weight: 600;
   &.level-一级 { background: #dcfce7; color: $success-700; }
   &.level-二级 { background: #fef9c3; color: $warning-700; }
   &.level-三级 { background: #fed7aa; color: $danger-700; }
   &.level-特级 { background: #fecaca; color: $danger-700; }
+  &.level-特殊 { background: #e0e7ff; color: #4338ca; }
 }
 
 .block-panel { padding: $space-lg; background: $danger-100; border-radius: 12px; border: 1px solid $danger-100; margin: $space-lg 0; }

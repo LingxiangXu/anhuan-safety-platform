@@ -192,6 +192,7 @@
 </template>
 
 <script>
+import { workApprovalMatrix } from '@/store/safeData';
 
 export default {
   name: 'BpmIntegration',
@@ -200,7 +201,7 @@ export default {
       currentStep: 3,
       bpmStats: [
         { icon: '🔗', label: '已对接接口', value: '8', sub: '全部联调通过', grad: 'linear-gradient(135deg, #0075E6, #57A3FF)', color: '#0075E6' },
-        { icon: '✅', label: '配置审批流', value: '5', sub: '3已上线 / 2待上线', grad: 'linear-gradient(135deg, #009118, #42D056)', color: '#009118' },
+        { icon: '✅', label: '配置审批流', value: '11', sub: '9已上线 / 2待上线', grad: 'linear-gradient(135deg, #009118, #42D056)', color: '#009118' },
         { icon: '📊', label: '审批通过率', value: '94.2%', sub: '近30天统计', grad: 'linear-gradient(135deg, #007714, #00AA1C)', color: '#00AA1C' },
         { icon: '⏱️', label: '平均审批时长', value: '4.6h', sub: '较线下缩短68%', grad: 'linear-gradient(135deg, #D97706, #FBBF24)', color: '#D97706' }
       ],
@@ -216,14 +217,6 @@ export default {
         '审批历史记录',
         '消息通知推送',
         '超时催办机制'
-      ],
-      flowConfig: [
-        { module: '特殊作业管控', step: '安环审核', bpmCode: 'SW-SAFETY-REVIEW-001', nodes: '安环专员→安环主管', status: '已上线' },
-        { module: '特殊作业管控', step: '领导审批', bpmCode: 'SW-LEADER-APPROVAL-002', nodes: '车间主任→分管副总', status: '已上线' },
-        { module: '特殊作业管控', step: '完工验收', bpmCode: 'SW-ACCEPTANCE-003', nodes: '安环专员→安环主管', status: '已上线' },
-        { module: '隐患治理督办', step: '隐患整改分派', bpmCode: 'HZ-DISPATCH-001', nodes: '安环科→责任部门', status: '待上线' },
-        { module: '隐患治理督办', step: '复查验收闭环', bpmCode: 'HZ-REVIEW-002', nodes: '整改人→安环科', status: '待上线' },
-        { module: '风险管理', step: 'LEC评价复核', bpmCode: 'RM-LEC-REVIEW-001', nodes: '安环专员→安环主管', status: '已上线' }
       ],
       apiList: [
         { method: 'POST', path: '/api/oa/flow/start', desc: '发起审批流程（推送业务数据到OA）', direction: '安全平台→OA', status: '已联调' },
@@ -263,6 +256,44 @@ export default {
         { icon: '📡', title: '监控告警', text: '接口调用成功率、响应时间、待办积压量等指标接入统一监控面板，异常自动钉钉/邮件告警。' }
       ]
     };
+  },
+  computed: {
+    /**
+     * 审批流程配置：特殊作业管控按「作业类型 + 级别」从审批矩阵动态生成 OA 审批节点，
+     * 其余业务（隐患治理、风险管理）保持固定配置。
+     */
+    flowConfig() {
+      const swRows = [];
+      const order = ['HIGH_ALTITUDE', 'FIRE', 'LIFTING', 'TEMPORARY_ELECTRICITY'];
+      order.forEach((key, i) => {
+        const cfg = workApprovalMatrix[key];
+        if (!cfg) return;
+        // 取该类型最高级别的审批链（代表最完整的 OA 路由），并补"作业申请/现场部门负责人"通用前置
+        const topLevel = cfg.levels[cfg.levels.length - 1];
+        const chain = topLevel ? topLevel.chain : [];
+        const nodes = chain.join(' → ');
+        swRows.push({
+          module: '特殊作业管控',
+          step: `分级审批（${cfg.label}）`,
+          bpmCode: `SW-${key}-APPROVAL-${String(i + 1).padStart(3, '0')}`,
+          nodes,
+          status: '已上线'
+        });
+        swRows.push({
+          module: '特殊作业管控',
+          step: `完工验收（${cfg.label}）`,
+          bpmCode: `SW-${key}-ACCEPT-${String(i + 1).padStart(3, '0')}`,
+          nodes: '现场监护人 → 安环室',
+          status: '已上线'
+        });
+      });
+      return [
+        ...swRows,
+        { module: '隐患治理督办', step: '隐患整改分派', bpmCode: 'HZ-DISPATCH-001', nodes: '安环科→责任部门', status: '待上线' },
+        { module: '隐患治理督办', step: '复查验收闭环', bpmCode: 'HZ-REVIEW-002', nodes: '整改人→安环科', status: '待上线' },
+        { module: '风险管理', step: 'LEC评价复核', bpmCode: 'RM-LEC-REVIEW-001', nodes: '安环专员→安环主管', status: '已上线' }
+      ];
+    }
   }
 };
 </script>

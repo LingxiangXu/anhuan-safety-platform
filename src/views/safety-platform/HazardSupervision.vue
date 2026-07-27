@@ -62,7 +62,7 @@
       <div class="section-card">
         <div class="detail-grid">
           <div class="detail-item"><label>编号</label><span>{{ selectedHazard.id }}</span></div>
-          <div class="detail-item"><label>来源</label><span>{{ selectedHazard.source }}</span></div>
+          <div class="detail-item"><label>来源</label><span>{{ selectedHazard.source }}<span v-if="sourceFlow" class="flow-tag">{{ sourceFlow.label }}</span></span></div>
           <div class="detail-item"><label>严重程度</label><span class="tag" :class="severityClass(selectedHazard.severity)">{{ selectedHazard.severity }}</span></div>
           <div class="detail-item"><label>状态</label><span class="tag" :class="statusClass(selectedHazard.status)">{{ getStatus(selectedHazard.status) }}</span></div>
           <div class="detail-item"><label>整改责任人</label><span>{{ selectedHazard.rectifierName }}</span></div>
@@ -79,6 +79,21 @@
           <label>整改方案</label>
           <p>{{ selectedHazard.rectificationPlan || '待制定' }}</p>
         </div>
+        <!-- 来源流转流程（依据《平台流程节点》三套来源差异化） -->
+        <div class="source-flow-box" v-if="sourceFlow">
+          <div class="sf-box-head">
+            <span class="sf-box-title">📋 {{ sourceFlow.label }} · 流转节点</span>
+            <span class="sf-box-count">{{ sourceFlow.nodes.length }} 个节点</span>
+          </div>
+          <div class="sf-box-desc">{{ sourceFlow.desc }}</div>
+          <div class="sf-box-nodes">
+            <template v-for="(n, i) in sourceFlow.nodes">
+              <span class="sf-box-node" :key="'sfn'+i">{{ n }}</span>
+              <span v-if="i < sourceFlow.nodes.length-1" class="sf-box-arrow" :key="'sfa'+i">→</span>
+            </template>
+          </div>
+        </div>
+
         <!-- 流程步骤条 -->
         <div class="hazard-flow-chain">
           <div class="chain-header">
@@ -360,7 +375,7 @@
 </template>
 
 <script>
-import { hazards, supervisions, HAZARD_STATUS } from '@/store/safeData';
+import { hazards, supervisions, HAZARD_STATUS, hazardFlowConfig, hazardSourceToFlow } from '@/store/safeData';
 import MobileField from './MobileField.vue';
 import SceneFlow from '@/components/safety/SceneFlow.vue';
 
@@ -378,7 +393,8 @@ export default {
       // 登记新隐患表单
       showHazardForm: false,
       newHazard: this.createEmptyHazard(),
-      sourceOptions: ['日常巡检', '专项检查', '上级督查', '员工举报', '设备监测', '其他'],
+      // 三套制度来源（对齐《平台流程节点》）+ 兼容既有来源
+      sourceOptions: ['分公司计划检查', '公司监督检查', '隐患随手拍', '上级督查', '投诉举报', '员工举报', '设备监测', '其他'],
       severityOptions: [
         { value: '重大', color: '#ef4444' },
         { value: '较大', color: '#f59e0b' },
@@ -430,6 +446,12 @@ export default {
     this.seedHazards = JSON.parse(JSON.stringify(hazards));
   },
   computed: {
+    // 依据隐患来源匹配《平台流程节点》三套流转流程
+    sourceFlow() {
+      if (!this.selectedHazard) return null;
+      const key = hazardSourceToFlow[this.selectedHazard.source] || 'BRANCH_PLAN';
+      return hazardFlowConfig[key] || null;
+    },
     hazardFlowSteps() {
       if (!this.selectedHazard) return this.hazardFlowDef.map((s, i) => ({ ...s, done: false, active: false }))
       const sidx = this.hazardStatusStepMap[this.selectedHazard.status]
@@ -627,7 +649,7 @@ export default {
     // ===== 登记新隐患 =====
     createEmptyHazard() {
       return {
-        id: '', source: '日常巡检', severity: '一般', status: '待受理',
+        id: '', source: '分公司计划检查', severity: '一般', status: '待受理',
         zoneName: '', deptId: '', riskPointId: '',
         title: '', description: '', deadline: '', rectifierName: '', inspectorName: '',
         rectificationPlan: '', evidence: [], overdue: false,
@@ -782,6 +804,20 @@ export default {
   border-left: 4px solid $warning; font-size: $font-xs; color: #92400e; line-height: 1.6;
   strong { color: #92400e; }
 }
+
+/* ====== 来源流转流程盒 ====== */
+.flow-tag { display: inline-block; margin-left: 6px; padding: 1px 8px; background: $primary-bg; color: $primary; border-radius: 10px; font-size: 11px; font-weight: 600; }
+.source-flow-box {
+  background: #f4f9ff; border: 1px solid #cfe0f5; border-left: 4px solid $primary;
+  border-radius: 12px; padding: 14px 18px; margin: $space-lg 0;
+}
+.sf-box-head { display: flex; align-items: center; gap: 10px; margin-bottom: 6px; }
+.sf-box-title { font-size: $font-sm; font-weight: 700; color: #0b3d91; }
+.sf-box-count { font-size: 11px; color: $primary; background: #e1edff; border-radius: 12px; padding: 2px 9px; font-weight: 600; }
+.sf-box-desc { font-size: 12px; color: $text-secondary; margin-bottom: 12px; }
+.sf-box-nodes { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.sf-box-node { display: inline-block; padding: 4px 11px; background: #fff; border: 1px solid $primary; color: $primary; border-radius: 16px; font-size: 12px; font-weight: 600; }
+.sf-box-arrow { color: $primary; font-weight: 700; }
 
 /* ====== 隐患流程步骤条 ====== */
 .hazard-flow-chain {

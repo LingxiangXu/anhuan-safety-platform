@@ -182,7 +182,7 @@ export const HAZARD_SEVERITY = {
 export const hazards = [
   {
     id: 'YH20260712001',
-    source: '日常巡检', severity: '重大', status: '待整改',
+    source: '分公司计划检查', severity: '重大', status: '待整改',
     orgId: 3, deptId: 2, zoneId: 'zone-4', riskPointId: 'rp-4',
     title: '桥式起重机A区吊索具磨损超标',
     description: '巡检发现5T吊带出现纤维断裂，磨损超过报废标准10%',
@@ -199,7 +199,7 @@ export const hazards = [
   },
   {
     id: 'YH20260710001',
-    source: '专项检查', severity: '重大', status: '整改中',
+    source: '公司监督检查', severity: '重大', status: '整改中',
     orgId: 3, deptId: 1, zoneId: 'zone-1', riskPointId: 'rp-1',
     title: '中频炉冷却水系统压力偏低',
     description: '中频炉冷却水循环压力低于0.3MPa警戒值，存在炉体过热风险',
@@ -217,7 +217,7 @@ export const hazards = [
   },
   {
     id: 'YH20260708001',
-    source: '移动巡检', severity: '较大', status: '待复查',
+    source: '隐患随手拍', severity: '较大', status: '待复查',
     orgId: 3, deptId: 4, zoneId: 'zone-5', riskPointId: 'rp-5',
     title: '屋面通风器防坠落网锈蚀',
     description: '现场人员巡检发现厂房屋面检修区防坠落网多处锈蚀',
@@ -238,7 +238,7 @@ export const hazards = [
   },
   {
     id: 'YH20260705001',
-    source: '日常巡检', severity: '一般', status: '已闭环',
+    source: '分公司计划检查', severity: '一般', status: '已闭环',
     orgId: 3, deptId: 5, zoneId: 'zone-6', riskPointId: 'rp-6',
     title: '危险品库通风口百叶窗损坏',
     description: '2#通风口百叶窗叶片变形，影响通风量',
@@ -258,7 +258,7 @@ export const hazards = [
   },
   {
     id: 'YH20260701001',
-    source: '移动巡检', severity: '重大', status: '已闭环',
+    source: '隐患随手拍', severity: '重大', status: '已闭环',
     orgId: 3, deptId: 1, zoneId: 'zone-1', riskPointId: 'rp-2',
     title: '浇注坑区域天车限位器失效',
     description: '天车大车行走限位开关机械卡滞，存在冲顶风险',
@@ -273,6 +273,27 @@ export const hazards = [
       { time: '2026-07-01 08:00', action: '紧急分派至铸造车间', operator: '李明辉' },
       { time: '2026-07-02 16:00', action: '完成限位器更换与测试', operator: '张建国' },
       { time: '2026-07-03 09:00', action: '复查合格，隐患闭环', operator: '李明辉' }
+    ]
+  },
+  {
+    id: 'YH20260726001',
+    source: '分公司计划检查', severity: '较大', status: '待复查',
+    orgId: 3, deptId: 2, zoneId: 'zone-2', riskPointId: 'rp-3',
+    title: '锻压车间行车检修平台临边防护栏杆缺失',
+    description: '分公司计划检查发现 8000T 锻压机上方行车检修平台东侧临边防护栏杆脱落，高处作业存在坠落风险',
+    deadline: '2026-07-28', rectifierId: 2, rectifierName: '王志强',
+    inspectorId: 2, inspectorName: '李明辉',
+    createTime: '2026-07-25 09:00', acceptTime: '2026-07-25 09:30',
+    evidence: ['检修平台临边照片_20260725.jpg'],
+    rectificationPlan: '恢复临边防护栏杆并加固，高处作业前验收',
+    rectifiedAt: '2026-07-26 14:00',
+    rectifiedEvidence: ['栏杆恢复后照片_20260726.jpg'],
+    overdue: false,
+    timeline: [
+      { time: '2026-07-25 09:00', action: '分公司计划检查发现检修平台临边防护缺失', operator: '班组长' },
+      { time: '2026-07-25 09:30', action: '班组长受理并分派至锻压车间整改', operator: '班组长' },
+      { time: '2026-07-26 14:00', action: '王志强完成栏杆恢复并加固', operator: '王志强' },
+      { time: '2026-07-26 15:00', action: '提交整改反馈，待安全管理人员复查', operator: '王志强' }
     ]
   }
 ];
@@ -321,7 +342,8 @@ export const supervisions = [
 // ==== 特殊作业票状态枚举 ====
 export const WORK_TYPE = {
   HIGH_ALTITUDE: { key: 'HIGH_ALTITUDE', label: '高处作业', icon: '🏗️' },
-  LIFTING: { key: 'LIFTING', label: '吊装作业', icon: '⛓️' },
+  FIRE: { key: 'FIRE', label: '动火作业', icon: '🔥' },
+  LIFTING: { key: 'LIFTING', label: '起重吊装', icon: '⛓️' },
   TEMPORARY_ELECTRICITY: { key: 'TEMPORARY_ELECTRICITY', label: '临时用电', icon: '⚡' }
 };
 
@@ -340,13 +362,161 @@ export const WORK_PERMIT_STATUS = {
 export const WORK_PERMIT_STEPS = [
   { key: 'DRAFT', label: '提交申请', role: '作业申请人', icon: '📝' },
   { key: 'PENDING_CHECK', label: '前置核验', role: '系统自动', icon: '🔍' },
-  { key: 'PENDING_SAFETY_REVIEW', label: '安环审核', role: '公司安环人员', icon: '👀' },
-  { key: 'PENDING_LEADER_APPROVAL', label: '领导审批', role: '授权审批领导', icon: '✍️' },
+  { key: 'PENDING_SAFETY_REVIEW', label: '分级审批链', role: '公司安环人员', icon: '👀' },
   { key: 'PENDING_GUARDIAN', label: '监护确认', role: '现场监护人', icon: '✅' },
   { key: 'IN_PROGRESS', label: '作业执行', role: '作业人员', icon: '🔧' },
   { key: 'PENDING_ACCEPTANCE', label: '完工验收', role: '公司安环人员', icon: '📋' },
   { key: 'ARCHIVED', label: '归档', role: '公司安环人员', icon: '📁' }
 ];
+
+// ==== 危险作业分级审批矩阵（依据 TYHI/ZDJ-B0523-2025/A 危险作业安全管控制度）====
+// 按「作业类型 + 作业级别」差异化审批链，逐级加签；validity 为安全作业许可证有效期
+export const workApprovalMatrix = {
+  HIGH_ALTITUDE: {
+    label: '高处作业',
+    levels: [
+      { level: '一级', range: '2m–5m（含5m）', validity: '—',
+        chain: ['作业申请部门负责人', '作业现场部门负责人', '分公司健康安全管理室负责人'] },
+      { level: '二级', range: '5m–15m（含15m）', validity: '—',
+        chain: ['作业申请部门负责人', '作业现场部门负责人', '分公司健康安全管理室负责人', '作业申请部门分管领导'] },
+      { level: '三级', range: '15m–30m（含30m）', validity: '—',
+        chain: ['作业申请部门负责人', '作业现场部门负责人', '分公司健康安全管理室负责人', '作业申请部门分管领导', '分公司主要负责人'] },
+      { level: '特级', range: '30m以上', validity: '—',
+        chain: ['作业申请部门负责人', '作业现场部门负责人', '分公司健康安全管理室负责人', '作业申请部门分管领导', '分公司主要负责人', '集团健康安全环保部'] }
+    ]
+  },
+  TEMPORARY_ELECTRICITY: {
+    label: '临时用电作业',
+    levels: [
+      { level: '—', range: '临时电气线路作业', validity: '15天',
+        chain: ['作业申请部门负责人', '作业现场部门负责人', '分公司设备能源室', '分公司健康安全管理室'] }
+    ]
+  },
+  LIFTING: {
+    label: '特殊起重吊装作业',
+    levels: [
+      { level: '特殊', range: '大型/超重/交叉吊装', validity: '—',
+        // 依据制度附件3《吊装作业安全管理实施细则》第十三条 + 附件3-1《特殊起重吊装作业审批表》签字栏
+        // 审查节点为：作业现场部门负责人 → 设备能源室 → 技术工艺室（非健康安全管理室），报申请部门分管领导审批
+        chain: ['作业申请部门负责人', '作业现场部门负责人', '分公司设备能源室', '技术工艺室负责人', '作业申请部门分管领导'] }
+    ]
+  },
+  FIRE: {
+    label: '动火作业',
+    levels: [
+      { level: '二级', range: '一般动火（有效期72小时）', validity: '72小时',
+        chain: ['作业申请部门负责人', '作业现场部门负责人', '分公司健康安全管理室负责人'] },
+      { level: '一级', range: '较大动火（有效期8小时）', validity: '8小时',
+        chain: ['作业申请部门负责人', '作业现场部门负责人', '分公司健康安全管理室负责人', '分公司主要负责人'] },
+      { level: '特级', range: '重大动火（有效期8小时）', validity: '8小时',
+        chain: ['作业申请部门负责人', '作业现场部门负责人', '分公司健康安全管理室负责人', '分公司主要负责人', '集团公司武保部（或能源管理部门）'] }
+    ]
+  }
+};
+
+// 依据作业类型 + 级别取审批链字符串（用于列表/详情展示）
+export function getApprovalChain(workType, level) {
+  const cfg = workApprovalMatrix[workType];
+  if (!cfg) return '';
+  const hit = cfg.levels.find(l => l.level === level) || cfg.levels[0];
+  return hit ? hit.chain.join(' → ') : '';
+}
+
+// 依据作业类型 + 级别取有效期
+export function getWorkValidity(workType, level) {
+  const cfg = workApprovalMatrix[workType];
+  if (!cfg) return '—';
+  const hit = cfg.levels.find(l => l.level === level) || cfg.levels[0];
+  return hit ? hit.validity : '—';
+}
+
+// ==== 危险作业审批表签字栏（还原 PDF《危险作业审批表》固定签字栏样式）====
+// 每个作业类型列出审批表完整签字格（依据制度附件 1-1~4-2），
+// 并按「作业类型 + 级别」标记哪些环节需签、哪些层级不涉及可空缺。
+export const workPermitSignForms = {
+  HIGH_ALTITUDE: {
+    label: '高处作业审批表',
+    columns: [
+      '申请部门负责人意见', '作业现场负责人意见', '健康安全环保室负责人意见',
+      '申请部门分管领导意见', '分公司主要负责人意见', '公司安全管理部门意见'
+    ],
+    requiredByLevel: {
+      '一级': ['申请部门负责人意见', '作业现场负责人意见', '健康安全环保室负责人意见'],
+      '二级': ['申请部门负责人意见', '作业现场负责人意见', '健康安全环保室负责人意见', '申请部门分管领导意见'],
+      '三级': ['申请部门负责人意见', '作业现场负责人意见', '健康安全环保室负责人意见', '申请部门分管领导意见', '分公司主要负责人意见'],
+      '特级': ['申请部门负责人意见', '作业现场负责人意见', '健康安全环保室负责人意见', '申请部门分管领导意见', '分公司主要负责人意见', '公司安全管理部门意见']
+    }
+  },
+  TEMPORARY_ELECTRICITY: {
+    label: '临时用电审批表',
+    columns: [
+      '申请部门（单位）负责人意见', '作业现场负责人意见', '设备能源室负责人意见', '健康安全环保室（备案）意见'
+    ],
+    requiredByLevel: {
+      '—': ['申请部门（单位）负责人意见', '作业现场负责人意见', '设备能源室负责人意见', '健康安全环保室（备案）意见']
+    }
+  },
+  LIFTING: {
+    label: '特殊起重吊装作业审批表',
+    columns: [
+      '申请部门负责人意见', '作业场所负责人意见', '设备能源室负责人意见', '技术工艺室负责人意见', '申请部门分管副经理意见'
+    ],
+    requiredByLevel: {
+      '特殊': ['申请部门负责人意见', '作业场所负责人意见', '设备能源室负责人意见', '技术工艺室负责人意见', '申请部门分管副经理意见']
+    }
+  },
+  FIRE: {
+    label: '动火作业审批表',
+    columns: [
+      '申请部门（车间）负责人意见', '作业现场负责人意见', '安全管理部门意见', '分公司领导（主要负责人）意见', '公司能源管理部门（或武装保卫部）意见', '完工验收意见'
+    ],
+    requiredByLevel: {
+      '二级': ['申请部门（车间）负责人意见', '作业现场负责人意见', '安全管理部门意见'],
+      '一级': ['申请部门（车间）负责人意见', '作业现场负责人意见', '安全管理部门意见', '分公司领导（主要负责人）意见', '公司能源管理部门（或武装保卫部）意见'],
+      '特级': ['申请部门（车间）负责人意见', '作业现场负责人意见', '安全管理部门意见', '分公司领导（主要负责人）意见', '公司能源管理部门（或武装保卫部）意见']
+    }
+  }
+};
+
+// ==== 隐患排查治理流程配置（依据《平台流程节点》隐患排查治理）====
+// 三套来源对应差异化流转节点
+export const hazardFlowConfig = {
+  COMPANY_SUPERVISION: {
+    key: 'COMPANY_SUPERVISION',
+    label: '公司监督检查',
+    desc: '公司层级组织的监督检查，问题闭环需经部门领导与人力资源部',
+    nodes: ['起草人', '检查组组长', '部门领导', '责任单位负责人', '整改牵头人', '责任单位负责人', '起草人', '部门领导', '人力资源部']
+  },
+  BRANCH_PLAN: {
+    key: 'BRANCH_PLAN',
+    label: '分公司计划检查',
+    desc: '分公司按计划开展的日常检查，班组—安全管理人员闭环',
+    nodes: ['起草人', '班组长/起草人', '班组长', '安全管理人员', '整改责任人', '安全管理人员']
+  },
+  QUICK_SNAP: {
+    key: 'QUICK_SNAP',
+    label: '隐患随手拍',
+    desc: '员工移动端随手上报，流程与分公司计划检查一致',
+    nodes: ['起草人', '班组长/起草人', '班组长', '安全管理人员', '整改责任人', '安全管理人员']
+  }
+};
+
+// 隐患来源文案 → 流程配置 key 的映射
+export const hazardSourceToFlow = {
+  // 三套制度来源（规范命名，直接对应流程节点）
+  '公司监督检查': 'COMPANY_SUPERVISION',
+  '分公司计划检查': 'BRANCH_PLAN',
+  '隐患随手拍': 'QUICK_SNAP',
+  // 兼容既有演示数据的来源文案
+  '日常巡检': 'BRANCH_PLAN',
+  '专项检查': 'COMPANY_SUPERVISION',
+  '移动巡检': 'QUICK_SNAP',
+  '上级督查': 'COMPANY_SUPERVISION',
+  '投诉举报': 'QUICK_SNAP',
+  '员工举报': 'QUICK_SNAP',
+  '设备监测': 'BRANCH_PLAN',
+  '其他': 'BRANCH_PLAN'
+};
 
 // ==== 特殊作业数据 ====
 export const workPermits = [
@@ -357,8 +527,8 @@ export const workPermits = [
     title: '机加工车间南跨临时用电接线',
     applicantId: 9, applicantName: '赵明辉', applicantDept: '机加工车间',
     duration: '2026-07-16 08:00 ~ 2026-07-16 18:00',
-    voltage: '380V', power: '30kW',
-    approvalChain: '部门负责人 → 安环室 → 分管领导',
+    voltage: '380V', power: '30kW', validity: '15天',
+    approvalChain: '作业申请部门负责人 → 作业现场部门负责人 → 分公司设备能源室 → 分公司健康安全管理室',
     workers: [],
     guardianId: null, guardianName: null,
     safetyMeasures: [],
@@ -375,7 +545,7 @@ export const workPermits = [
     title: '厂房屋面通风器检修高处作业',
     applicantId: 5, applicantName: '孙志明', applicantDept: '设备动力部',
     height: '8.5m', workLevel: '二级', heightLevel: '5m–15m',
-    approvalChain: '部门负责人 → 安环室 → 分管领导', duration: '2026-07-15 08:00 ~ 2026-07-15 17:00',
+    approvalChain: '作业申请部门负责人 → 作业现场部门负责人 → 分公司健康安全管理室负责人 → 作业申请部门分管领导', duration: '2026-07-15 08:00 ~ 2026-07-15 17:00',
     workers: [{ id: 5, name: '孙志明', role: '作业人' }, { id: 6, name: '陈文斌', role: '监护人' }],
     guardianId: 6, guardianName: '陈文斌',
     safetyMeasures: ['安全帽+安全带+安全绳', '生命线系统', '防坠落网', '警戒区域设置'],
@@ -409,7 +579,8 @@ export const workPermits = [
     orgId: 3, deptId: 2, zoneId: 'zone-4', zoneName: '大型构件吊装区',
     title: '锻压机底座更换吊装作业',
     applicantId: 3, applicantName: '王志强', applicantDept: '锻压车间',
-    loadWeight: '18t', equipmentType: '160T桥式起重机',
+    loadWeight: '18t', equipmentType: '160T桥式起重机', workLevel: '特殊',
+    approvalChain: '作业申请部门负责人 → 作业现场部门负责人 → 分公司设备能源室 → 技术工艺室负责人 → 作业申请部门分管领导',
     duration: '2026-07-16 08:00 ~ 2026-07-16 12:00',
     workers: [
       { id: 7, name: '刘大伟', role: '吊装操作' },
@@ -441,7 +612,8 @@ export const workPermits = [
     orgId: 3, deptId: 2, zoneId: 'zone-4', zoneName: '大型构件吊装区',
     title: '热处理炉体转运吊装作业',
     applicantId: 7, applicantName: '刘大伟', applicantDept: '锻压车间',
-    loadWeight: '12t', equipmentType: '100T桥式起重机',
+    loadWeight: '12t', equipmentType: '100T桥式起重机', workLevel: '特殊',
+    approvalChain: '作业申请部门负责人 → 作业现场部门负责人 → 分公司设备能源室 → 技术工艺室负责人 → 作业申请部门分管领导',
     duration: '2026-07-14 08:00 ~ 2026-07-14 14:00',
     workers: [{ id: 7, name: '刘大伟', role: '吊装操作' }, { id: 3, name: '王志强', role: '吊装指挥' }],
     guardianId: 6, guardianName: '陈文斌',
@@ -472,7 +644,9 @@ export const workPermits = [
     orgId: 3, deptId: 1, zoneId: 'zone-1', zoneName: '熔炼铸造区',
     title: '铸造车间天车轨道检修高处作业（资格未满足）',
     applicantId: 4, applicantName: '赵永刚', applicantDept: '铸造车间',
-    height: '12m', duration: '2026-07-17 08:00 ~ 2026-07-17 17:00',
+    height: '12m', workLevel: '二级', heightLevel: '5m–15m',
+    approvalChain: '作业申请部门负责人 → 作业现场部门负责人 → 分公司健康安全管理室负责人 → 作业申请部门分管领导',
+    duration: '2026-07-17 08:00 ~ 2026-07-17 17:00',
     workers: [{ id: 4, name: '赵永刚', role: '作业人' }],
     guardianId: null, guardianName: null,
     safetyMeasures: ['安全帽+安全带', '生命线'],
@@ -496,7 +670,9 @@ export const workPermits = [
     orgId: 3, deptId: 4, zoneId: 'zone-7', zoneName: '能源介质区',
     title: '热处理车间设备检修临时用电',
     applicantId: 5, applicantName: '孙志明', applicantDept: '设备动力部',
-    voltage: '380V', power: '15kW', duration: '2026-07-16 08:00 ~ 2026-07-16 18:00',
+    voltage: '380V', power: '15kW', validity: '15天',
+    approvalChain: '作业申请部门负责人 → 作业现场部门负责人 → 分公司设备能源室 → 分公司健康安全管理室',
+    duration: '2026-07-16 08:00 ~ 2026-07-16 18:00',
     workers: [{ id: 5, name: '孙志明', role: '作业人（电工）' }, { id: 6, name: '陈文斌', role: '监护人' }],
     guardianId: 6, guardianName: '陈文斌',
     safetyMeasures: ['TN-S三相五线制接零保护', '一机一闸一漏配置', '电缆过路穿管保护', '配电箱设置漏电保护器'],
@@ -526,7 +702,7 @@ export const workPermits = [
     title: '锻压车间屋面彩钢板更换高处作业',
     applicantId: 3, applicantName: '王志强', applicantDept: '锻压车间',
     height: '22m', workLevel: '三级', heightLevel: '15m–30m',
-    approvalChain: '部门负责人 → 安环室 → 分管领导 → 主要负责人',
+    approvalChain: '作业申请部门负责人 → 作业现场部门负责人 → 分公司健康安全管理室负责人 → 作业申请部门分管领导 → 分公司主要负责人',
     duration: '2026-07-17 08:00 ~ 2026-07-20 18:00',
     workers: [
       { id: 3, name: '王志强', role: '现场负责人' },
@@ -556,6 +732,39 @@ export const workPermits = [
     timeline: [
       { time: '2026-07-16 09:00', action: '王志强提交三级高处作业申请（22m）', operator: '王志强' },
       { time: '2026-07-16 09:02', action: '系统校验：三级高处作业需逐级审批至主要负责人', operator: '系统' }
+    ]
+  },
+  {
+    id: 'GZ20260716004', workType: 'FIRE', status: '待安环审核',
+    orgId: 3, deptId: 2, zoneId: 'zone-2', zoneName: '锻压加工区',
+    title: '锻压车间工艺管道焊接动火作业',
+    applicantId: 3, applicantName: '王志强', applicantDept: '锻压车间',
+    fireLevel: '二级', workLevel: '二级', validity: '72小时',
+    approvalChain: '作业申请部门负责人 → 作业现场部门负责人 → 分公司健康安全管理室负责人',
+    duration: '2026-07-17 08:00 ~ 2026-07-19 18:00',
+    workers: [
+      { id: 3, name: '王志强', role: '作业负责人' },
+      { id: 7, name: '刘大伟', role: '动火作业人（焊工）' },
+      { id: 6, name: '陈文斌', role: '动火监护人' }
+    ],
+    guardianId: 6, guardianName: '陈文斌',
+    safetyMeasures: ['动火点周围易燃物清理隔离', '配备干粉灭火器4具+消防沙箱', '乙炔瓶与氧气瓶间距≥5m并防晒', '动火前动火分析合格', '专人监护全程在场'],
+    riskHighlights: ['二级动火有效期不超过72小时', '动火点10m内禁止可燃溶剂清洗', '五级风以上禁止露天动火', '作业环境变更立即停火'],
+    checks: [
+      { no: 1, item: '动火作业审批表已办理', detail: '二级动火，有效期72小时内', result: '办理中 ⏳', checked: false },
+      { no: 2, item: '动火点周围易燃物已清理', detail: '10m范围内可燃物清除或封盖', result: '已清理 ✓', checked: true },
+      { no: 3, item: '消防器材已配备', detail: '干粉灭火器4具、消防沙箱1个就位', result: '已配备 ✓', checked: true },
+      { no: 4, item: '动火分析合格', detail: '便携式可燃气体检测仪检测，浓度合格', result: '合格 ✓', checked: true },
+      { no: 5, item: '气瓶安全间距符合要求', detail: '乙炔瓶直立，与氧气瓶≥5m，距作业点≥10m', result: '符合 ✓', checked: true },
+      { no: 6, item: '作业人员持有效焊工证', detail: '刘大伟焊工操作证有效', result: '有效 ✓', checked: true },
+      { no: 7, item: '动火监护人到场', detail: '陈文斌（安全生产管理证有效）全程监护', result: '到场 ✓', checked: true }
+    ],
+    reviewTime: null, reviewName: null,
+    approveTime: null, approveName: null,
+    guardianTime: null, startTime: null, finishTime: null, archiveTime: null,
+    timeline: [
+      { time: '2026-07-16 10:30', action: '王志强提交二级动火作业申请', operator: '王志强' },
+      { time: '2026-07-16 10:32', action: '系统校验：焊工证有效、动火分析待复核', operator: '系统' }
     ]
   }
 ];
@@ -858,12 +1067,13 @@ export const dataDictionary = {
     { key: '一般', D_range: '20 ≤ D < 70', color: '#CA8A04', desc: '可能导致人员轻伤或一般财产损失' },
     { key: '低', D_range: 'D < 20', color: '#0075E6', desc: '风险可控，需持续关注' }
   ],
-  hazardSources: ['日常巡检', '专项检查', '移动巡检', '上级督查', '投诉举报'],
+  hazardSources: ['分公司计划检查', '公司监督检查', '隐患随手拍', '上级督查', '投诉举报'],
   hazardCategories: ['设备设施', '作业安全', '人员行为', '环境因素', '管理缺陷', '消防'],
   workTypes: [
-    { key: 'HIGH_ALTITUDE', label: '高处作业', level: '一级/二级/三级/特级', measuresCount: 7 },
-    { key: 'LIFTING', label: '吊装作业', level: '常规/特殊', measuresCount: 8 },
-    { key: 'TEMPORARY_ELECTRICITY', label: '临时用电', level: '—', measuresCount: 7 }
+    { key: 'HIGH_ALTITUDE', label: '高处作业', level: '一级/二级/三级/特级', validity: '—', measuresCount: 11 },
+    { key: 'LIFTING', label: '特殊起重吊装作业', level: '特殊', validity: '—', measuresCount: 8 },
+    { key: 'TEMPORARY_ELECTRICITY', label: '临时用电作业', level: '—', validity: '15天', measuresCount: 7 },
+    { key: 'FIRE', label: '动火作业', level: '一级/二级/特级', validity: '8h/72h', measuresCount: 7 }
   ],
   trainingTypes: ['专项培训', '年度培训', '三级教育', '复训', '应急演练'],
 };
