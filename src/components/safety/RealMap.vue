@@ -36,8 +36,14 @@
             {{ p.name.replace(/（.*）/, '') }}: {{ p.current }}{{ p.unit }}
           </span>
         </div>
-        <div class="infobox-row text-xs" v-if="activeInfo.risks">
-          <span v-for="r in activeInfo.risks" :key="r.id" class="risk-link" @click.stop="$emit('risk-click', r)">⬤ {{ r.name }}</span>
+        <div class="infobox-row text-xs comp-row" v-if="activeInfo.composition && activeInfo.composition.length">
+          风险构成：<span v-for="c in activeInfo.composition" :key="c.level" class="comp-tag" :style="{ background: levelColor(c.level) }">{{ c.level }}×{{ c.count }}</span>
+        </div>
+        <div class="infobox-row text-xs risk-list" v-if="activeInfo.risks && activeInfo.risks.length">
+          <div v-for="r in activeInfo.risks" :key="r.id" class="risk-item" @click.stop="$emit('risk-click', r)">
+            <span class="risk-dot" :style="{ background: levelColor(r.level) }"></span>
+            <b>{{ r.level }}</b> · {{ r.category }} · 责任人 {{ r.responsibleName }}
+          </div>
         </div>
       </div>
     </div>
@@ -51,6 +57,13 @@ import { factoryZones, riskPoints, FACTORY_CENTER, PARK_BOUNDARY } from '@/store
 const LEVEL_COLORS = { '重大': '#fef2f2', '较大': '#fff7ed', '一般': '#fffbeb', '低': '#ecfdf5' };
 const LEVEL_STROKES = { '重大': '#ef4444', '较大': '#f59e0b', '一般': '#eab308', '低': '#3b82f6' };
 const MARKER_COLORS = { '重大': '#ef4444', '较大': '#f59e0b', '一般': '#eab308', '低': '#3b82f6' };
+// 风险等级排序：用于取"区内最高风险等级"（双重预防机制：区域等级=下属风险点最大值）
+const LEVEL_ORDER = { '低': 1, '一般': 2, '较大': 3, '重大': 4 };
+function maxLevel(levels) {
+  let best = null;
+  (levels || []).forEach(l => { if (LEVEL_ORDER[l] && (!best || LEVEL_ORDER[l] > LEVEL_ORDER[best])) best = l; });
+  return best;
+}
 
 export default {
   name: 'RealMap',
@@ -81,8 +94,19 @@ export default {
   computed: {
     zoneData() { return this.zones.length ? this.zones : factoryZones; },
     markerData() { return this.markers.length ? this.markers : riskPoints; },
-    criticalCount() { return this.zoneData.filter(z => z.riskLevel === '重大').length; },
-    dangerCount() { return this.zoneData.filter(z => z.riskLevel === '较大').length; }
+    // 区域风险等级 = 区内所有风险点的"最高等级"（取最大值）；无风险点的区域回退到手填值
+    enrichedZones() {
+      return this.zoneData.map(z => {
+        const pts = this.markerData.filter(r => r.zoneId === z.id);
+        const derived = maxLevel(pts.map(p => p.level));
+        const level = derived || z.riskLevel || '低';
+        const composition = { '重大': 0, '较大': 0, '一般': 0, '低': 0 };
+        pts.forEach(p => { if (composition[p.level] !== undefined) composition[p.level]++; });
+        return Object.assign({}, z, { effectiveLevel: level, pointCount: pts.length, composition: composition, points: pts });
+      });
+    },
+    criticalCount() { return this.enrichedZones.filter(z => z.effectiveLevel === '重大').length; },
+    dangerCount() { return this.enrichedZones.filter(z => z.effectiveLevel === '较大').length; }
   },
   mounted() {
     this.waitForAMap();
@@ -139,21 +163,21 @@ export default {
       }
     },
     drawZones() {
-      const zones = this.zoneData.filter(z => z.path && z.path.length);
+      const zones = this.enrichedZones.filter(z => z.path && z.path.length);
       // 弱化低等级区域、突出重大/较大，降低视觉密集感
       const levelOpacity = { '重大': 0.5, '较大': 0.5, '一般': 0.22, '低': 0.12 };
       const levelStrokeW = { '重大': 2.5, '较大': 2, '一般': 1, '低': 1 };
       zones.forEach(z => {
-        const color = LEVEL_STROKES[z.riskLevel] || '#999';
-        const fillColor = LEVEL_COLORS[z.riskLevel] || '#fafbfc';
+        const lvl = z.effectiveLevel;
+        const color = LEVEL_STROKES[lvl] || '#999';
+        const fillColor = LEVEL_COLORS[lvl] || '#fafbfc';
         const poly = new window.AMap.Polygon({
           path: z.path,
           fillColor: fillColor,
-          fillOpacity: levelOpacity[z.riskLevel] || 0.4,
+          fillOpacity: levelOpacity[lvl] || 0.4,
           strokeColor: color,
-          strokeWeight: levelStrokeW[z.riskLevel] || 2,
-          strokeStyle: 'dashed',
-          strokeDasharray: [8, 4],
+          strokeWeight: levelStrokeW[lvl] || 2,
+          strokeStyle: 'solid',
           extData: { zone: z }
         });
         if (this.clickable) {
@@ -162,10 +186,25 @@ export default {
           poly.on('mouseover', () => this.onZoneOver(z));
           poly.on('mouseout', () => this.onZoneOut());
         }
-        // 区域标签默认隐藏（showLabels 时显示）：用颜色传达信息，减少文字密集
+        // 始终显示"等级 pill"（取区内最高风险等级），替代冗长区域名——一眼知重点
+        const centerPt = this.getPolygonCenter(z.path);
+        const pillText = z.pointCount > 1 ? (lvl + ' ·' + z.pointCount) : lvl;
+        const pill = new window.AMap.Text({
+          text: pillText,
+          position: centerPt,
+          anchor: 'center',
+          offset: new window.AMap.Pixel(0, -30),
+          style: {
+            'font-size': '11px', 'font-weight': '700', 'color': '#fff',
+            'background': color, 'border-radius': '10px', 'padding': '1px 8px',
+            'white-space': 'nowrap', 'box-shadow': '0 1px 3px rgba(0,0,0,0.3)',
+            'border': '1px solid rgba(255,255,255,0.7)', 'pointer-events': 'none'
+          }
+        });
+        pill.setMap(this.map);
+        // 区域全名标签默认隐藏（showLabels 时显示）
         let label = null;
         if (this.showLabels) {
-          const centerPt = this.getPolygonCenter(z.path);
           label = new window.AMap.Text({
             text: z.name,
             position: centerPt,
@@ -179,18 +218,29 @@ export default {
           label.setMap(this.map);
         }
         poly.setMap(this.map);
-        this.polygons.push({ poly, zone: z, label });
+        this.polygons.push({ poly, zone: z, label, pill });
       });
     },
     drawRiskPoints() {
+      // 同区内多个风险点按索引做像素级扇形展开，避免坐标重叠（坐标本身不变，仅视觉偏移）
+      const byZone = {};
+      this.markerData.forEach(rp => { (byZone[rp.zoneId] = byZone[rp.zoneId] || []).push(rp); });
       this.markerData.forEach(rp => {
         if (!rp.lng || !rp.lat) return;
         const color = MARKER_COLORS[rp.level] || '#999';
-        const icon = this.createCircleMarker(rp.name, color, rp.status === '隐患待整改' ? '⚠️' : '🔴');
+        const group = byZone[rp.zoneId] || [rp];
+        const idx = group.indexOf(rp);
+        const n = group.length;
+        let dx = 0, dy = 0;
+        if (n > 1) {
+          const spread = 22;
+          dx = (idx - (n - 1) / 2) * spread;
+          dy = (idx % 2 === 0 ? -12 : 12);
+        }
         const marker = new window.AMap.Marker({
           position: [rp.lng, rp.lat],
-          icon: icon,
-          offset: new window.AMap.Pixel(-12, -12),
+          content: this.createBadge(rp, color),
+          offset: new window.AMap.Pixel(-11 + dx, -11 + dy),
           extData: { riskPoint: rp }
         });
         if (this.clickable) {
@@ -199,23 +249,8 @@ export default {
           marker.on('mouseout', () => { if (!this.pinned) this.activeInfo = null; });
           marker.on('click', () => { this.pinned = true; this.activeInfo = this.buildRiskInfo(rp, color); });
         }
-        // 风险点名称标签默认隐藏（showLabels 时显示）
-        let label = null;
-        if (this.showLabels) {
-          label = new window.AMap.Text({
-            text: rp.name,
-            position: [rp.lng, rp.lat],
-            offset: new window.AMap.Pixel(16, -4),
-            style: {
-              'font-size': '10px', 'color': '#475569',
-              'background': 'rgba(255,255,255,0.9)', 'border-radius': '3px',
-              'padding': '1px 5px', 'white-space': 'nowrap', 'pointer-events': 'none'
-            }
-          });
-          label.setMap(this.map);
-        }
         marker.setMap(this.map);
-        this.markerList.push({ marker, riskPoint: rp, label });
+        this.markerList.push({ marker, riskPoint: rp, label: null });
       });
     },
     buildRiskInfo(rp, color) {
@@ -227,6 +262,7 @@ export default {
         risks: []
       };
     },
+    levelColor(level) { return MARKER_COLORS[level] || '#999'; },
     drawWorkPermits() {
       if (!this.workPermits.length) return;
       this.workPermits.forEach(wp => {
@@ -274,12 +310,14 @@ export default {
     },
     onZoneClick(zone, e) {
       const zoneRisks = this.markerData.filter(r => r.zoneId === zone.id);
+      const compList = ['重大', '较大', '一般', '低'].filter(l => (zone.composition || {})[l] > 0).map(l => ({ level: l, count: zone.composition[l] }));
       this.pinned = true;
       this.activeInfo = {
         name: zone.name,
-        level: zone.riskLevel,
-        color: LEVEL_STROKES[zone.riskLevel],
+        level: zone.effectiveLevel,
+        color: LEVEL_STROKES[zone.effectiveLevel],
         desc: zone.desc,
+        composition: compList,
         risks: zoneRisks
       };
       this.$emit('zone-click', { zone, risks: zoneRisks });
@@ -287,11 +325,13 @@ export default {
     onZoneOver(zone) {
       if (this.pinned) return;
       const zoneRisks = this.markerData.filter(r => r.zoneId === zone.id);
+      const compList = ['重大', '较大', '一般', '低'].filter(l => (zone.composition || {})[l] > 0).map(l => ({ level: l, count: zone.composition[l] }));
       this.activeInfo = {
         name: zone.name,
-        level: zone.riskLevel,
-        color: LEVEL_STROKES[zone.riskLevel],
+        level: zone.effectiveLevel,
+        color: LEVEL_STROKES[zone.effectiveLevel],
         desc: zone.desc,
+        composition: compList,
         risks: zoneRisks
       };
     },
@@ -302,9 +342,10 @@ export default {
     setFilter(type) {
       this.activeFilter = type;
       this.polygons.forEach(({ poly, zone }) => {
+        const lvl = zone.effectiveLevel || zone.riskLevel;
         if (type === 'all') { poly.setOptions({ fillOpacity: 0.45 }); return; }
-        if (type === '重大') { poly.setOptions({ fillOpacity: zone.riskLevel === '重大' ? 0.6 : 0.1 }); return; }
-        if (type === 'danger') { poly.setOptions({ fillOpacity: zone.riskLevel === '较大' ? 0.6 : 0.1 }); return; }
+        if (type === '重大') { poly.setOptions({ fillOpacity: lvl === '重大' ? 0.6 : 0.1 }); return; }
+        if (type === 'danger') { poly.setOptions({ fillOpacity: lvl === '较大' ? 0.6 : 0.1 }); return; }
       });
     },
     clearInfo() { this.activeInfo = null; this.pinned = false; },
@@ -319,14 +360,12 @@ export default {
       if (zone && zone.path) return this.getPolygonCenter(zone.path);
       return null;
     },
-    createCircleMarker(name, color, sym) {
-      // 使用 SVG data URL 创建圆形标记
-      const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24"><circle cx="12" cy="12" r="9" fill="${color}" opacity="0.85" stroke="#fff" stroke-width="2"/><text x="12" y="16" text-anchor="middle" font-size="11" fill="#fff">!</text></svg>`;
-      return new window.AMap.Icon({
-        size: new window.AMap.Size(24, 24),
-        imageSize: new window.AMap.Size(24, 24),
-        image: 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svg)
-      });
+    createBadge(rp, color) {
+      // 风险点徽章：彩色圆 + 白边 + 阴影；重大风险加脉冲动画（risk-badge 样式在文件末尾全局 style 中定义）
+      const isMajor = rp.level === '重大';
+      const cls = 'risk-badge' + (isMajor ? ' major' : '');
+      const sym = rp.status === '隐患待整改' ? '⚠' : (isMajor ? '!' : '');
+      return '<div class="' + cls + '" style="--c:' + color + '"><span>' + sym + '</span></div>';
     }
   }
 };
@@ -392,5 +431,34 @@ export default {
   }
   .risk-link { color: $primary; cursor: pointer; text-decoration: underline; margin-right: 8px; }
   .text-xs { font-size: 10px; }
+
+  .comp-tag {
+    display: inline-block; margin: 0 3px; padding: 1px 6px; border-radius: 8px;
+    color: #fff; font-size: 10px; font-weight: 600;
+  }
+  .risk-list { max-height: 132px; overflow-y: auto; }
+  .risk-item {
+    display: flex; align-items: center; gap: 6px; padding: 2px 0; cursor: pointer;
+    &:hover { color: $primary; }
+    .risk-dot { width: 8px; height: 8px; border-radius: 50%; flex: none; }
+  }
 }
+</style>
+<style lang="scss">
+// 风险点徽章由高德注入到地图 DOM（组件作用域外），需全局样式命中
+.risk-badge {
+  width: 22px; height: 22px; border-radius: 50%;
+  background: var(--c); border: 2px solid #fff;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.35);
+  display: flex; align-items: center; justify-content: center;
+  color: #fff; font-size: 12px; font-weight: 700;
+  span { line-height: 1; }
+  &.major { animation: badgePulse 1.6s ease-out infinite; }
+}
+@keyframes badgePulse {
+  0% { box-shadow: 0 0 0 0 rgba(239,68,68,0.5); }
+  70% { box-shadow: 0 0 0 10px rgba(239,68,68,0); }
+  100% { box-shadow: 0 0 0 0 rgba(239,68,68,0); }
+}
+</style>
 </style>
