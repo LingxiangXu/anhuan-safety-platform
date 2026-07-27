@@ -47,7 +47,7 @@ export default {
           key: 'roles', label: '角色与终端', icon: '👥', route: '/safety-platform/roles'
         },
         {
-          key: 'pc-workstations', label: '业务场景', icon: '💻', route: '/safety-platform/dashboard',
+          key: 'pc-workstations', label: '业务场景', icon: '💻', route: '/safety-platform/risk-management',
           children: [
             { key: 'pc-risk', label: '🎯 风险管理', route: '/safety-platform/risk-management' },
             { key: 'pc-inspection', label: '📋 巡检任务管理', route: '/safety-platform/inspection-management' },

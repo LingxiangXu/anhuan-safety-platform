@@ -64,7 +64,19 @@ const routes = [
 
 const router = new VueRouter({
   mode: 'hash',
-  routes
+  routes,
+  // 路由切换后滚动复位：
+  // 1) 浏览器前进/后退时保留原位置（savedPosition）；
+  // 2) 平台页内容在内部容器 .pl-content 中滚动（非 window），需手动归零；
+  // 3) 顶层页面（如产品中心）走 window 滚动，由 {x:0,y:0} 复位。
+  scrollBehavior(to, from, savedPosition) {
+    if (savedPosition) return savedPosition;
+    if (typeof document !== 'undefined') {
+      const content = document.querySelector('.pl-content');
+      if (content) content.scrollTop = 0;
+    }
+    return { x: 0, y: 0 };
+  }
 });
 
 export default router;

@@ -52,6 +52,8 @@ module.exports = {
     port: 8081,
     open: false,
     historyApiFallback: true,
+    static: false,
+    devMiddleware: { publicPath: '/' },
     client: { overlay: false }
   }
 };
