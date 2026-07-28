@@ -2,7 +2,7 @@
   <div class="plan-page">
     <div class="page-header">
       <h2>建设规划</h2>
-      <p class="page-subtitle">分两期交付：一期重工 2 个试点单位上线跑通核心业务，二期重工深化并面向各生产经营单位推广复用，从"数字化"迈向"数智化"</p>
+      <p class="page-subtitle">分两期交付：一期重工试点单位上线跑通核心业务，二期重工深化并面向各生产经营单位推广复用，从"数字化"迈向"数智化"</p>
     </div>
     <!-- 一期 / 二期 卡片 -->
     <section class="ov-section">
@@ -35,16 +35,20 @@
           <div class="pc-feat">
             <div class="pc-feat-label">{{ p.featLabel }}</div>
             <template v-if="p.directions && p.directions.length">
-              <div class="pc-dir" v-for="(d, di) in p.directions" :key="di">
-                <div class="pc-dir-title">{{ d.title }}</div>
-                <div class="pc-feat-tags">
-                  <span class="pc-tag" :class="p.future ? 'p2' : 'p1'" v-for="(f, fi) in d.items" :key="fi">{{ f }}</span>
+              <div class="pc-dir" v-for="(d, di) in p.directions" :key="di" :class="{ 'ai-dir': d.ai }">
+                <div class="pc-dir-title" :class="{ 'ai-title': d.ai }">{{ d.title }}</div>
+                <template v-if="d.ai">
+                  <div class="ai-item" v-for="(f, fi) in d.items" :key="fi">
+                    <div class="ai-ico">{{ aiIconOf(f) }}</div>
+                    <div class="ai-txt"><div class="ai-b">{{ splitAi(f).name }}</div><div class="ai-d">{{ splitAi(f).desc }}</div></div>
+                  </div>
+                </template>
+                <div class="pc-feat-tags" v-else>
+                  <span class="pc-tag no-box" v-for="(f, fi) in d.items" :key="fi">{{ f }}</span>
                 </div>
               </div>
             </template>
-            <div class="pc-feat-tags" v-else>
-              <span class="pc-tag" :class="p.future ? 'p2' : 'p1'" v-for="(f, fi) in p.features" :key="fi">{{ f }}</span>
-            </div>
+            <div class="pc-feat-text" v-else>{{ p.features.join('、') }}</div>
           </div>
         </div>
       </div>
@@ -94,8 +98,8 @@ export default {
       phases: [
         {
           tag: '一期', future: false,
-          title: '重工 2 个试点单位上线',
-          goal: '以重工 2 个试点单位率先上线，覆盖 PC 端、APP 端与微信小程序（企业微信扫码发起）三端协同，跑通安全管理核心业务全流程，打通公司-现场数据联动，实现"从纸质到数字"的跨越。',
+          title: '重工试点单位上线',
+          goal: '以重工试点单位率先上线，覆盖 PC 端、APP 端与微信小程序（企业微信扫码发起）三端协同，跑通安全管理核心业务全流程，打通公司-现场数据联动，实现"从纸质到数字"的跨越。',
           progress: [
             { label: '2 个月', weight: 1 },
             { label: '4 个月', weight: 2 }
@@ -108,38 +112,47 @@ export default {
             '纸质安全台账全面数字化，公司-现场数据联动'
           ],
           featLabel: '核心功能模块',
-          features: ['风险管理', '巡检任务管理', '隐患与督办', '特殊作业管控', '驾驶舱', 'OA审批集成', '培训中心集成']
+          features: ['风险管理', '巡检任务管理', '隐患与督办', '特殊作业管控', '驾驶舱', 'OA审批集成', '培训与证书']
         },
         {
           tag: '二期', future: true,
-          title: '重工深化 · 多单位推广复用',
-          goal: '在一期核心业务跑通与数据积累基础上，深化应用能力并向各生产经营单位推广复用，从"数字化"迈向"数智化"——补齐双控体系与现场管理短板、贯通制度与培训管理体系、以预测预警与 AI 实现主动防控。',
+          title: '重工深化·AI赋能·推广复用',
+          goal: '在一期核心业务跑通与数据积累基础上，深化应用能力并向各生产经营单位推广复用，从"数字化"迈向"数智化"——以 AI 赋能实现主动防控，补齐双控体系与现场管理短板、贯通制度与培训管理体系。',
           featLabel: '深化与推广方向',
           directions: [
-            { title: '一、业务广度深化', items: [
-              '设备·相关方·职业健康·劳保',
-              '双控数据统计与预警'
+            { title: '一、重工深化', items: [
+              '设备·相关方·职业健康·劳保管理补全',
+              '双控数据统计与预警深化',
+              '制度化管理与全员履职贯通',
+              '教育培训全体系打通',
+              '应急管理与持续改进闭环'
             ]},
-            { title: '二、管理体系贯通', items: [
-              '制度化管理',
-              '教育培训全体系',
-              '目标职责与全员履职'
+            { title: '二、AI赋能', ai: true, items: [
+              'AI 视觉识别：现场违章与隐患图像智能识别、实时告警',
+              '风险预测预警：基于历史与物联数据的事故风险趋势预测',
+              '安全大模型助手：制度/规程智能问答与作业方案辅助生成'
             ]},
-            { title: '三、数智化升级', items: [
-              '预测预警',
-              '应急管理',
-              'AI 赋能',
-              '持续改进（标准化与报表自动化）'
-            ]},
-            { title: '四、推广与生态', items: [
-              '多单位标准化复用',
-              '系统集成扩展',
-              '相关方门禁联动'
+            { title: '三、推广复用', items: [
+              '多单位标准化快速复用'
             ]}
           ]
         }
       ],
     };
+  },
+  methods: {
+    // AI 赋能区块：按「名称：描述」拆分，用于图标+两行列表排版
+    splitAi(f) {
+      const idx = f.indexOf('：');
+      if (idx === -1) return { name: f, desc: '' };
+      return { name: f.slice(0, idx), desc: f.slice(idx + 1) };
+    },
+    aiIconOf(f) {
+      if (f.includes('视觉') || f.includes('识别')) return '📷';
+      if (f.includes('预测') || f.includes('风险')) return '📈';
+      if (f.includes('大模型') || f.includes('助手')) return '🤖';
+      return '🤖';
+    }
   }
 };
 </script>
@@ -179,13 +192,24 @@ export default {
 .pc-feat { margin-top: $space-lg; }
 .pc-feat-label { font-size: $font-xs; color: $text-hint; margin-bottom: $space-sm; }
 .pc-feat-tags { display: flex; flex-wrap: wrap; gap: $space-xs; }
+.pc-feat-text { font-size: 12px; color: $text-secondary; line-height: 1.9; }
 .pc-dir { margin-top: $space-base; }
 .pc-dir:first-of-type { margin-top: 0; }
 .pc-dir-title { font-size: $font-xs; font-weight: 600; color: $text-secondary; margin-bottom: $space-xs; line-height: 1.5; }
 .pc-tag { font-size: 12px; padding: 4px 12px; border-radius: 6px; font-weight: 500;
   &.p1 { background: #e8f0fe; color: #1d4ed8; }
   &.p2 { background: #dcfce7; color: #15803d; }
+  &.no-box { background: transparent; color: $text-secondary; padding: 4px 0; }
+  &.ai-box { background: #dcfce7; color: #15803d; border: 1px solid $accent-green-500; font-weight: 600; }
 }
+.pc-dir.ai-dir { border: 1.5px solid $accent-green-500; border-radius: 10px; padding: 12px 14px; background: #f0fdf4; margin-top: $space-base; }
+.pc-dir.ai-dir .pc-dir-title { color: #15803d; font-weight: 700; }
+.ai-item { display: flex; gap: 10px; align-items: flex-start; padding: 8px 0; border-top: 1px dashed #c7eccd; }
+.ai-item:first-of-type { border-top: none; }
+.ai-ico { flex-shrink: 0; width: 30px; height: 30px; border-radius: 50%; background: #dcfce7; color: #15803d; display: flex; align-items: center; justify-content: center; font-size: 16px; }
+.ai-txt { flex: 1; min-width: 0; }
+.ai-b { font-size: 13px; font-weight: 600; color: #334155; }
+.ai-d { font-size: 12px; color: #94a3b8; line-height: 1.5; margin-top: 2px; }
 .pc-progress { margin-bottom: $space-lg; }
 .pc-progress-bar { display: flex; height: 30px; border-radius: $radius-base; overflow: hidden; background: #f1f5f9; }
 .pc-progress-seg { display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 500; color: #fff;

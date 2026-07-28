@@ -92,7 +92,7 @@ features: [
           ]
         },
         {
-          key: 'training', name: '培训中心集成', icon: '📖', color: 'teal', platform: ['PC', 'APP'],
+          key: 'training', name: '培训与证书', icon: '📖', color: 'teal', platform: ['PC', 'APP'],
 desc: '安全培训全流程管理：年度计划、培训记录、证书追踪、到期预警',
 children: ['年度培训计划', '培训记录管理', '证书到期预警', '成绩追踪'],
 features: [

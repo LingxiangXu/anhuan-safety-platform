@@ -55,7 +55,7 @@ export default {
             { key: 'pc-work', label: '🔧 特殊作业管控', route: '/safety-platform/special-work' },
             { key: 'pc-dashboard', label: '📊 驾驶舱', route: '/safety-platform/dashboard' },
             { key: 'pc-bpm', label: '🔗 OA审批集成', route: '/safety-platform/bpm-integration' },
-            { key: 'pc-training', label: '📖 培训中心集成', route: '/safety-platform/training-management' }
+            { key: 'pc-training', label: '📖 培训与证书', route: '/safety-platform/training-management' }
           ]
         },
         {

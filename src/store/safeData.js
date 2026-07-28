@@ -123,6 +123,62 @@ riskPoints.forEach(rp => {
 // 演示优化：区域多边形随厂区范围一同放大（累计 4 倍；x/y/w/h 为 2D 平面图布局坐标，保持不动，避免影响平面图）
 factoryZones.forEach(z => { if (z.path && z.path.length) z.path = scalePath(z.path); });
 
+// 风险台账 area → 厂区 zone 映射（让风险四色图直接读取 riskLedger 并按 zone 着色）
+export const RISK_AREA_TO_ZONE = {
+  '储罐区': 'zone-1',
+  '锻压加工区': 'zone-2',
+  '厂房屋面检修区': 'zone-3',
+  '仓储装卸区': 'zone-6',
+  '热处理区': 'zone-5',
+  // 厂区 7 大区域名 → 自身 zone id（新增风险点下拉选择，保证四色图必能落点）
+  '原料存放区': 'zone-1',
+  '机加工区': 'zone-2',
+  '焊接作业区': 'zone-3',
+  '装配区': 'zone-4',
+  '涂装/危化作业区': 'zone-5',
+  '仓储区': 'zone-6',
+  '设备动力/通道区': 'zone-7'
+};
+
+// 风险四色图统一数据源：由「风险台账(riskLedger)」派生「管控中」记录的风险点。
+// 风险管理(RiskManagement)与驾驶舱(Dashboard)两块四色图共用此函数，
+// 保证任一处修改台账（如把某风险审批归档为管控中）后，两块地图同步刷新，不再脱节。
+export function buildFourColorMarkers(riskLedger, zoneList) {
+  const zones = (zoneList && zoneList.length) ? zoneList : factoryZones
+  return (riskLedger || [])
+    .filter(r => r.status === '管控中')
+    .map(r => {
+      // 未经LEC评价的（_approvalState 仍为 draft/待评价）不显示其风险等级
+      const evaluated = !!(r._approvalState && r._approvalState !== 'draft' && typeof r.L === 'number')
+      // 区域定位：优先用业务区域→地图区域映射表；未命中则按名称模糊匹配厂区区域；仍无则回落厂区中心
+      let zoneId = RISK_AREA_TO_ZONE[r.area] || null
+      if (!zoneId) {
+        const hit = zones.find(z => z.name && r.area && (z.name.indexOf(r.area) >= 0 || r.area.indexOf(z.name) >= 0))
+        zoneId = hit ? hit.id : null
+      }
+      const zone = zones.find(z => z.id === zoneId)
+      let lng = FACTORY_CENTER.lng, lat = FACTORY_CENTER.lat
+      if (zone && zone.path && zone.path.length) {
+        const sum = zone.path.reduce((a, p) => [a[0] + p[0], a[1] + p[1]], [0, 0])
+        lng = sum[0] / zone.path.length
+        lat = sum[1] / zone.path.length
+      }
+      return {
+        id: r.id,
+        zoneId,
+        name: r.name,
+        category: r.category,
+        level: evaluated ? r.level : null,
+        evaluated,
+        responsibleName: r.ownerName,
+        measures: (r.controls ? r.controls.length : (r.measures || 0)) + ' 项管控措施',
+        status: r.status,
+        lng,
+        lat
+      }
+    })
+}
+
 // ==== 责任书签订流程步骤 ====
 export const RESPONSIBILITY_STEPS = [
   { key: 'sign', label: '签订责任书', role: '车间/部门负责人' },
@@ -680,7 +736,7 @@ export const workPermits = [
     ]
   },
   {
-    id: 'GZ20260716001', workType: 'TEMPORARY_ELECTRICITY', status: '待监护确认',
+    id: 'GZ20260716001', workType: 'TEMPORARY_ELECTRICITY', status: '作业中',
     orgId: 3, deptId: 4, zoneId: 'zone-7', zoneName: '能源介质区',
     title: '热处理车间设备检修临时用电',
     applicantId: 5, applicantName: '孙志明', applicantDept: '设备动力部',
@@ -955,10 +1011,12 @@ export const riskLedger = [
       { item: '配备灭火器材与消防沙', dept: '锻压车间', freq: '持续', responsibleName: '王志强' }
     ] },
   { id: 'RK-2026-003', name: '高处坠落风险（检修区域）', area: '厂房屋面检修区', category: '高处坠落',
-    L: 3, E: 4, C: 7, D: 84, level: '较大', ownerId: 5, ownerName: '孙志明',
-    measures: 5, status: '待复核', lastReview: '2026-07-03',
-    _approvalState: 'pending_review', _approvalHistory: [
-      { time: '2026-07-03 11:00', action: '提交LEC评价', operator: '孙志明', detail: 'D=84 较大' }
+    L: 3, E: 4, C: 7, D: 84, level: '一般', ownerId: 5, ownerName: '孙志明',
+    measures: 5, status: '管控中', lastReview: '2026-07-28',
+    _approvalState: 'approved', _approvalHistory: [
+      { time: '2026-07-03 11:00', action: '提交LEC评价', operator: '孙志明', detail: 'D=84 一般' },
+      { time: '2026-07-28 09:30', action: '安环室复核通过', operator: '李明辉', detail: '风险等级判定准确，管控措施到位' },
+      { time: '2026-07-28 09:35', action: '分管领导批准', operator: '王志强', detail: '同意，按管控方案执行，正式生效归档' }
     ],
     hazardousSources: ['屋面边缘无护栏', '检修口未封闭', '安全带挂点不足'],
     controls: [
@@ -966,8 +1024,8 @@ export const riskLedger = [
       { item: '高处作业证持证上岗', dept: '安全环保部', freq: '每次', responsibleName: '李明辉' }
     ] },
   { id: 'RK-2026-004', name: '叉车碰撞风险', area: '仓储装卸区', category: '车辆伤害',
-    L: 4, E: 5, C: 3, D: 60, level: '一般', ownerId: 6, ownerName: '陈文斌',
-    measures: 4, status: '管控中', lastReview: '2026-07-10',
+    L: null, E: null, C: null, D: null, level: null, ownerId: 6, ownerName: '陈文斌',
+    measures: 4, status: '待评价', lastReview: '2026-07-10',
     _approvalState: 'draft', _approvalHistory: [],
     hazardousSources: ['叉车与行人混行', '盲区视线受限', '超速行驶'],
     controls: [
@@ -988,8 +1046,11 @@ export const riskLedger = [
     ] },
   { id: 'RK-2026-006', name: '噪声职业危害风险', area: '锻压加工区', category: '职业危害',
     L: 5, E: 6, C: 1, D: 30, level: '低', ownerId: 3, ownerName: '王志强',
-    measures: 3, status: '管控中', lastReview: '2026-06-28',
-    _approvalState: 'draft', _approvalHistory: [],
+    measures: 3, status: '管控中', lastReview: '2026-06-29',
+    _approvalState: 'approved', _approvalHistory: [
+      { time: '2026-06-28 10:00', action: '提交LEC评价', operator: '王志强', detail: 'D=30 低' },
+      { time: '2026-06-29 09:30', action: '安环室复核通过', operator: '李明辉', detail: '职业危害评价参数合理，等级判定准确' }
+    ],
     hazardousSources: ['锻压机冲击噪声', '空压机运行噪声'],
     controls: [
       { item: '配备耳塞/耳罩并监督佩戴', dept: '锻压车间', freq: '持续', responsibleName: '王志强' },
@@ -1005,7 +1066,7 @@ export function getRiskLevelByD(D) {
   return { level: '低', color: '#0075E6', tag: 'blue' };
 }
 
-// ==== 培训中心集成状态枚举 ====
+// ==== 培训与证书状态枚举 ====
 export const TRAINING_STATUS = {
   DRAFT: '待发布',
   IN_PROGRESS: '进行中',

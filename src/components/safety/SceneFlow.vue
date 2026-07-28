@@ -3,13 +3,29 @@
     <button class="sf-head" type="button" @click="collapsed = !collapsed">
       <span class="sf-icon">🔄</span>
       <span class="sf-title">{{ flow.title }}</span>
-      <span class="sf-count">{{ flow.steps.length }} 步主流程</span>
       <span class="sf-toggle">{{ collapsed ? '展开 ▾' : '收起 ▴' }}</span>
     </button>
     <transition name="sf-expand">
       <div v-show="!collapsed" class="sf-body">
         <div v-if="flow.subtitle" class="sf-subtitle">📌 {{ flow.subtitle }}</div>
-        <div class="sf-steps">
+        <template v-if="flow.groups">
+          <div class="sf-group" v-for="(g, gi) in flow.groups" :key="'g-' + gi">
+            <div class="sf-group-title" v-if="g.title">{{ g.title }}</div>
+            <div class="sf-steps">
+              <template v-for="(s, i) in g.steps">
+                <div class="sf-step" :key="'g' + gi + '-step-' + i">
+                  <div class="sf-dot">{{ i + 1 }}</div>
+                  <div class="sf-step-body">
+                    <div class="sf-step-name">{{ s.name }}</div>
+                    <div v-if="s.desc" class="sf-step-desc">{{ s.desc }}</div>
+                  </div>
+                </div>
+                <div v-if="i < g.steps.length - 1" class="sf-arrow" :key="'g' + gi + '-arrow-' + i">→</div>
+              </template>
+            </div>
+          </div>
+        </template>
+        <div class="sf-steps" v-else>
           <template v-for="(s, i) in flow.steps">
             <div class="sf-step" :key="'step-' + i">
               <div class="sf-dot">{{ i + 1 }}</div>
@@ -36,7 +52,7 @@ export default {
   },
   data() {
     return {
-      collapsed: true
+      collapsed: false
     };
   },
   computed: {
@@ -113,6 +129,18 @@ export default {
   align-items: stretch;
   gap: 4px 0;
 }
+.sf-group { margin-top: 12px; }
+.sf-group:first-of-type { margin-top: 0; }
+.sf-group-title {
+  font-size: 12px;
+  font-weight: 700;
+  color: #0b3d91;
+  margin: 0 0 8px;
+  padding-left: 10px;
+  border-left: 3px solid #0075E6;
+  line-height: 1.2;
+}
+.sf-group + .sf-group { border-top: 1px dashed #cfe0f5; padding-top: 12px; }
 .sf-step {
   display: flex;
   align-items: center;

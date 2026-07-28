@@ -8,6 +8,7 @@
   },
   "dependencies": {
     "echarts": "^6.1.0",
+    "playwright-core": "^1.62.0",
     "vue": "^2.7.14",
     "vue-router": "^3.6.5"
   },

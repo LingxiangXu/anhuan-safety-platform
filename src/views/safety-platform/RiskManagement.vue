@@ -46,7 +46,7 @@
               @click="startEdit(r.id)">
               <div class="unit-top">
                 <span class="unit-name">{{ r.name }}</span>
-                <span :class="['tag', 'tag-' + getLevelTag(r.level)]">⬤ {{ r.level }}</span>
+                <span :class="['tag', 'tag-' + getLevelTag(r.level)]">⬤ {{ r.level || '待评价' }}</span>
               </div>
               <div class="unit-meta">{{ r.area }} · {{ r.category }} · {{ r.hazardousSources.length }}危险源 · {{ r.controls.length }}管控措施</div>
             </div>
@@ -86,6 +86,7 @@
                 <select v-model="editTarget.status" class="form-select">
                   <option value="管控中">管控中</option>
                   <option value="待复核">待复核</option>
+                  <option value="待评价">待评价</option>
                   <option value="待补充措施">待补充措施</option>
                 </select>
               </div>
@@ -164,7 +165,10 @@
           </div>
           <div class="form-item">
             <label>所属区域 <span class="required">*</span></label>
-            <input v-model="newRisk.area" placeholder="如：熔炼铸造区" />
+            <select v-model="newRisk.area" class="form-select">
+              <option value="">请选择厂区区域</option>
+              <option v-for="z in zoneData" :key="z.id" :value="z.name">{{ z.name }}</option>
+            </select>
           </div>
           <div class="form-item">
             <label>风险类别 <span class="required">*</span></label>
@@ -207,9 +211,9 @@
               <td>{{ r.name }}</td>
               <td>{{ r.area }}</td>
               <td>{{ r.category }}</td>
-              <td>{{ r.L }}</td><td>{{ r.E }}</td><td>{{ r.C }}</td>
-              <td><strong>{{ r.D }}</strong></td>
-              <td><span :class="['tag', 'tag-' + getLevelTag(r.level)]">⬤ {{ r.level }}</span></td>
+              <td>{{ r.L != null ? r.L : '—' }}</td><td>{{ r.E != null ? r.E : '—' }}</td><td>{{ r.C != null ? r.C : '—' }}</td>
+              <td><strong>{{ r.D != null ? r.D : '—' }}</strong></td>
+              <td><span :class="['tag', 'tag-' + getLevelTag(r.level)]">⬤ {{ r.level || '待评价' }}</span></td>
               <td>{{ r.hazardousSources.length }} 项</td>
               <td>{{ r.controls.length }} 项</td>
               <td>{{ r.ownerName }}</td>
@@ -501,7 +505,7 @@
                   <div class="mrm-detail" v-if="appSelectedRisk">
                     <div class="mrmd-head">
                       <span class="mrmd-name">{{ appSelectedRisk.name }}</span>
-                      <span class="tag" :class="getLevelTag(appSelectedRisk.level)">{{ appSelectedRisk.level }}</span>
+                      <span class="tag" :class="getLevelTag(appSelectedRisk.level)">{{ appSelectedRisk.level || '待评价' }}</span>
                       <span class="mrmd-close" @click="appSelectedRiskId = null">✕</span>
                     </div>
                     <div class="mrmd-grid">
@@ -521,7 +525,7 @@
                     <div class="mrmli" v-for="p in appRiskPoints" :key="p.id" :class="{ active: appSelectedRiskId === p.id }" @click="appSelectRisk(p.id)">
                       <span class="mrmli-dot" :style="{ background: getRiskColor(p.level) }"></span>
                       <span class="mrmli-name">{{ p.name }}</span>
-                      <span class="mrmli-level" :class="getLevelTag(p.level)">{{ p.level }}</span>
+                      <span class="mrmli-level" :class="getLevelTag(p.level)">{{ p.level || '待评价' }}</span>
                     </div>
                   </div>
                 </div>
@@ -642,7 +646,7 @@
             </div>
             <div class="card-cell">
               <div class="card-label">D值 / 等级</div>
-              <div class="card-value" :style="{ color: getRiskColor(cardTarget.level), fontWeight: 800 }">D={{ cardTarget.D }} / {{ cardTarget.level }}</div>
+              <div class="card-value" :style="{ color: getRiskColor(cardTarget.level), fontWeight: 800 }">D={{ cardTarget.D != null ? cardTarget.D : '—' }} / {{ cardTarget.level || '—' }}</div>
             </div>
           </div>
 
@@ -732,12 +736,12 @@
           <div class="detail-item"><dt>风险类别</dt><dd>{{ selectedRisk.category }}</dd></div>
           <div class="detail-item">
             <dt>风险等级</dt>
-            <dd><span :class="['tag', 'tag-' + getLevelTag(selectedRisk.level)]">⬤ {{ selectedRisk.level }}</span></dd>
+            <dd><span :class="['tag', 'tag-' + getLevelTag(selectedRisk.level)]">⬤ {{ selectedRisk.level || '待评价' }}</span></dd>
           </div>
-          <div class="detail-item"><dt>D值</dt><dd>{{ selectedRisk.D }}（L{{ selectedRisk.L }}×E{{ selectedRisk.E }}×C{{ selectedRisk.C }}）</dd></div>
-          <div class="detail-item"><dt>L</dt><dd>{{ selectedRisk.L }} — 事故可能性</dd></div>
-          <div class="detail-item"><dt>E</dt><dd>{{ selectedRisk.E }} — 暴露频率</dd></div>
-          <div class="detail-item"><dt>C</dt><dd>{{ selectedRisk.C }} — 后果严重度</dd></div>
+          <div class="detail-item"><dt>D值</dt><dd>{{ selectedRisk.D != null ? selectedRisk.D : '—' }}（L{{ selectedRisk.L != null ? selectedRisk.L : '—' }}×E{{ selectedRisk.E != null ? selectedRisk.E : '—' }}×C{{ selectedRisk.C != null ? selectedRisk.C : '—' }}）</dd></div>
+          <div class="detail-item"><dt>L</dt><dd>{{ selectedRisk.L != null ? selectedRisk.L : '—' }} — 事故可能性</dd></div>
+          <div class="detail-item"><dt>E</dt><dd>{{ selectedRisk.E != null ? selectedRisk.E : '—' }} — 暴露频率</dd></div>
+          <div class="detail-item"><dt>C</dt><dd>{{ selectedRisk.C != null ? selectedRisk.C : '—' }} — 后果严重度</dd></div>
           <div class="detail-item"><dt>责任人</dt><dd>{{ selectedRisk.ownerName }}</dd></div>
           <div class="detail-item"><dt>最后复核</dt><dd>{{ selectedRisk.lastReview }}</dd></div>
           <div class="detail-item">
@@ -801,7 +805,7 @@
 </template>
 
 <script>
-import { riskLedger, getRiskLevelByD, personnel, factoryZones, riskPoints, workPermits } from '@/store/safeData'
+import { riskLedger, getRiskLevelByD, personnel, factoryZones, RISK_AREA_TO_ZONE, workPermits, buildFourColorMarkers } from '@/store/safeData'
 import RealMap from '@/components/safety/RealMap.vue'
 import SceneFlow from '@/components/safety/SceneFlow.vue';
 
@@ -865,7 +869,6 @@ export default {
       // 四色图
       selectedZone: '',
       zoneData: factoryZones,
-      markerData: riskPoints,
       workPermits,
 
       // APP 端风险地图
@@ -875,19 +878,11 @@ export default {
         { id: 'zone-2', name: '锻压加工区', x: 260, y: 45, w: 160, h: 110, level: '重大', color: '#ef4444', fill: '#fef2f2' },
         { id: 'zone-3', name: '热处理区', x: 450, y: 45, w: 150, h: 110, level: '较大', color: '#f59e0b', fill: '#fffbeb' },
         { id: 'zone-4', name: '大型构件吊装区', x: 60, y: 180, w: 180, h: 110, level: '重大', color: '#ef4444', fill: '#fef2f2' },
-        { id: 'zone-5', name: '厂房屋面检修区', x: 270, y: 180, w: 170, h: 110, level: '较大', color: '#f59e0b', fill: '#fffbeb' },
+        { id: 'zone-5', name: '厂房屋面检修区', x: 270, y: 180, w: 170, h: 110, level: '一般', color: '#eab308', fill: '#fefce8' },
         { id: 'zone-6', name: '仓储装卸区', x: 470, y: 180, w: 150, h: 110, level: '一般', color: '#eab308', fill: '#fefce8' },
         { id: 'zone-7', name: '能源介质区', x: 150, y: 320, w: 380, h: 100, level: '较大', color: '#f59e0b', fill: '#fffbeb' }
       ],
-      appRiskPoints: [
-        { id: 'rp-1', name: '中频炉作业平台', category: '灼烫/爆炸', level: '重大', dept: '铸造车间', responsible: '张建国', measures: '炉前防护挡板、自动测温报警、紧急倾炉装置', lastReview: '2026-07-10', status: '正常', px: 110, py: 100 },
-        { id: 'rp-2', name: '浇注坑区域', category: '灼烫/起重伤害', level: '重大', dept: '铸造车间', responsible: '李明辉', measures: '浇注坑围栏、天车限位装置、高温警示', lastReview: '2026-07-08', status: '正常', px: 150, py: 135 },
-        { id: 'rp-3', name: '8000T锻压机工位', category: '机械伤害/噪声', level: '重大', dept: '锻压车间', responsible: '王志强', measures: '安全光幕、双手操作装置、隔音罩', lastReview: '2026-07-05', status: '正常', px: 350, py: 120 },
-        { id: 'rp-4', name: '桥式起重机A区', category: '起重伤害/物体打击', level: '重大', dept: '铸造车间', responsible: '刘大伟', measures: '吊索具日检、限位器、声光报警、警戒区域', lastReview: '2026-07-12', status: '隐患待整改', px: 150, py: 270 },
-        { id: 'rp-5', name: '厂房屋面通风器检修口', category: '高处坠落', level: '较大', dept: '机修车间', responsible: '孙志明', measures: '安全护栏、生命线系统、防坠落网', lastReview: '2026-07-03', status: '正常', px: 370, py: 270 },
-        { id: 'rp-6', name: '危险品暂存库', category: '火灾/爆炸/中毒', level: '较大', dept: '仓储车间', responsible: '陈文斌', measures: '防爆电气、可燃气体报警、通风联锁、MSDS告知', lastReview: '2026-07-09', status: '正常', px: 575, py: 265 },
-        { id: 'rp-7', name: '35kV变电站', category: '触电/火灾', level: '较大', dept: '动力车间', responsible: '孙志明', measures: '五防系统、绝缘监测、自动灭火装置', lastReview: '2026-07-01', status: '正常', px: 260, py: 415 }
-      ],
+      // APP 端风险点：改由 riskLedger 动态派生（见 computed appRiskPoints），与 PC 四色图、风险台账同源
 
       // APP 端视图导航
       appView: 'home',
@@ -911,7 +906,7 @@ export default {
         if (r.level === '重大') d.critical++
         else if (r.level === '较大') d.major++
         else if (r.level === '一般') d.moderate++
-        else d.low++
+        else if (r.level === '低') d.low++
       })
       return d
     },
@@ -921,7 +916,7 @@ export default {
         if (r.level === '重大') d.critical++
         else if (r.level === '较大') d.major++
         else if (r.level === '一般') d.moderate++
-        else d.low++
+        else if (r.level === '低') d.low++
       })
       const inControl = this.riskLedger.filter(r => r.status === '管控中').length
       return [
@@ -944,6 +939,11 @@ export default {
     },
     canCreateRisk() {
       return this.newRisk.name.trim() && this.newRisk.area.trim() && this.newRisk.category.trim()
+    },
+    // 四色图数据源：与驾驶舱共用 buildFourColorMarkers（单一数据源，由 riskLedger 派生「管控中」风险点），
+    // 任一处修改台账后两块地图同步刷新。
+    markerData() {
+      return buildFourColorMarkers(this.riskLedger, this.zoneData)
     },
     cardTarget() {
       return this.cardRiskId ? this.riskLedger.find(r => r.id === this.cardRiskId) : null
@@ -987,10 +987,58 @@ export default {
     },
     zoneRisks() {
       if (!this.selectedZone) return []
-      return this.riskLedger.filter(r => r.area === this.selectedZone)
+      const zone = this.zoneData.find(z => z.name === this.selectedZone)
+      if (!zone) return []
+      // 与四色图同源：仅取「管控中」记录
+      return this.riskLedger.filter(r => r.status === '管控中' && RISK_AREA_TO_ZONE[r.area] === zone.id)
     },
     appSelectedRisk() {
       return this.appRiskPoints.find(p => p.id === this.appSelectedRiskId) || null
+    },
+    // APP 端风险地图的风险点：改由风险台账(riskLedger)动态派生，审批归档后自动在地图上出现，
+    // 与 PC 四色图、风险台账数据同源（原 appRiskPoints 为写死静态数据，审批后不更新）。
+    // 按所属区域匹配 APP 端厂区区域(appRiskZones)，落在对应区域内；同区域多个点做横向展开避免重叠。
+    appRiskPoints() {
+      const AREA_TO_ZONE = {
+        '储罐区': 'zone-1', '锻压加工区': 'zone-2', '热处理区': 'zone-3',
+        '厂房屋面检修区': 'zone-5', '仓储装卸区': 'zone-6',
+        // 新增风险点下拉选择的厂区标准区域名
+        '原料存放区': 'zone-1', '机加工区': 'zone-2', '焊接作业区': 'zone-3',
+        '装配区': 'zone-4', '涂装/危化作业区': 'zone-5', '仓储区': 'zone-6', '设备动力/通道区': 'zone-7'
+      }
+      const groups = {}
+      this.riskLedger.forEach(r => {
+        const zid = AREA_TO_ZONE[r.area] || 'zone-1'
+        ;(groups[zid] = groups[zid] || []).push(r)
+      })
+      const pts = []
+      Object.keys(groups).forEach(zid => {
+        const zone = this.appRiskZones.find(z => z.id === zid) || this.appRiskZones[0]
+        const list = groups[zid]
+        const n = list.length
+        const step = Math.min(30, Math.max(18, zone.w * 0.5 / Math.max(n, 1)))
+        list.forEach((r, k) => {
+          const cx = zone.x + zone.w / 2
+          const cy = zone.y + zone.h / 2
+          const px = n > 1 ? cx + (k - (n - 1) / 2) * step : cx
+          const py = n > 1 ? cy + (k % 2 === 0 ? -16 : 16) : cy
+          const evaluated = !!(r._approvalState && r._approvalState !== 'draft' && typeof r.L === 'number')
+          const dept = (r.controls && r.controls[0] && r.controls[0].dept) || '—'
+          pts.push({
+            id: r.id,
+            name: r.name,
+            category: r.category,
+            level: evaluated ? r.level : null,
+            dept,
+            responsible: r.ownerName,
+            measures: (r.controls ? r.controls.length : (r.measures || 0)) + ' 项管控措施',
+            lastReview: r.lastReview,
+            status: r.status,
+            px, py
+          })
+        })
+      })
+      return pts
     },
     activeWorkPermits() {
       return this.workPermits.filter(w => w.status !== '草稿' && w.status !== '已归档')
@@ -1082,7 +1130,7 @@ export default {
       if (idx >= 0) this.riskLedger.splice(idx, 1)
     },
     getLevelTag(level) {
-      return { '重大': 'red', '较大': 'orange', '一般': 'yellow', '低': 'blue' }[level] || 'blue'
+      return { '重大': 'red', '较大': 'orange', '一般': 'yellow', '低': 'blue' }[level] || 'grey'
     },
 
     // ==== 抽屉内操作 ====
@@ -1403,6 +1451,7 @@ export default {
 .tag-yellow { background: #fffbeb; color: #b7791f; }
 .tag-blue { background: #e8f0fe; color: $primary; }
 .tag-green { background: $success-100; color: $accent-green; }
+.tag-grey { background: #f1f5f9; color: #94a3b8; }
 
 .btn-sm { padding: 4px 10px; border: 1px solid $border; background: #fff; border-radius: $radius-sm; font-size: $font-xs; cursor: pointer; color: $primary;
   &:hover { border-color: $primary; background: $primary-light; }

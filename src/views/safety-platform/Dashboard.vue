@@ -92,7 +92,7 @@
           <span>铸锻件分公司 · 厂区风险四色图</span>
           <span class="tag tag-blue">高德地图</span>
         </div>
-        <RealMap :height="'100%'" :zoom="18" :fit-view="false" />
+        <RealMap :height="'100%'" :zoom="18" :fit-view="false" :markers="markerData" :work-permits="activeWorkPermits" :clickable="true" />
       </div>
 
       <!-- 右侧：特殊作业 + 督办 -->
@@ -167,7 +167,7 @@
 <script>
 import * as echarts from 'echarts';
 import RealMap from '@/components/safety/RealMap.vue';
-import { dashboardStats, workPermits, supervisions, WORK_PERMIT_STATUS, SUPERVISION_STATUS, WORK_TYPE, riskLedger, personnel } from '@/store/safeData';
+import { dashboardStats, workPermits, supervisions, WORK_PERMIT_STATUS, SUPERVISION_STATUS, WORK_TYPE, riskLedger, personnel, factoryZones, buildFourColorMarkers } from '@/store/safeData';
 
 export default {
   name: 'DashboardV2',
@@ -198,6 +198,11 @@ export default {
     },
     riskTotal() {
       return riskLedger.length;
+    },
+    // 四色图数据源：与风险管理共用 buildFourColorMarkers（单一数据源，由 riskLedger 派生「管控中」风险点），
+    // 任一处修改台账后两块地图同步刷新。
+    markerData() {
+      return buildFourColorMarkers(this.riskLedger, factoryZones);
     }
   },
   mounted() {

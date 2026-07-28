@@ -14,6 +14,7 @@ import Dashboard from '@/views/safety-platform/Dashboard.vue';
 import HazardSupervision from '@/views/safety-platform/HazardSupervision.vue';
 import InspectionManagement from '@/views/safety-platform/InspectionManagement.vue';
 import SpecialWork from '@/views/safety-platform/SpecialWork.vue';
+import WorkPermitDetail from '@/views/safety-platform/WorkPermitDetail.vue';
 import RiskManagement from '@/views/safety-platform/RiskManagement.vue';
 import TrainingManagement from '@/views/safety-platform/TrainingManagement.vue';
 import BpmIntegration from '@/views/safety-platform/BpmIntegration.vue';
@@ -46,6 +47,7 @@ const routes = [
       { path: 'hazard-supervision', name: 'HazardSupervision', component: HazardSupervision },
       { path: 'inspection-management', name: 'InspectionManagement', component: InspectionManagement },
       { path: 'special-work', name: 'SpecialWork', component: SpecialWork },
+      { path: 'work-permit/:id', name: 'WorkPermitDetail', component: WorkPermitDetail },
       { path: 'risk-management', name: 'RiskManagement', component: RiskManagement },
       { path: 'bpm-integration', name: 'BpmIntegration', component: BpmIntegration },
       { path: 'training-management', name: 'TrainingManagement', component: TrainingManagement },

@@ -9,7 +9,7 @@ module.exports = {
     path: path.resolve(__dirname, 'dist'),
     filename: 'js/[name].[contenthash:8].js',
     publicPath: './',
-    clean: true
+    clean: false
   },
   externals: {
     AMap: 'AMap'

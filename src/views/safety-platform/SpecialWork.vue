@@ -6,185 +6,65 @@
       <p class="page-subtitle">高处、起重吊装、临时用电与动火作业统一流程：申请→前置核验→分级审批链→监护确认→作业→验收→归档（审批链按「类型+级别」逐级加签，含领导审批节点）</p>
     </div>
 
-    <!-- 作业票申请入口 -->
+    <!-- 作业票申请入口（APP 端 · 现场随手申请） -->
     <section class="permit-entry">
       <h3 class="section-title">作业票申请入口</h3>
       <div class="pe-block">
         <div class="pe-label">📱 APP 端 · 现场随手申请作业票</div>
         <div class="pe-app">
-          <MobileField embedded embedded-view="work-permit-apply" />
-        </div>
-      </div>
-      <div class="pe-block">
-        <div class="pe-label">💻 PC 端 · 规范填报与审批</div>
-        <button class="btn-new-application" @click="showApplicationForm = true">➕ 新建作业票申请</button>
-      </div>
-    </section>
-
-    <!-- 态势卡片 v2 -->
-    <div class="stat-gallery-sw">
-      <div class="sw-stat" v-for="s in swStats" :key="s.label">
-        <div class="sw-glow" :style="{ background: s.grad }"></div>
-        <div class="sw-icon" :style="{ background: s.grad }">{{ s.icon }}</div>
-        <div class="sw-body">
-          <span class="sw-value" :style="{ color: s.color }">{{ s.value }}</span>
-          <span class="sw-label">{{ s.label }}</span>
-        </div>
-        <div class="sw-border" :style="{ background: s.grad }"></div>
-      </div>
-    </div>
-
-    <!-- 作业类型切换 -->
-    <div class="work-type-tabs">
-      <button class="type-tab" :class="{ active: activeType === 'ALL' }" @click="activeType = 'ALL'">全部作业</button>
-      <button class="type-tab" :class="{ active: activeType === 'HIGH_ALTITUDE' }" @click="activeType = 'HIGH_ALTITUDE'">🏗️ 高处作业</button>
-      <button class="type-tab" :class="{ active: activeType === 'FIRE' }" @click="activeType = 'FIRE'">🔥 动火作业</button>
-      <button class="type-tab" :class="{ active: activeType === 'LIFTING' }" @click="activeType = 'LIFTING'">⛓ 起重吊装</button>
-      <button class="type-tab" :class="{ active: activeType === 'TEMPORARY_ELECTRICITY' }" @click="activeType = 'TEMPORARY_ELECTRICITY'">⚡ 临时用电</button>
-    </div>
-
-    <!-- 作业票列表 -->
-    <section class="ov-section">
-      <div class="permit-list">
-        <div class="permit-card" v-for="wp in filteredPermits" :key="wp.id" @click="selectPermit(wp)" :class="{ selected: wp === selectedPermit, blocked: wp.blocked }">
-          <div class="permit-card-header">
-            <span class="permit-id">{{ wp.id }}</span>
-            <span class="permit-type">{{ getWorkType(wp.workType) }}</span>
-            <span class="tag" :class="permitStatusTag(wp.status)">{{ getPermitStatus(wp.status) }}</span>
-          </div>
-          <div class="permit-card-title">{{ wp.title }}</div>
-          <div class="permit-card-meta">
-            <span>{{ wp.zoneName }}</span>
-            <span>申请人：{{ wp.applicantName }}</span>
-          </div>
-          <div class="permit-card-bar" v-if="wp.blocked">
-            <span class="block-text">⛔ 资格未满足，提交被阻断</span>
-          </div>
+          <PhoneFrame title="我的作业票" :show-back="true" @back="onPhoneBack">
+            <WorkTicket bare ref="workTicket" @view-change="wtView = $event" />
+          </PhoneFrame>
         </div>
       </div>
     </section>
 
-    <!-- 选中作业票的详情面板 -->
-    <section class="ov-section" v-if="selectedPermit">
-      <h3 class="section-title">作业票详情：{{ selectedPermit.title }}</h3>
-      <div class="section-card">
-        <!-- 流程节点 -->
-        <div class="flow-steps">
-          <div class="flow-step" v-for="(step, i) in dynamicFlowSteps" :key="step.key + i"
-            :class="{ done: dynamicStepIndex(step.key, i) < currentDynamicStepIndex, current: step.key === currentStep, blocked: selectedPermit.blocked }">
-            <div class="step-dot" :class="{ active: dynamicStepIndex(step.key, i) <= currentDynamicStepIndex }">{{ step.icon }}</div>
-            <div class="step-label">{{ step.label }}</div>
-            <div class="step-role">{{ step.role }}</div>
-            <div v-if="i < dynamicFlowSteps.length - 1" class="step-line" :class="{ active: dynamicStepIndex(step.key, i) < currentDynamicStepIndex }"></div>
-          </div>
+    <!-- 作业票台账（PC 端 · 规范填报与审批 + 全部作业） -->
+    <section class="ledger-section">
+      <div class="ledger-header">
+        <div class="ledger-title">
+          <h3 class="section-title" style="border:none;padding-left:0;margin-bottom:4px;">作业票台账</h3>
+          <p class="ledger-sub">高处、起重吊装、临时用电与动火作业 — 统一规范填报、分级审批、全过程留痕</p>
         </div>
+        <button class="btn-new-application" @click="showApplicationForm = true">＋ 新增作业票</button>
+      </div>
 
-        <!-- 作业票核心信息 -->
-        <div class="permit-info-grid">
-          <div class="info-item"><label>作业类型</label><span>{{ getWorkType(selectedPermit.workType) }}</span></div>
-          <div class="info-item"><label>责任部门</label><span>{{ selectedPermit.applicantDept }}</span></div>
-          <div class="info-item"><label>作业区域</label><span>{{ selectedPermit.zoneName }}</span></div>
-          <div class="info-item"><label>作业时间</label><span>{{ selectedPermit.duration }}</span></div>
-          <div class="info-item" v-if="selectedPermit.workType === 'HIGH_ALTITUDE'"><label>作业高度</label><span>{{ selectedPermit.height }}</span></div>
-          <div class="info-item" v-if="selectedPermit.workType === 'HIGH_ALTITUDE' && selectedPermit.workLevel"><label>作业等级</label><span class="work-level-tag" :class="'level-' + selectedPermit.workLevel">{{ selectedPermit.workLevel }}（{{ selectedPermit.heightLevel }}）</span></div>
-          <div class="info-item" v-if="selectedPermit.workType === 'LIFTING'"><label>吊载重量</label><span>{{ selectedPermit.loadWeight }}</span></div>
-          <div class="info-item" v-if="selectedPermit.workType === 'LIFTING' && selectedPermit.workLevel"><label>作业类别</label><span class="work-level-tag level-特殊">{{ selectedPermit.workLevel }}起重吊装</span></div>
-          <div class="info-item" v-if="selectedPermit.workType === 'TEMPORARY_ELECTRICITY'"><label>用电参数</label><span>{{ selectedPermit.voltage }} / {{ selectedPermit.power }}</span></div>
-          <div class="info-item" v-if="selectedPermit.workType === 'FIRE'"><label>动火级别</label><span class="work-level-tag" :class="'level-' + selectedPermit.workLevel">{{ selectedPermit.fireLevel || selectedPermit.workLevel }}动火</span></div>
-          <div class="info-item" v-if="selectedPermit.validity"><label>许可证有效期</label><span class="validity-tag">⏱ {{ selectedPermit.validity }}</span></div>
-        </div>
+      <!-- 作业类型筛选 -->
+      <div class="work-type-tabs">
+        <button class="type-tab" :class="{ active: activeType === 'ALL' }" @click="activeType = 'ALL'">全部作业</button>
+        <button class="type-tab" :class="{ active: activeType === 'HIGH_ALTITUDE' }" @click="activeType = 'HIGH_ALTITUDE'">🏗️ 高处作业</button>
+        <button class="type-tab" :class="{ active: activeType === 'FIRE' }" @click="activeType = 'FIRE'">🔥 动火作业</button>
+        <button class="type-tab" :class="{ active: activeType === 'LIFTING' }" @click="activeType = 'LIFTING'">⛓ 起重吊装</button>
+        <button class="type-tab" :class="{ active: activeType === 'TEMPORARY_ELECTRICITY' }" @click="activeType = 'TEMPORARY_ELECTRICITY'">⚡ 临时用电</button>
+      </div>
 
-        <!-- 分级审批链（按作业类型+级别差异化，依据危险作业安全管控制度） -->
-        <div class="approval-chain-box" v-if="selectedPermit.approvalChain">
-          <div class="chain-head">
-            <span class="chain-label">分级审批链</span>
-            <span class="chain-tip">按「{{ getWorkType(selectedPermit.workType) }}
-              <template v-if="selectedPermit.workLevel">· {{ selectedPermit.workLevel }}</template>」逐级审批（{{ approvalNodes.length }} 个节点）</span>
-          </div>
-          <div class="chain-nodes">
-            <template v-for="(node, i) in approvalNodes">
-              <span class="chain-node" :key="'n-' + i">{{ node }}</span>
-              <span v-if="i < approvalNodes.length - 1" class="chain-sep" :key="'s-' + i">→</span>
-            </template>
-          </div>
-        </div>
-
-        <!-- 作业人员 -->
-        <div class="detail-desc">
-          <label>作业人员</label>
-          <div class="worker-list">
-            <div class="worker-item" v-for="w in selectedPermit.workers" :key="w.name">
-              <span class="worker-name">{{ w.name }}</span>
-              <span class="worker-role">{{ w.role }}</span>
-            </div>
-          </div>
-        </div>
-
-        <!-- 安全措施与检查项 -->
-        <div class="detail-desc">
-          <label>安全措施</label>
-          <div class="measure-list">
-            <span class="measure-tag" v-for="m in selectedPermit.safetyMeasures" :key="m">{{ m }}</span>
-          </div>
-        </div>
-
-        <div class="detail-desc">
-          <label>风险重点</label>
-          <div class="risk-hl-list">
-            <span class="risk-hl" v-for="r in selectedPermit.riskHighlights" :key="r">{{ r }}</span>
-          </div>
-        </div>
-
-        <div class="detail-desc">
-          <label>关键控制证据</label>
-          <div class="check-list">
-            <div class="check-item" v-for="c in selectedPermit.checks" :key="c.item">
-              <span class="check-no" v-if="c.no">{{ c.no }}</span>
-              <span class="check-icon">{{ c.checked !== false ? '✅' : '⬜' }}</span>
-              <span class="check-text">
-                <strong>{{ c.item }}</strong>
-                <span class="check-detail" v-if="c.detail"> — {{ c.detail }}</span>
-                <span class="check-result">{{ c.result }}</span>
-              </span>
-            </div>
-          </div>
-        </div>
-
-        <!-- 阻断信息 -->
-        <div class="block-panel" v-if="selectedPermit.blocked">
-          <div class="block-title">⛔ 提交被阻断</div>
-          <div class="block-reason" v-for="(r, i) in selectedPermit.blockReasons" :key="i">
-            <div><strong>{{ r.person || '系统' }}</strong> <span class="tag tag-red">阻断</span></div>
-            <div class="block-issue">{{ r.issue }}</div>
-            <div class="block-action">{{ r.action }}</div>
-          </div>
-          <button class="btn-fix" @click="fixQualifications(selectedPermit)">演示：补齐资格后恢复提交</button>
-        </div>
-
-        <!-- 审批/监护/验收按钮 -->
-        <div class="action-buttons" v-if="!selectedPermit.blocked && selectedPermit.status !== '已归档'">
-          <button v-if="selectedPermit.status === '待监护确认'" class="btn-act btn-guardian" @click="confirmGuardian(selectedPermit)">
-            ✅ 监护人确认开工条件
-          </button>
-          <button v-if="selectedPermit.status === '作业中'" class="btn-act btn-primary" @click="finishWork(selectedPermit)">
-            🏁 完工验收
-          </button>
-          <button v-if="selectedPermit.status === '待完工验收'" class="btn-act btn-success" @click="archiveWork(selectedPermit)">
-            📦 安环归档
-          </button>
-        </div>
-
-        <!-- 时间线 -->
-        <div class="timeline">
-          <div class="timeline-item" v-for="(t, i) in selectedPermit.timeline" :key="i">
-            <div class="timeline-dot" :class="{ active: i === selectedPermit.timeline.length - 1 }"></div>
-            <div class="timeline-content">
-              <span class="timeline-time">{{ t.time }}</span>
-              <span class="timeline-action">{{ t.action }}</span>
-              <span class="timeline-operator">— {{ t.operator }}</span>
-            </div>
-          </div>
-        </div>
+      <!-- 台账表格 -->
+      <div class="ledger-table-wrap">
+        <table class="ledger-table">
+          <thead>
+            <tr>
+              <th>作业票号</th>
+              <th>类型</th>
+              <th>申请人</th>
+              <th>监护人</th>
+              <th>计划时间</th>
+              <th>状态</th>
+              <th class="col-ops">操作</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-for="wp in filteredPermits" :key="wp.id"
+                :class="{ blocked: wp.blocked }" @click="goDetail(wp)">
+              <td class="col-id">{{ wp.id }}</td>
+              <td class="col-type">{{ typeEmoji[wp.workType] }} {{ getWorkType(wp.workType) }}</td>
+              <td>{{ wp.applicantName }}</td>
+              <td>{{ wp.guardianName || '待指定' }}</td>
+              <td class="col-time">{{ wp.duration || '—' }}</td>
+              <td><span class="tag" :class="permitStatusTag(wp.status)">{{ getPermitStatus(wp.status) }}</span></td>
+              <td class="col-ops"><button class="btn-link" @click.stop="goDetail(wp)">查看 ›</button></td>
+            </tr>
+          </tbody>
+        </table>
       </div>
     </section>
 
@@ -320,20 +200,19 @@
 </template>
 
 <script>
-import { workPermits, WORK_TYPE, WORK_PERMIT_STATUS, WORK_PERMIT_STEPS, getApprovalChain, getWorkValidity } from '@/store/safeData';
-import MobileField from '@/views/safety-platform/MobileField.vue';
+import { workPermits, WORK_TYPE, WORK_PERMIT_STATUS, getApprovalChain, getWorkValidity } from '@/store/safeData';
+import WorkTicket from '@/views/safety-platform/WorkTicket.vue';
 import SceneFlow from '@/components/safety/SceneFlow.vue';
+import PhoneFrame from '@/components/safety/PhoneFrame.vue';
 
 export default {
   name: 'SpecialWork',
-  components: { MobileField, SceneFlow },
+  components: { WorkTicket, SceneFlow, PhoneFrame },
   data() {
     return {
       localPermits: workPermits,
-      selectedPermit: null,
       activeType: 'ALL',
-      flowSteps: WORK_PERMIT_STEPS,
-      // 新建申请表单
+      wtView: 'list',
       showApplicationForm: false,
       workerInput: { name: '', role: '' },
       riskInput: '',
@@ -344,6 +223,7 @@ export default {
         { value: 'LIFTING', label: '起重吊装', emoji: '⛓' },
         { value: 'TEMPORARY_ELECTRICITY', label: '临时用电', emoji: '⚡' }
       ],
+      typeEmoji: { HIGH_ALTITUDE: '🏗️', FIRE: '🔥', LIFTING: '⛓', TEMPORARY_ELECTRICITY: '⚡' },
       safetyMeasureOptions: [
         '安全帽+安全带+安全绳', '生命线系统', '防坠落网', '警戒区域设置',
         '吊装方案审批', '起重设备日检合格', '警戒区域硬隔离', '人员站位确认',
@@ -357,57 +237,6 @@ export default {
       if (this.activeType === 'ALL') return this.localPermits;
       return this.localPermits.filter(p => p.workType === this.activeType);
     },
-    activePermits() { return this.localPermits.filter(p => p.status !== '草稿' && p.status !== '已归档'); },
-    guardianPending() { return this.localPermits.filter(p => p.status === '待监护确认'); },
-    blockedPermits() { return this.localPermits.filter(p => p.blocked); },
-    completedPermits() { return this.localPermits.filter(p => p.status === '已归档'); },
-    currentStep() { return this.selectedPermit ? this.selectedPermit.status : null; },
-    currentStepIndex() {
-      if (!this.selectedPermit) return 0;
-      const key = this.mapStatusToKey(this.selectedPermit.status);
-      // 动态流程条：用 dynamicFlowSteps 查找
-      const idx = this.dynamicFlowSteps.findIndex(s => s.key === key);
-      return idx >= 0 ? idx : 0;
-    },
-    /** 当前步骤在动态流程条中的索引（审批区已合并为单一「分级审批链」步） */
-    currentDynamicStepIndex() {
-      return this.currentStepIndex;
-    },
-    approvalNodes() {
-      if (!this.selectedPermit || !this.selectedPermit.approvalChain) return [];
-      return this.selectedPermit.approvalChain.split('→').map(s => s.trim()).filter(Boolean);
-    },
-    /**
-     * 动态流程条：步骤 1-2 / 5-7 固定，中间审批区统一为一个「分级审批链」步骤，
-     * 按「类型+级别」从矩阵取真实链路（含领导审批节点）完整展示，不再单列"领导审批"步。
-     */
-    dynamicFlowSteps() {
-      if (!this.selectedPermit) return WORK_PERMIT_STEPS;
-      const chain = this.approvalNodes;
-      // 无审批链时回退到静态步骤
-      if (!chain.length) return WORK_PERMIT_STEPS;
-      const fixedStart = WORK_PERMIT_STEPS.slice(0, 2); // 提交申请 + 前置核验
-      const fixedEnd = WORK_PERMIT_STEPS.slice(3);        // 监护确认 ~ 归档
-      // 审批区统一为一个「分级审批链」步骤，按「类型+级别」展示完整审批链（含领导审批节点）
-      const steps = [
-        ...fixedStart,
-        {
-          key: 'PENDING_SAFETY_REVIEW',
-          label: '分级审批链',
-          role: chain.join(' → ') || '公司安环人员',
-          icon: '👀'
-        }
-      ];
-      return [...steps, ...fixedEnd];
-    },
-    swStats() {
-      return [
-        { label: '当前待推进', value: this.activePermits.length, icon: '📋', color: '#3b82f6', grad: 'linear-gradient(135deg, #3b82f6, #2563eb)' },
-        { label: '现场监护关口', value: this.guardianPending.length, icon: '🛡️', color: '#f59e0b', grad: 'linear-gradient(135deg, #f59e0b, #d97706)' },
-        { label: '资格阻断', value: this.blockedPermits.length, icon: '🚫', color: '#ef4444', grad: 'linear-gradient(135deg, #ef4444, #dc2626)' },
-        { label: '已归档', value: this.completedPermits.length, icon: '✅', color: '#0ea85e', grad: 'linear-gradient(135deg, #0ea85e, #059669)' }
-      ];
-    }
   },
   methods: {
     getWorkType(t) { return WORK_TYPE[t] ? WORK_TYPE[t].label : t; },
@@ -420,66 +249,20 @@ export default {
       if (s === '草稿') return 'tag-gray';
       return 'tag-orange';
     },
-    selectPermit(wp) { this.selectedPermit = wp; },
-    dynamicStepIndex(key, i) { return i; },
-    /** 保留原 stepIndex 用于非动态场景（如 timeline 构建等） */
-    stepIndex(key) { return WORK_PERMIT_STEPS.findIndex(s => s.key === key); },
-    mapStatusToKey(status) {
-      const map = {
-        '草稿': 'DRAFT',
-        '待前置核验': 'PENDING_CHECK',
-        '待安环审核': 'PENDING_SAFETY_REVIEW',
-        '待领导审批': 'PENDING_SAFETY_REVIEW',
-        '待监护确认': 'PENDING_GUARDIAN',
-        '作业中': 'IN_PROGRESS',
-        '待完工验收': 'PENDING_ACCEPTANCE',
-        '已归档': 'ARCHIVED'
-      };
-      return map[status] || status;
+    goDetail(wp) {
+      this.$router.push({ name: 'WorkPermitDetail', params: { id: wp.id } });
+    },
+    // APP 端预览的返回键：列表页→退出回移动工作台；非列表页→WorkTicket 内部返回
+    onPhoneBack() {
+      if (this.wtView === 'list') {
+        // 列表页点返回 → 退出作业票，回到移动工作台首页
+        this.$router.push('/safety-platform/mobile-field');
+        return;
+      }
+      const wt = this.$refs.workTicket;
+      if (wt && typeof wt.navBack === 'function') wt.navBack();
     },
 
-    fixQualifications(wp) {
-      wp.blocked = false;
-      wp.blockReasons = [];
-      wp.checks = [
-        { no: 1, item: '作业人员高处作业证', detail: '赵永刚证书已更新至2027-07-10', result: '有效 ✓', checked: true },
-        { no: 2, item: '监护人指定', detail: '陈文斌（安全生产管理证有效）', result: '已指定 ✓', checked: true },
-        { no: 3, item: '高空作业平台检查', detail: '移动式高空平台检测合格', result: '合格 ✓', checked: true },
-        { no: 4, item: '防坠落措施', detail: '安全绳+安全带+防坠网已就位', result: '已就位 ✓', checked: true },
-        { no: 5, item: '安全帽佩戴', detail: '安全帽在有效期内', result: '通过 ✓', checked: true }
-      ];
-      wp.guardianId = 6; wp.guardianName = '陈文斌';
-      wp.workers.push({ id: 6, name: '陈文斌', role: '监护人' });
-      wp.status = '待安环审核';
-      wp.timeline.push({ time: '2026-07-16 09:30', action: '补齐资质：赵永刚高处作业证更新，陈文斌指定为监护人', operator: '系统' });
-      wp.timeline.push({ time: '2026-07-16 09:31', action: '资格校验通过，提交恢复', operator: '系统' });
-      alert('资格已补齐！赵永刚高处作业证已更新，陈文斌已指定为监护人。作业票状态恢复为"待安环审核"。');
-    },
-    confirmGuardian(wp) {
-      if (confirm('确认开工条件已满足，进入作业执行？')) {
-        wp.status = '作业中';
-        wp.guardianTime = '2026-07-16 08:00';
-        wp.timeline.push({ time: '2026-07-16 08:00', action: '监护人陈文斌确认开工条件，作业开始', operator: '陈文斌' });
-        alert('监护确认完成，作业已开始。');
-      }
-    },
-    finishWork(wp) {
-      if (confirm('确认作业已完成，提交完工验收？')) {
-        wp.status = '待完工验收';
-        wp.finishTime = '2026-07-16 11:00';
-        wp.timeline.push({ time: '2026-07-16 11:00', action: '作业完成，提交完工申请', operator: wp.applicantName });
-        alert('作业完成，等待安环验收。');
-      }
-    },
-    archiveWork(wp) {
-      if (confirm('确认验收合格，归档？')) {
-        wp.status = '已归档';
-        wp.archiveTime = '2026-07-16 14:00';
-        wp.archiverName = '李明辉';
-        wp.timeline.push({ time: '2026-07-16 14:00', action: '安环验收合格，归档', operator: '李明辉' });
-        alert('验收通过，作业票已归档。');
-      }
-    },
 
     // ===== 新建申请相关 =====
     createEmptyPermit() {
@@ -543,7 +326,6 @@ export default {
       this.showApplicationForm = false;
       this.newPermit = this.createEmptyPermit();
       this.riskInput = '';
-      this.selectedPermit = this.localPermits[0];
     },
     submitApplication() {
       if (!this.newPermit.title.trim() || !this.newPermit.applicantName.trim()) {
@@ -591,8 +373,8 @@ export default {
       this.showApplicationForm = false;
       this.newPermit = this.createEmptyPermit();
       this.riskInput = '';
-      this.selectedPermit = this.localPermits[0];
-      alert(`作业票 ${this.selectedPermit.id} 已提交，当前状态：${this.selectedPermit.status}`);
+      const created = this.localPermits[0];
+      alert(`作业票 ${created.id} 已提交，当前状态：${created.status}`);
     }
   }
 };
@@ -610,7 +392,7 @@ export default {
 
 /* 新建申请按钮 */
 .btn-new-application {
-  margin-top: $space-md; padding: 12px 24px;
+  flex-shrink: 0; padding: 11px 22px;
   background: linear-gradient(135deg, #1e6fff, $brand-700);
   color: #fff; border: none; border-radius: 12px; font-size: $font-sm; font-weight: 700;
   cursor: pointer; transition: all .2s; box-shadow: 0 4px 14px rgba(30,111,255,.3);
@@ -625,26 +407,13 @@ export default {
   display: flex; align-items: center; gap: 6px;
 }
 .pe-app { display: flex; justify-content: flex-start; }
-.pe-app :deep(.phone-frame) { width: 340px; margin: 0; }
-.pe-app :deep(.phone-screen) { min-height: 520px; max-height: 560px; font-size: 11px; }
 
-/* V2 gradient stat gallery */
-.stat-gallery-sw { display: flex; gap: 14px; margin-bottom: $space-xl; }
-.sw-stat {
-  flex: 1; position: relative; background: #fff; border-radius: 14px;
-  padding: 18px 16px; box-shadow: 0 2px 12px rgba(15,23,42,.06); overflow: hidden;
-  border: 1px solid rgba(15,23,42,.06); transition: transform .2s, box-shadow .2s;
-  &:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(15,23,42,.08); }
-}
-.sw-glow { position: absolute; top: -16px; right: -16px; width: 56px; height: 56px; border-radius: 50%; opacity: .07; }
-.sw-icon { width: 36px; height: 36px; border-radius: 10px; display: flex; align-items: center;
-  justify-content: center; font-size: 16px; margin-bottom: 10px; opacity: .15; }
-.sw-body { position: relative; z-index: 1; }
-.sw-value { font-size: 28px; font-weight: 900; line-height: 1; display: block; }
-.sw-label { font-size: 12px; color: $text-secondary; display: block; margin-top: 4px; }
-.sw-border { position: absolute; bottom: 0; left: 0; right: 0; height: 3px; opacity: .5; }
+/* ====== 作业票台账 ====== */
+.ledger-section { margin-bottom: $space-2xl; }
+.ledger-header { display: flex; align-items: flex-end; justify-content: space-between; gap: $space-md; margin-bottom: $space-lg; }
+.ledger-sub { font-size: 12px; color: $text-hint; margin: 0; }
 
-.work-type-tabs { display: flex; gap: $space-sm; margin-bottom: $space-lg; }
+.work-type-tabs { display: flex; gap: $space-sm; margin-bottom: $space-md; flex-wrap: wrap; }
 .type-tab {
   padding: 7px 18px; border-radius: 20px; font-size: $font-sm; border: 1px solid $gray-200; background: #fff;
   color: $text-secondary; cursor: pointer; font-weight: 600; transition: all .2s;
@@ -652,131 +421,33 @@ export default {
   &:hover:not(.active) { border-color: $primary; color: $primary; }
 }
 
-.ov-section { margin-bottom: $space-2xl; }
+.ledger-table-wrap {
+  overflow-x: auto; background: #fff; border-radius: 14px;
+  border: 1px solid rgba(15,23,42,.06); box-shadow: 0 2px 12px rgba(15,23,42,.04);
+}
+.ledger-table { width: 100%; border-collapse: collapse; font-size: 13px; min-width: 720px; }
+.ledger-table th {
+  text-align: left; padding: 12px 14px; background: #f8fafc; color: $text-secondary;
+  font-weight: 700; border-bottom: 1px solid $gray-200; white-space: nowrap; font-size: 12px;
+}
+.ledger-table td {
+  padding: 11px 14px; border-bottom: 1px solid $gray-100; color: $text-primary; vertical-align: middle;
+}
+.ledger-table tbody tr { cursor: pointer; transition: background .15s; }
+.ledger-table tbody tr:hover { background: $primary-bg; }
+.ledger-table tbody tr.selected { background: $primary-bg; box-shadow: inset 3px 0 0 $primary; }
+.ledger-table tbody tr.blocked { background: #fff5f5; }
+.col-id { font-family: monospace; font-size: 11px; color: $text-hint; white-space: nowrap; }
+.col-type { white-space: nowrap; font-weight: 600; }
+.col-time { white-space: nowrap; font-size: 11px; color: $text-hint; }
+.col-ops { white-space: nowrap; text-align: center; }
+.btn-link {
+  background: none; border: none; color: $primary; font-weight: 600; cursor: pointer;
+  font-size: 12px; padding: 2px 4px;
+  &:hover { text-decoration: underline; }
+}
+
 .section-title { font-size: $font-md; font-weight: 700; color: $text-primary; margin-bottom: $space-md; padding-left: 12px; border-left: 4px solid $primary; }
-.section-card { background: #fff; border-radius: 16px; padding: $space-lg $space-xl; border: 1px solid rgba(15,23,42,.06); box-shadow: 0 2px 12px rgba(15,23,42,.04); }
-
-.permit-list { display: flex; flex-direction: column; gap: $space-sm; }
-.permit-card {
-  background: #fff; border-radius: 12px; border: 1px solid $gray-200; padding: 14px 16px;
-  cursor: pointer; transition: all .2s;
-  &:hover { border-color: $primary; box-shadow: 0 4px 16px rgba(15,23,42,.06); transform: translateX(3px); }
-  &.selected { border-color: $primary; box-shadow: 0 0 0 3px rgba(26,95,220,.08); background: $primary-bg; }
-  &.blocked { border-color: $danger-100; background: #fefafafa; }
-  &-header { display: flex; align-items: center; gap: $space-sm; margin-bottom: 4px; }
-  &-id { font-family: monospace; font-size: 11px; color: $text-hint; }
-  &-type { font-size: $font-sm; font-weight: 700; color: $text-primary; }
-  &-title { font-size: $font-sm; color: $text-secondary; margin-bottom: 4px; }
-  &-meta { font-size: 11px; color: $text-hint; display: flex; gap: $space-lg; }
-  &-bar { margin-top: $space-sm; padding: 6px 12px; background: $danger-100; border-radius: 8px; }
-}
-.block-text { font-size: 11px; color: $danger; font-weight: 600; }
-
-.flow-steps {
-  display: flex; align-items: flex-start; overflow-x: auto; gap: 0;
-  padding: 20px 0; margin-bottom: 20px; border-bottom: 1px solid $gray-100;
-}
-.flow-step {
-  display: flex; flex-direction: column; align-items: center; gap: 6px; min-width: 84px;
-  position: relative; flex-shrink: 0;
-  &.blocked { opacity: .4; }
-}
-.step-dot {
-  width: 34px; height: 34px; border-radius: 50%; background: $gray-200; display: flex;
-  align-items: center; justify-content: center; font-size: 14px; transition: all .3s;
-  border: 3px solid $gray-200;
-  &.active { background: #fff; border-color: $primary; box-shadow: 0 0 0 5px rgba(26,95,220,.08); }
-}
-.step-label { font-size: 11px; color: $text-secondary; text-align: center; font-weight: 600; }
-.step-role { font-size: 9px; color: $text-hint; }
-.step-line { position: absolute; top: 17px; left: calc(50% + 17px); width: calc(100% - 34px); height: 3px; background: $gray-200; z-index: -1; border-radius: 2px;
-  &.active { background: $primary; }
-}
-.flow-step.done .step-dot { background: $accent-green; border-color: $accent-green; color: #fff; }
-
-.permit-info-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: $space-sm $space-xl; margin-bottom: $space-lg; }
-.info-item {
-  label { font-size: 11px; color: $text-hint; display: block; margin-bottom: 2px; }
-  span { font-size: $font-sm; color: $text-primary; }
-}
-
-.detail-desc { margin-bottom: $space-md;
-  label { font-size: 11px; color: $text-hint; display: block; margin-bottom: 4px; }
-}
-.worker-list { display: flex; gap: $space-sm; }
-.worker-item { padding: 6px 12px; background: $gray-50; border-radius: $radius-sm; font-size: $font-xs;
-  .worker-name { font-weight: 500; color: $text-primary; }
-  .worker-role { color: $text-hint; margin-left: 6px; }
-}
-.measure-list { display: flex; flex-wrap: wrap; gap: 4px; }
-.measure-tag { font-size: 11px; padding: 3px 8px; background: $success-100; color: $success-700; border-radius: $radius-sm; }
-.risk-hl-list { display: flex; flex-wrap: wrap; gap: 4px; }
-.risk-hl { font-size: 11px; padding: 3px 8px; background: $danger-100; color: $danger-700; border-radius: $radius-sm; }
-.check-list { display: flex; flex-direction: column; gap: 6px; }
-.check-item { display: flex; align-items: flex-start; gap: 6px; font-size: $font-xs; color: $text-secondary; padding: 4px 0; border-bottom: 1px solid $gray-100; }
-.check-no { width: 18px; height: 18px; border-radius: 50%; background: $primary-bg; color: $primary; font-size: 10px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; font-weight: 600; margin-top: 1px; }
-.check-icon { font-size: 12px; flex-shrink: 0; margin-top: 1px; }
-.check-text { line-height: 1.5;
-  strong { color: $text-primary; }
-}
-.check-detail { color: $text-hint; font-size: 10px; }
-.check-result { color: $success; font-size: 10px; margin-left: 4px; }
-
-.approval-chain { display: flex; align-items: center; gap: $space-sm; margin-bottom: $space-lg; padding: 10px 16px; background: $info-bg; border-radius: 10px; border: 1px solid #bae6fd; font-size: $font-xs; font-weight: 600; }
-.chain-label { color: $text-hint; flex-shrink: 0; }
-.chain-path { color: $primary; font-weight: 700; }
-
-.approval-chain-box { margin-bottom: $space-lg; padding: 12px 16px; background: $info-bg; border-radius: 10px; border: 1px solid #bae6fd; }
-.chain-head { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; flex-wrap: wrap; }
-.chain-head .chain-label { font-size: $font-sm; font-weight: 700; color: $primary; }
-.chain-tip { font-size: 12px; color: $text-hint; font-weight: 500; }
-.chain-nodes { display: flex; align-items: center; flex-wrap: wrap; gap: 6px; }
-.chain-node { display: inline-block; padding: 4px 12px; background: #fff; border: 1px solid $primary; border-radius: 16px; font-size: 12px; font-weight: 600; color: $primary; }
-.chain-sep { color: $primary; font-weight: 700; margin: 0 1px; }
-
-.validity-tag { display: inline-block; padding: 1px 8px; border-radius: 10px; font-size: 11px; font-weight: 600; background: #fef3c7; color: #92600a; }
-
-.work-level-tag { display: inline-block; padding: 1px 8px; border-radius: 10px; font-size: 11px; font-weight: 600;
-  &.level-一级 { background: #dcfce7; color: $success-700; }
-  &.level-二级 { background: #fef9c3; color: $warning-700; }
-  &.level-三级 { background: #fed7aa; color: $danger-700; }
-  &.level-特级 { background: #fecaca; color: $danger-700; }
-  &.level-特殊 { background: #e0e7ff; color: #4338ca; }
-}
-
-.block-panel { padding: $space-lg; background: $danger-100; border-radius: 12px; border: 1px solid $danger-100; margin: $space-lg 0; }
-.block-title { font-size: $font-base; font-weight: 700; color: $danger-700; margin-bottom: $space-sm; }
-.block-reason { margin-bottom: $space-sm; padding-bottom: $space-sm; border-bottom: 1px solid $danger-100; }
-.block-issue { font-size: $font-sm; color: $danger; margin: 4px 0; }
-.block-action { font-size: $font-xs; color: $text-secondary; }
-.btn-fix {
-  margin-top: $space-sm; padding: 9px 18px; background: $danger; color: #fff; border: none; border-radius: 10px;
-  font-size: $font-sm; font-weight: 600; cursor: pointer; transition: .2s;
-  &:hover { background: $danger-600; transform: translateY(-1px); }
-}
-
-.action-buttons { display: flex; gap: $space-sm; margin-top: 20px; }
-.btn-act {
-  padding: 10px 20px; border-radius: 10px; font-size: $font-sm; font-weight: 700; border: none; cursor: pointer; transition: .2s;
-  &.btn-guardian { background: linear-gradient(135deg, #f59e0b, $warning-600); color: #fff; box-shadow: 0 2px 8px rgba(245,158,11,.3); &:hover { transform: translateY(-1px); } }
-  &.btn-primary { background: $primary; color: #fff; box-shadow: 0 2px 8px rgba(26,95,220,.25); &:hover { transform: translateY(-1px); } }
-  &.btn-success { background: linear-gradient(135deg, #0ea85e, $accent-green); color: #fff; box-shadow: 0 2px 8px rgba(14,168,94,.3); &:hover { transform: translateY(-1px); } }
-}
-
-.timeline { padding-left: $space-base; margin-top: 20px;
-  position: relative;
-  &::before { content: ''; position: absolute; left: 20px; top: 8px; bottom: 8px; width: 2px; background: $gray-200; }
-}
-.timeline-item { display: flex; gap: $space-md; padding: 10px 0; position: relative; }
-.timeline-dot {
-  width: 12px; height: 12px; border-radius: 50%; background: $gray-200; flex-shrink: 0; margin-top: 3px;
-  position: relative; z-index: 1; border: 2px solid #fff;
-  &.active { background: $primary; box-shadow: 0 0 0 4px rgba(26,95,220,.15); }
-}
-.timeline-content { display: flex; flex-direction: column; font-size: $font-xs; }
-.timeline-time { color: $text-hint; font-size: 11px; }
-.timeline-action { color: $text-primary; font-weight: 600; }
-.timeline-operator { color: $text-hint; }
 
 /* ====== 申请弹窗样式 ====== */
 .modal-overlay {

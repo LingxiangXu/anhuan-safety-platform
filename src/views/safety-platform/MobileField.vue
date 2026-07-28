@@ -556,238 +556,10 @@
 
 
 
-              <!-- ===== 作业票界面 ===== -->
+              <!-- ===== 作业票界面（与「我的作业票」同源，内嵌最新 WorkTicket 组件） ===== -->
 
               <template v-else-if="currentView === 'work-permit'">
-
-                <div class="mob-permit">
-
-                  <div class="mp-hint">现场人员可查看名下作业票，或一键发起新申请</div>
-
-                  <button class="ph-btn primary" @click="currentView='work-permit-apply'">➕ 新建作业票申请</button>
-
-                  <div class="mp-list">
-
-                    <div class="mp-item" v-for="p in myPermits" :key="p.id">
-
-                      <span class="mp-type">{{ typeIcon(p.workType) }} {{ WORK_TYPE[p.workType] ? WORK_TYPE[p.workType].label : p.workType }}</span>
-
-                      <span class="mp-title">{{ p.title }}</span>
-
-                      <span class="tag" :class="permitTag(p.status)">{{ p.status }}</span>
-
-                    </div>
-
-                  </div>
-
-                  <div class="mob-empty" v-if="!myPermits.length">暂无关联作业票</div>
-
-                </div>
-
-              </template>
-
-
-
-              <!-- ===== 新建作业票申请 ===== -->
-
-              <template v-else-if="currentView === 'work-permit-apply'">
-
-                <div class="mob-report">
-
-                  <div class="mrf-group">
-
-                    <div class="mrf-label">作业类型 <span class="req">*</span></div>
-
-                    <div class="mrf-pills">
-
-                      <span class="mrfp" v-for="wt in workTypeOptions" :key="wt.value" :class="{ active: permitApplyForm.workType === wt.value }" @click="pickWorkType(wt.value)">{{ wt.emoji }} {{ wt.label }}</span>
-
-                    </div>
-
-                  </div>
-
-                  <div class="mrf-group">
-
-                    <div class="mrf-label">作业标题 <span class="req">*</span></div>
-
-                    <input class="mrf-input filled" v-model="permitApplyForm.title" placeholder="如：厂房屋面通风器检修高处作业" />
-
-                  </div>
-
-                  <div class="mrf-group">
-
-                    <div class="mrf-label">作业区域 <span class="req">*</span></div>
-
-                    <select class="mrf-select filled" v-model="permitApplyForm.zoneName">
-
-                      <option value="" disabled>请选择作业区域</option>
-
-                      <option v-for="z in riskZones" :key="z.id" :value="z.name">{{ z.name }}</option>
-
-                    </select>
-
-                  </div>
-
-                  <div class="mrf-group">
-
-                    <div class="mrf-label">申请人 <span class="req">*</span></div>
-
-                    <input class="mrf-input filled" v-model="permitApplyForm.applicantName" placeholder="作业申请人姓名" />
-
-                  </div>
-
-                  <div class="mrf-group">
-
-                    <div class="mrf-label">监护人</div>
-
-                    <input class="mrf-input filled" v-model="permitApplyForm.guardianName" placeholder="现场监护人姓名（可后续指定）" />
-
-                  </div>
-
-                  <div class="mrf-group">
-
-                    <div class="mrf-label">计划作业时间</div>
-
-                    <input class="mrf-input filled" v-model="permitApplyForm.duration" placeholder="如：2026-07-16 08:00 ~ 17:00" />
-
-                  </div>
-
-                  <div class="mrf-group" v-if="permitApplyForm.workType === 'HIGH_ALTITUDE'">
-
-                    <div class="mrf-label">作业级别 <span class="req">*</span></div>
-
-                    <select class="mrf-select filled" v-model="permitApplyForm.workLevel">
-
-                      <option value="" disabled>请选择作业级别</option>
-
-                      <option v-for="o in workLevelOptions.HIGH_ALTITUDE" :key="o.value" :value="o.value">{{ o.label }}</option>
-
-                    </select>
-
-                    <div class="mp-chain-hint" v-if="applyPreview">审批链：{{ applyPreview }}</div>
-
-                  </div>
-
-                  <div class="mrf-group" v-if="permitApplyForm.workType === 'HIGH_ALTITUDE'">
-
-                    <div class="mrf-label">作业高度</div>
-
-                    <input class="mrf-input filled" v-model="permitApplyForm.height" placeholder="如：8.5m" />
-
-                  </div>
-
-                  <div class="mrf-group" v-if="permitApplyForm.workType === 'LIFTING'">
-
-                    <div class="mrf-label">吊载重量</div>
-
-                    <input class="mrf-input filled" v-model="permitApplyForm.loadWeight" placeholder="如：18t" />
-
-                  </div>
-
-                  <div class="mrf-group" v-if="permitApplyForm.workType === 'TEMPORARY_ELECTRICITY'">
-
-                    <div class="mrf-label">电压 / 功率</div>
-
-                    <input class="mrf-input filled" v-model="permitApplyForm.voltage" placeholder="如：380V / 30kW" />
-
-                  </div>
-
-                  <div class="mrf-group" v-if="permitApplyForm.workType === 'FIRE'">
-
-                    <div class="mrf-label">动火级别 <span class="req">*</span></div>
-
-                    <select class="mrf-select filled" v-model="permitApplyForm.workLevel">
-
-                      <option value="" disabled>请选择动火级别</option>
-
-                      <option v-for="o in workLevelOptions.FIRE" :key="o.value" :value="o.value">{{ o.label }}</option>
-
-                    </select>
-
-                    <div class="mp-chain-hint" v-if="applyPreview">审批链：{{ applyPreview }}</div>
-
-                  </div>
-
-                  <div class="mrf-group">
-
-                    <div class="mrf-label">作业人员</div>
-
-                    <div class="mrfp-input-row">
-
-                      <input class="mrf-input filled" v-model="workerApplyInput" placeholder="姓名" @keyup.enter="addPermitWorker" />
-
-                      <button class="mrfp-add" @click="addPermitWorker">+ 添加</button>
-
-                    </div>
-
-                    <div class="mrf-chips" v-if="permitApplyForm.workers.length">
-
-                      <span class="mrf-chip" v-for="(w, i) in permitApplyForm.workers" :key="i">{{ w }} <span class="mrf-chip-x" @click="removePermitWorker(i)">✕</span></span>
-
-                    </div>
-
-                  </div>
-
-                  <div class="mrf-group">
-
-                    <div class="mrf-label">安全措施</div>
-
-                    <div class="mrf-pills">
-
-                      <span class="mrfp" v-for="m in safetyMeasureOptions" :key="m" :class="{ active: permitApplyForm.measures.includes(m) }" @click="togglePermitMeasure(m)">{{ m }}</span>
-
-                    </div>
-
-                  </div>
-
-                  <div class="mrf-group">
-
-                    <div class="mrf-label">风险重点及注意事项</div>
-
-                    <textarea class="mrf-textarea filled" v-model="permitApplyForm.risks" placeholder="每行一条风险，如：&#10;坠落高度8.5m&#10;屋面结构承载确认"></textarea>
-
-                  </div>
-
-                  <button class="ph-btn primary" @click="submitPermitApply">🚀 提交申请</button>
-
-                </div>
-
-              </template>
-
-
-
-              <!-- ===== 新建结果 ===== -->
-
-              <template v-else-if="currentView === 'work-permit-ok'">
-
-                <div class="ph-result success">
-
-                  <div class="phr-icon">✅</div>
-
-                  <div class="phr-title">作业票已提交</div>
-
-                  <div class="phr-desc" v-if="lastPermit">编号 {{ lastPermit.id }}</div>
-
-                  <div class="phr-info" v-if="lastPermit">
-
-                    <div class="phri-row"><span>作业类型</span><span>{{ WORK_TYPE[lastPermit.workType] ? WORK_TYPE[lastPermit.workType].label : lastPermit.workType }}</span></div>
-
-                    <div class="phri-row" v-if="lastPermit.workLevel"><span>作业级别</span><span>{{ lastPermit.workLevel }}</span></div>
-
-                    <div class="phri-row"><span>作业区域</span><span>{{ lastPermit.zoneName }}</span></div>
-
-                    <div class="phri-row" v-if="lastPermit.validity"><span>许可证有效期</span><span>{{ lastPermit.validity }}</span></div>
-
-                    <div class="phri-row"><span>申请人</span><span>{{ lastPermit.applicantName }}</span></div>
-
-                    <div class="phri-row"><span>当前状态</span><span class="tag tag-orange">{{ lastPermit.status }}</span></div>
-
-                  </div>
-
-                  <button class="ph-btn outline" @click="currentView='main'">返回首页</button>
-
-                </div>
-
+                <WorkTicket bare />
               </template>
 
 
@@ -857,12 +629,13 @@
 <script>
 import { hazards, inspectionTasks, workPermits, WORK_TYPE, getApprovalChain, getWorkValidity } from '@/store/safeData';
 import SceneFlow from '@/components/safety/SceneFlow.vue';
+import WorkTicket from '@/views/safety-platform/WorkTicket.vue';
 
 export default {
 
   name: 'MobileField',
 
-  components: { SceneFlow },
+  components: { SceneFlow, WorkTicket },
 
   props: {
 
@@ -1046,7 +819,7 @@ export default {
 
         'guardian-ok': '确认结果', 'risk-map': '风险地图',
 
-        'work-permit': '作业票', 'work-permit-apply': '新建作业票', 'work-permit-ok': '提交结果'
+        'work-permit': '我的作业票', 'work-permit-apply': '新建作业票', 'work-permit-ok': '提交结果'
 
       };
 
@@ -1166,7 +939,6 @@ export default {
     goBack() {
 
       if (this.currentView === 'inspection') this.currentView = 'inspection-list';
-      else if (this.currentView === 'work-permit-apply') this.currentView = 'work-permit';
       else this.currentView = 'main';
 
     },

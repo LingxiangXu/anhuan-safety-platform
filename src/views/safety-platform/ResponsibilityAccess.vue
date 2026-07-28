@@ -296,7 +296,7 @@ export default {
         { key: 'work_guardian', label: '现场监护' },
         { key: 'work_execute', label: '作业执行' },
         { key: 'supervision', label: '安全督办' },
-        { key: 'training', label: '培训中心集成' }
+        { key: 'training', label: '培训与证书' }
       ],
       matrixRoles: [
         { key: 'group_leader', label: '集团领导', duties: { hazard_discover:'I', hazard_rectify:'I', hazard_review:'I', work_apply:'I', work_approve:'I', work_guardian:'I', work_execute:'I', supervision:'A', training:'I' } },
