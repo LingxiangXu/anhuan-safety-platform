@@ -25,8 +25,9 @@
 
 ```bash
 docker compose up -d
-cd backend && ./mvnw spring-boot:run
+cd backend && mvn spring-boot:run
 cd web && npm install && npm run dev
 ```
 
+本地开发需要 JDK 17、Maven 3.9+、Node.js 22+ 与 Docker。
 生产环境必须通过环境变量覆盖数据库、对象存储和令牌密钥。
