@@ -1,0 +1,7 @@
+backend/target/
+web/node_modules/
+web/dist/
+.idea/
+.vscode/
+.env
+*.log
