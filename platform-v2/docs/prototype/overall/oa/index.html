@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>OA 审批中心 · 外部系统原型</title>
+<link rel="icon" href="../assets/logo.svg">
+<link rel="stylesheet" href="oa.css">
+</head>
+<body>
+<div class="oa-app">
+  <header class="oa-topbar">
+    <div class="brand"><img src="../assets/logo.svg" alt="太重数智"><div><strong>统一办公平台</strong><span>OA 审批中心 · 外部系统原型</span></div></div>
+    <div class="top-actions"><span class="system-badge">安全管理平台已接入</span><span class="user-avatar">李</span><div><b>李建国</b><small>二级单位领导</small></div></div>
+  </header>
+  <div class="oa-layout">
+    <aside class="oa-sidebar">
+      <div class="side-title">审批工作台</div>
+      <a href="?view=home" data-nav="home"><i>⌂</i>工作台</a>
+      <a href="?view=pending" data-nav="pending"><i>◷</i>待办审批<span class="nav-count" id="pendingCount">0</span></a>
+      <a href="?view=done" data-nav="done"><i>✓</i>已办事项</a>
+      <a href="?view=all" data-nav="all"><i>▤</i>全部实例</a>
+      <div class="side-foot">OA 仅承载审批过程<br>业务数据在安全管理平台维护</div>
+    </aside>
+    <main class="oa-main">
+      <div class="oa-page-head"><div><div class="breadcrumb" id="breadcrumb">审批工作台</div><h1 id="pageTitle">审批工作台</h1></div><button class="btn ghost" onclick="resetDemo()">恢复演示数据</button></div>
+      <div id="pageBody"></div>
+    </main>
+  </div>
+</div>
+
+<div class="modal-mask" id="decisionMask" hidden>
+  <section class="modal-card" role="dialog" aria-modal="true" aria-labelledby="decisionTitle">
+    <div class="modal-head"><h2 id="decisionTitle">处理审批</h2><button class="icon-btn" aria-label="关闭" onclick="closeDecision()">×</button></div>
+    <div class="modal-body">
+      <div class="decision-summary" id="decisionSummary"></div>
+      <label class="field"><span>处理意见 <em id="noteRequired"></em></span><textarea id="decisionNote" placeholder="填写审批意见"></textarea></label>
+      <div class="assessment-grid" id="assessmentFields" hidden>
+        <label class="field"><span>考核责任人 <em>*</em></span><select id="assessmentResponsible"><option value="P-001" data-name="张青">张青 · 造型作业区 / 自动线组</option><option value="P-011" data-name="李建杰">李建杰 · 造型作业区 / 制模组</option></select></label>
+        <label class="field"><span>考核金额（元） <em>*</em></span><input id="penaltyAmount" type="number" min="0" value="1000"></label>
+      </div>
+    </div>
+    <div class="modal-foot"><button class="btn ghost" onclick="closeDecision()">取消</button><button class="btn primary" id="confirmDecision" onclick="confirmDecision()">确认</button></div>
+  </section>
+</div>
+
+<div class="toast" id="toast" aria-live="polite"></div>
+<script src="../assets/oa-bridge.js"></script>
+<script src="oa.js"></script>
+</body>
+</html>

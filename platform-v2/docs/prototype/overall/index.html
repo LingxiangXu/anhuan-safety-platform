@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>管理驾驶舱 · 安全管理平台</title>
+<link rel="icon" href="assets/logo.svg">
+<link rel="stylesheet" href="assets/app.css">
+</head>
+<body>
+<div class="app">
+  <div class="topbar"></div>
+  <div class="body">
+    <aside class="sidebar"><div class="nav-tree"></div></aside>
+    <div class="content">
+      <div class="page-header"></div>
+      <div class="page-body" id="pageBody"></div>
+    </div>
+  </div>
+</div>
+<script src="assets/store.js"></script>
+<script src="assets/ui.js"></script>
+<script>
+(function(){
+"use strict";
+var body=document.getElementById("pageBody");
+UI.renderShell("dashboard","");
+UI.pageHeader(["管理驾驶舱","安全管理平台 · 综合态势"],"");
+
+function viewDashboard(){
+  var d=App.dashboard();
+  var isGroup=App.currentRole==="group_safety";
+  var todos=App.workbenchTodos?App.workbenchTodos():[];
+  body.innerHTML=
+  /* 顶部工具栏 */
+  '<div class="card" style="padding:12px 16px;display:flex;align-items:center;gap:14px;flex-wrap:wrap">'+
+    '<div class="f-item" style="display:flex;align-items:center;gap:6px;font-size:13px;color:#64748B">组织范围 <select id="dOrg" onchange="changeOrg(this.value)" style="padding:5px 10px;border:1px solid #CBD5E1;border-radius:6px">'+
+      '<option value="group">太重集团</option><option value="tz" '+(App.currentOrg.indexOf("太原重工")>-1?"selected":"")+'>太原重工股份有限公司</option><option value="zj" '+(App.currentOrg.indexOf("分公司")>-1?"selected":"")+'>铸锻件分公司</option><option value="jgps" '+(App.currentOrg.indexOf("智能加工配送中心")>-1?"selected":"")+'>智能加工配送中心</option>'+ 
+      '<option value="zaoxing" '+(App.currentOrg.indexOf("造型")>-1?"selected":"")+'>造型作业区</option><option value="auto_line">自动线组</option><option value="mould">制模组</option></select></div>'+
+    '<div class="f-item" style="display:flex;align-items:center;gap:6px;font-size:13px;color:#64748B">时间范围 <select style="padding:5px 10px;border:1px solid #CBD5E1;border-radius:6px"><option>今日</option><option selected>本周</option><option>本月</option><option>本季度</option><option>自定义</option></select></div>'+
+    '<span style="font-size:12px;color:#94A3B8">数据更新时间：<b id="dTime">'+now()+'</b></span>'+
+    '<span style="font-size:12px;color:#94A3B8">当前角色：<b style="color:#0075E6">'+App.roleOf(App.currentRole).name+'</b>'+(isGroup?"（集团可穿透查看全部组织）":"（按组织数据权限过滤）")+"</span>"+
+    '<div style="margin-left:auto;display:flex;gap:8px">'+
+      '<button class="btn btn-outline btn-sm" onclick="openRoleMatrix()">我的权限</button>'+
+      '<button class="btn btn-outline btn-sm" onclick="refreshDash()">刷新</button>'+ 
+      '<button class="btn btn-outline btn-sm" onclick="fullScreen()">全屏</button>'+ 
+    "</div>"+
+  "</div>"+
+
+  /* 第一行 KPI */
+  '<div class="kpi-grid" style="margin-top:16px">'+
+    '<div class="kpi clickable" onclick="location.href=\'risks.html?tab=ledger\'"><div class="k-label">风险点总数</div><div class="k-num blue">'+d.riskCount+'</div><div class="k-sub">当前有效风险点</div></div>'+
+    '<div class="kpi clickable" onclick="location.href=\'risks.html?tab=ledger&level=high\'"><div class="k-label">重大/较大风险</div><div class="k-num danger">'+d.majorCount+'</div><div class="k-sub">正式版本口径</div></div>'+ 
+    '<div class="kpi clickable" onclick="location.href=\'hazards.html?tab=ledger&open=1\'"><div class="k-label">待处置隐患</div><div class="k-num warn">'+d.pendingHazards+'</div><div class="k-sub">待受理至待复查</div></div>'+ 
+    '<div class="kpi clickable" onclick="location.href=\'hazards.html?tab=ledger&overdue=1\'"><div class="k-label">逾期隐患</div><div class="k-num danger">'+d.overdueHazards+'</div><div class="k-sub">超期限未闭环</div></div>'+ 
+    '<div class="kpi clickable" onclick="location.href=\'work-permits.html?tab=execute\'"><div class="k-label">活跃特殊作业</div><div class="k-num green">'+d.activePermits+'</div><div class="k-sub">含阻断/审批/执行</div></div>'+
+    '<div class="kpi clickable" onclick="location.href=\'hazards.html?tab=supervision\'"><div class="k-label">隐患督办</div><div class="k-num">'+d.supOpen+'</div><div class="k-sub">授权范围内未关闭</div></div>'+
+    '<div class="kpi clickable" onclick="location.href=\'inspection.html?tab=tasks&status=待领取\'"><div class="k-label">待领取巡检</div><div class="k-num warn">'+d.waitingInspections+'</div><div class="k-sub">当前组织班组任务池</div></div>'+ 
+    '<div class="kpi clickable" onclick="location.href=\'goals.html?tab=duties\'"><div class="k-label">生效岗位职责</div><div class="k-num blue">'+d.activeDuties+'</div><div class="k-sub">按组织和岗位在线查看</div></div>'+ 
+    '<div class="kpi clickable" onclick="location.href=\'training-certificates.html?tab=certificates&status=临期\'"><div class="k-label">证书临期</div><div class="k-num warn">'+d.expiringCerts+'</div><div class="k-sub">90天内到期，下钻证书台账</div></div>'+ 
+  "</div>"+
+
+  /* 第二行 */
+  '<div class="grid-2-1" style="margin-top:16px">'+
+    '<div class="card"><div class="card-title">风险四色图 · 区域风险态势</div>'+
+      '<svg viewBox="0 0 620 300" style="width:100%;border-radius:8px;background:#FAFBFC;border:1px solid #E2E8F0">'+
+        '<rect x="10" y="10" width="600" height="260" rx="6" fill="none" stroke="#CBD5E1" stroke-dasharray="6 4"/>'+
+        '<rect x="40" y="50" width="160" height="90" rx="6" fill="#fff" stroke="#E5484D" stroke-width="1.5"/>'+
+        '<rect x="40" y="50" width="160" height="5" rx="2" fill="#E5484D"/>'+
+        '<text x="120" y="90" text-anchor="middle" font-size="12" font-weight="600" fill="#334155">造型作业区</text>'+
+        '<text x="120" y="110" text-anchor="middle" font-size="10" fill="#E5484D">1 个较大风险</text>'+
+        '<circle cx="100" cy="75" r="6" fill="#E5484D"/>'+
+        '<circle cx="130" cy="75" r="6" fill="#F5A623"/>'+
+        '<rect x="250" y="50" width="140" height="90" rx="6" fill="#fff" stroke="#E4B23C" stroke-width="1.5"/>'+
+        '<rect x="250" y="50" width="140" height="5" rx="2" fill="#E4B23C"/>'+
+        '<text x="320" y="90" text-anchor="middle" font-size="12" font-weight="600" fill="#334155">自动线组</text>'+
+        '<text x="320" y="110" text-anchor="middle" font-size="10" fill="#E4B23C">日常巡检执行</text>'+
+        '<circle cx="310" cy="75" r="6" fill="#E4B23C"/>'+
+        '<rect x="440" y="50" width="150" height="90" rx="6" fill="#fff" stroke="#2388D9" stroke-width="1.5"/>'+
+        '<rect x="440" y="50" width="150" height="5" rx="2" fill="#2388D9"/>'+
+        '<text x="515" y="90" text-anchor="middle" font-size="12" font-weight="600" fill="#334155">制模组</text>'+
+        '<text x="515" y="110" text-anchor="middle" font-size="10" fill="#94A3B8">待补充风险数据</text>'+
+        '<rect x="40" y="170" width="150" height="80" rx="6" fill="#fff" stroke="#CBD5E1" stroke-width="1.5"/>'+
+        '<text x="115" y="205" text-anchor="middle" font-size="12" font-weight="600" fill="#334155">智能加工配送中心</text>'+ 
+        '<text x="115" y="224" text-anchor="middle" font-size="10" fill="#E4B23C">1 个一般风险</text>'+ 
+        '<rect x="250" y="170" width="140" height="80" rx="6" fill="#fff" stroke="#CBD5E1" stroke-width="1.5"/>'+
+        '<text x="320" y="215" text-anchor="middle" font-size="12" font-weight="600" fill="#334155">制模组</text>'+
+        '<rect x="440" y="170" width="150" height="80" rx="6" fill="#fff" stroke="#CBD5E1" stroke-width="1.5"/>'+
+        '<text x="515" y="215" text-anchor="middle" font-size="12" font-weight="600" fill="#334155">铸锻件分公司</text>'+
+        '<text x="310" y="290" text-anchor="middle" font-size="10" fill="#94A3B8">点击风险点标记可下钻至风险详情（见风险管理模块四色图）</text>'+
+      "</svg></div>"+
+    '<div class="card"><div class="card-title">隐患趋势（新增 / 整改 / 关闭）</div>'+
+      UI.chart.line([{values:[3,5,2,4,3,2,1]},{values:[1,2,1,3,2,1,2]},{values:[0,1,2,1,1,2,1]}],
+        {labels:["07-26","07-27","07-28","07-29","07-30","07-31","08-01"],colors:["#E5484D","#F5A623","#00AA1C"],max:6})+
+      UI.chart.legend([{name:"新增",color:"#E5484D"},{name:"整改",color:"#F5A623"},{name:"关闭",color:"#00AA1C"}])+
+    "</div>"+
+  "</div>"+
+
+  /* 第三行 */
+  '<div class="grid-2-1" style="margin-top:16px">'+
+    '<div class="card"><div class="card-title">各作业区安全指标对比'+(isGroup?"（集团视角）":"")+"</div>"+
+      UI.chart.hbar([
+        {label:"自动线组",value:92,color:"#0075E6",suffix:"%"},{label:"制模组",value:85,color:"#00AA1C",suffix:"%"}
+      ],{max:100})+
+      '<div class="hint-line">指标口径：隐患闭环率、巡检完成率、风险等级分布的综合评分（演示数据）。集团可看全部组织，公司/作业区只看本级。</div></div>'+
+    '<div class="card"><div class="card-title">动态信息</div>'+
+      '<div class="section-head" style="margin-top:0"><h3 style="font-size:13px">活跃作业票</h3></div>'+
+      '<div style="display:flex;flex-direction:column;gap:8px;margin-bottom:12px">'+
+        App.workPermits.filter(function(w){return (!App.inCurrentOrgScope||App.inCurrentOrgScope(w.org))&&w.status!=="已归档";}).map(function(w){
+          return '<div style="display:flex;justify-content:space-between;align-items:center;font-size:12.5px;padding:8px 10px;background:#F8FAFC;border-radius:8px;cursor:pointer" onclick="location.href=\'work-permits.html?tab=ledger\'">'+
+          '<span>'+w.code+' '+w.type+'</span><span class="tag '+(w.status==="资格校验失败"?"tag-error":w.status==="执行中"?"tag-green":"tag-warn")+'">'+w.status+"</span></div>";
+        }).join("")+
+      "</div>"+
+      '<div class="section-head"><h3 style="font-size:13px">隐患督办动态</h3></div>'+
+      '<div style="display:flex;flex-direction:column;gap:8px">'+
+        App.supervisions.map(function(s){
+          return '<div style="display:flex;justify-content:space-between;align-items:center;font-size:12.5px;padding:8px 10px;background:#F8FAFC;border-radius:8px;cursor:pointer" onclick="location.href=\'hazards.html?tab=supervision\'">'+
+          '<span>'+s.code+' '+s.title+'</span><span class="tag '+(s.status==="已关闭"?"tag-green":"tag-purple")+'">'+s.status+"</span></div>";
+        }).join("")+
+      "</div>"+
+      '<div class="section-head"><h3 style="font-size:13px">逾期/高风险预警</h3></div>'+
+      '<div class="alert warn" style="margin-bottom:0;padding:10px 14px;font-size:12.5px">⚠ 作业票 WP-20260801-001 资格校验阻断（<a href="training-certificates.html?tab=certificates&status=已过期">1 人证书过期，查看证书</a>）<br>⚠ 隐患 HZ-20260730-001 已过原定期限，隐患督办跟进中</div>'+ 
+    "</div>"+
+  "</div>"+
+
+  '<div class="card" style="margin-top:16px"><div class="section-head" style="margin-top:0"><h3>我的待办（与企业微信同一业务对象）</h3><span class="tag tag-blue">'+todos.length+' 项</span></div><div class="hint-line">安全管理平台业务待办在这里集中展示并同步推送企业微信；OA 内部审批节点由 OA 负责，不在平台重复生成。</div><div class="tbl-wrap" style="margin-top:10px"><table class="tbl"><thead><tr><th>模块</th><th>业务编号</th><th>待办事项</th><th>状态</th><th>下一步</th></tr></thead><tbody>'+(todos.length?todos.slice(0,6).map(function(t){return '<tr><td>'+t.module+'</td><td class="mono">'+t.businessCode+'</td><td>'+t.title+'</td><td><span class="tag tag-warn">'+t.status+'</span></td><td><a class="btn btn-text" href="'+t.target+'">'+t.nextAction+'</a></td></tr>';}).join(''):'<tr><td colspan="5">'+UI.empty('当前角色暂无业务待办')+'</td></tr>')+'</tbody></table></div></div>'+ 
+  '<div class="hint-line" style="margin-top:14px">统计范围：当前所选组织；统计时间：本周。驾驶舱只负责查看与下钻，点击 KPI 卡进入对应业务列表并自动带入筛选条件。</div>';
+}
+function changeOrg(v){
+  var map={group:"太重集团",tz:"太重集团 / 太原重工股份有限公司",zj:"太重集团 / 太原重工股份有限公司 / 铸锻件分公司",jgps:"太重集团 / 太原重工股份有限公司 / 智能加工配送中心",zaoxing:"太重集团 / 太原重工股份有限公司 / 铸锻件分公司 / 造型作业区",auto_line:"太重集团 / 太原重工股份有限公司 / 铸锻件分公司 / 造型作业区 / 自动线组",mould:"太重集团 / 太原重工股份有限公司 / 铸锻件分公司 / 造型作业区 / 制模组"};
+  App.currentOrg=map[v]||App.currentOrg;
+  document.getElementById("topOrg").textContent=App.currentOrg;
+  App.persist();
+  App.toast("组织已切换为「"+map[v]+"」，数据按组织范围过滤");
+  viewDashboard();
+}
+function refreshDash(){document.getElementById("dTime").textContent=now();App.toast("数据已刷新");}
+function fullScreen(){if(document.fullscreenElement){document.exitFullscreen();}else{document.documentElement.requestFullscreen();}}
+function openRoleMatrix(){var base=[['platform_admin','平台管理员','查看企业微信同步、系统规则与安全业务角色配置','全平台技术范围','不维护组织人员主数据，不代办业务审批'],['position_mapping_admin','岗位映射管理员','企业微信人员与安全业务角色映射','授权组织','只维护业务映射，不代办业务'],['group_safety','集团监督检查','发起监督检查、督办、集团统计','集团/授权组织','监督检查由平台发起 OA，最终回传考核人和金额'],['professional_inspector','集团专业检查','录入专业检查台账','本专业部门','仅查看同专业部门记录，提交即闭环，不走 OA'],['unit_leader','二级单位领导','平台内审批较大/重大风险最后节点','本二级单位','风险审批不走 OA'],['company_safety','二级单位安全管理','审核全部风险、受理分派随手拍与监督检查隐患','本二级单位','一般/低风险审核后生效；较大/重大继续报二级单位领导'],['section_manager','作业区负责人','审核全部风险、维护巡检计划、受理巡检隐患并复查','本作业区','班组提交的风险均先由本角色审核'],['team_leader','班组长','风险填报、任务解锁/转交/标记未检、班组执行','本班组','风险退回后修改重提；解锁、转交和未检必须填写原因'],['team_member','班组成员','领取巡检、现场执行、随手拍','本人/本班组','整班下发后首人领取锁定'],['management_viewer','管理查看者','驾驶舱与台账查看','授权组织','只读']];UI.drawer('<div class="alert info">企业微信是组织、部门、人员、岗位和在职状态的唯一数据源；安全管理平台维护安全业务角色与流程岗位映射。风险和特殊作业使用平台内置审批；仅集团监督检查使用 OA。</div><div class="tbl-wrap"><table class="tbl"><thead><tr><th>基础角色</th><th>主要功能</th><th>数据范围</th><th>关键边界</th></tr></thead><tbody>'+base.map(function(x){return '<tr '+(x[0]===App.currentRole?'style="background:#F0F7FF"':'')+'><td><b>'+x[1]+'</b>'+(x[0]===App.currentRole?' <span class="tag tag-blue">当前</span>':'')+'</td><td>'+x[2]+'</td><td>'+x[3]+'</td><td>'+x[4]+'</td></tr>';}).join('')+'</tbody></table></div><div class="section-head"><h3>安全业务角色</h3></div><div class="hint-line">风险编制人/平台审批人、计划维护人、任务领取人、隐患受理人/整改人/复查人、作业申请人/负责人/监护人/平台审批人、督办人员。业务角色按企业微信人员 ID 和组织范围映射，不复制维护人员主数据。</div>',{title:'角色与权限说明',wide:true,footer:'<button class="btn btn-outline" data-close>关闭</button>'});}
+function now(){var d=new Date();return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0")+" "+String(d.getHours()).padStart(2,"0")+":"+String(d.getMinutes()).padStart(2,"0");}
+
+window.changeOrg=changeOrg;window.refreshDash=refreshDash;window.fullScreen=fullScreen;window.openRoleMatrix=openRoleMatrix;window.drill=function(){};
+viewDashboard();
+})();
+</script>
+</body>
+</html>

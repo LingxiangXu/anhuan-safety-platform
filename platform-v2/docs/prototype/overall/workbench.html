@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>工作台 · 安全管理平台</title>
+<link rel="icon" href="assets/logo.svg">
+<link rel="stylesheet" href="assets/app.css">
+</head>
+<body>
+<div class="app">
+  <div class="topbar"></div>
+  <div class="body">
+    <aside class="sidebar"><div class="nav-tree"></div></aside>
+    <div class="content"><div class="page-header"></div><div class="page-body" id="pageBody"></div></div>
+  </div>
+</div>
+<script src="assets/store.js"></script>
+<script src="assets/ui.js"></script>
+<script>
+(function(){
+"use strict";
+var body=document.getElementById("pageBody");
+UI.renderShell("workbench","");
+UI.pageHeader(["工作台","我的待办"],"我的待办",'<button class="btn btn-outline" onclick="refreshWorkbench()">刷新待办</button>');
+function esc(v){return String(v==null?"":v).replace(/[&<>"']/g,function(c){return ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"})[c];});}
+function moduleName(key){return ({risks:"风险管理",inspection:"巡检任务",hazards:"隐患治理",permits:"特殊作业"})[key]||key;}
+function statusTag(s){var cls=["已退回","超时阻断","延期审批中"].indexOf(s)>-1?"tag-error":(["审批中","待受理","待领取","待整改","待复查","待作业区负责人审核","待二级单位安全管理审核","待二级单位领导审批"].indexOf(s)>-1?"tag-warn":"tag-blue");return '<span class="tag '+cls+'">'+esc(s)+'</span>';}
+function allRows(){return App.workbenchTodos(App.currentRole)||[];}
+function view(){var rows=allRows(),modules={};rows.forEach(function(x){modules[x.module]=(modules[x.module]||0)+1;});body.innerHTML='<div class="alert info">工作台汇总当前角色可办理的安全业务待办。企业微信推送携带同一业务链接；消息已读不等于待办完成，业务状态以平台办理结果为准。</div><div class="kpi-grid g4"><div class="kpi clickable" onclick="setModule(\'\')"><div class="k-label">全部待办</div><div class="k-num blue">'+rows.length+'</div><div class="k-sub">当前角色可办理</div></div><div class="kpi clickable" onclick="setModule(\'risks\')"><div class="k-label">风险管理</div><div class="k-num warn">'+(modules.risks||0)+'</div><div class="k-sub">审核或退回修改</div></div><div class="kpi clickable" onclick="setModule(\'inspection\')"><div class="k-label">巡检任务</div><div class="k-num green">'+(modules.inspection||0)+'</div><div class="k-sub">领取与现场执行</div></div><div class="kpi clickable" onclick="setModule(\'hazards\')"><div class="k-label">隐患与作业</div><div class="k-num danger">'+((modules.hazards||0)+(modules.permits||0))+'</div><div class="k-sub">受理、整改、复查、审批</div></div></div><div class="filter-bar" style="margin-top:16px"><div class="f-item">业务模块 <select id="todoModule" onchange="renderRows()"><option value="">全部</option><option value="risks">风险管理</option><option value="inspection">巡检任务</option><option value="hazards">隐患治理</option><option value="permits">特殊作业</option></select></div><div class="f-item">关键词 <input id="todoKeyword" placeholder="编号、标题、状态" oninput="renderRows()"></div><span class="hint-line" style="margin-left:auto">当前身份：'+esc(App.roleOf(App.currentRole).name)+'</span></div><div class="tbl-wrap"><table class="tbl"><thead><tr><th>业务模块</th><th>业务编号</th><th>待办标题</th><th>当前状态</th><th>下一步操作</th><th>期限</th><th>操作</th></tr></thead><tbody id="todoRows"></tbody></table></div>';renderRows();}
+function renderRows(){var module=(document.getElementById("todoModule")||{}).value||"",key=((document.getElementById("todoKeyword")||{}).value||"").trim().toLowerCase(),rows=allRows().filter(function(x){return (!module||x.module===module)&&(!key||[x.businessCode,x.title,x.status,x.nextAction].join(" ").toLowerCase().indexOf(key)>-1);});document.getElementById("todoRows").innerHTML=rows.map(function(x){return '<tr><td><span class="tag tag-blue">'+esc(moduleName(x.module))+'</span></td><td class="mono">'+esc(x.businessCode)+'</td><td><b>'+esc(x.title)+'</b></td><td>'+statusTag(x.status)+'</td><td>'+esc(x.nextAction)+'</td><td>'+esc(x.deadline||"-")+'</td><td><button class="btn btn-primary btn-sm" onclick="openTodo(\''+encodeURIComponent(x.target)+'\')">办理</button></td></tr>';}).join("")||'<tr><td colspan="7">'+UI.empty("当前角色暂无待办")+'</td></tr>';}
+function setModule(module){document.getElementById("todoModule").value=module;renderRows();}
+function openTodo(target){location.href=decodeURIComponent(target);}
+function refreshWorkbench(){App.toast("待办已按当前业务状态刷新","success");view();}
+window.renderRows=renderRows;window.setModule=setModule;window.openTodo=openTodo;window.refreshWorkbench=refreshWorkbench;
+view();
+})();
+</script>
+</body>
+</html>

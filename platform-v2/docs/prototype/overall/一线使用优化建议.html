@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>安全管理平台 · 一线使用优化建议</title>
+<style>
+:root{
+  --tz-blue:#0075E6;--tz-blue-600:#0068CC;--tz-blue-700:#0058AD;--tz-blue-900:#003462;
+  --tz-blue-50:#EEF7FF;--tz-blue-100:#D8ECFF;
+  --tz-green:#00AA1C;--tz-green-50:#F0FFF2;--tz-green-600:#009118;
+  --tz-deep:#0F172A;--tz-warn:#F5A623;--tz-error:#E5484D;
+  --gray-50:#F8FAFC;--gray-100:#F1F5F9;--gray-200:#E2E8F0;--gray-300:#CBD5E1;
+  --gray-400:#94A3B8;--gray-500:#64748B;--gray-600:#475569;--gray-700:#334155;--gray-900:#0F172A;
+  --grad:linear-gradient(135deg,#0075E6,#00AA1C);
+  --grad-hero:linear-gradient(135deg,#003462,#0075E6 60%,#0058AD);
+  --radius:14px;
+  --shadow:0 6px 20px rgba(15,23,42,.08);
+  --font:Inter,-apple-system,"PingFang SC","Microsoft YaHei",sans-serif;
+  --mono:"JetBrains Mono",monospace;
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:var(--font);color:var(--gray-700);background:#fff;line-height:1.7;-webkit-font-smoothing:antialiased;}
+.hero{background:var(--grad-hero);color:#fff;padding:52px 40px 44px;position:relative;overflow:hidden;}
+.hero::before{content:"";position:absolute;inset:0;background:radial-gradient(circle at 85% 15%,rgba(0,170,28,.14) 0%,transparent 45%);}
+.hero .wrap{max-width:1100px;margin:0 auto;position:relative;}
+.hero .badge{display:inline-flex;gap:8px;align-items:center;font-size:12px;letter-spacing:.1em;color:rgba(255,255,255,.85);background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.2);padding:6px 16px;border-radius:999px;margin-bottom:18px;}
+.hero h1{font-size:30px;font-weight:700;letter-spacing:-.5px;margin-bottom:10px;}
+.hero p{font-size:15px;color:rgba(255,255,255,.8);max-width:720px;}
+.wrap{max-width:1100px;margin:0 auto;padding:0 40px;}
+section{padding:36px 0;border-bottom:1px solid var(--gray-100);}
+.sec-label{font-size:12px;font-weight:600;color:var(--tz-blue);letter-spacing:.1em;text-transform:uppercase;margin-bottom:10px;display:flex;align-items:center;gap:8px;}
+.sec-label::before{content:"";width:18px;height:2px;background:var(--tz-blue);border-radius:1px;}
+h2{font-size:22px;font-weight:700;color:var(--gray-900);margin-bottom:8px;letter-spacing:-.3px;}
+.sub{font-size:14px;color:var(--gray-500);margin-bottom:22px;}
+.grid{display:grid;gap:16px;}
+.g2{grid-template-columns:repeat(2,1fr);}
+.g3{grid-template-columns:repeat(3,1fr);}
+.card{background:#fff;border:1px solid var(--gray-200);border-radius:var(--radius);padding:22px 24px;}
+.card:hover{border-color:var(--tz-blue-100);box-shadow:var(--shadow);}
+.card h3{font-size:16px;font-weight:700;color:var(--gray-900);margin-bottom:10px;display:flex;align-items:center;gap:8px;}
+.tag{display:inline-flex;align-items:center;padding:2px 10px;border-radius:999px;font-size:12px;font-weight:600;}
+.tag-p0{background:#FEF2F2;color:var(--tz-error);}
+.tag-p1{background:#FFF7ED;color:#B45309;}
+.tag-p2{background:var(--tz-blue-50);color:var(--tz-blue-700);}
+.tag-green{background:var(--tz-green-50);color:var(--tz-green-600);}
+.pri{display:flex;gap:8px;margin-bottom:12px;}
+table{width:100%;border-collapse:collapse;font-size:13.5px;background:#fff;border:1px solid var(--gray-200);border-radius:var(--radius);overflow:hidden;}
+th{text-align:left;padding:11px 14px;background:var(--gray-50);color:var(--gray-500);font-weight:600;font-size:12.5px;border-bottom:1px solid var(--gray-200);}
+td{padding:11px 14px;border-bottom:1px solid var(--gray-100);vertical-align:top;color:var(--gray-600);}
+tr:last-child td{border-bottom:none;}
+tr:hover td{background:var(--tz-blue-50);}
+.mono{font-family:var(--mono);font-size:12px;}
+.num{display:inline-flex;width:24px;height:24px;border-radius:8px;background:var(--grad);color:#fff;align-items:center;justify-content:center;font-size:12.5px;font-weight:700;flex:0 0 24px;}
+.callout{background:var(--tz-blue-50);border:1px solid var(--tz-blue-100);border-left:4px solid var(--tz-blue);border-radius:8px;padding:16px 20px;font-size:14px;line-height:1.8;}
+.callout b{color:var(--tz-blue-700);}
+.pain{color:var(--tz-error);}
+.fix{color:var(--tz-green-600);}
+.footer{text-align:center;color:var(--gray-400);font-size:12px;padding:28px 0;}
+@media (max-width:800px){.g2,.g3{grid-template-columns:1fr;}.wrap{padding:0 20px;}section{padding:28px 0;}}
+</style>
+</head>
+<body>
+
+<div class="hero">
+  <div class="wrap">
+    <div class="badge">太重数智 · 原型评审输入</div>
+    <h1>安全管理平台原型 · 一线使用优化建议</h1>
+    <p>从班组长 / 巡检员 / 监护人 / 作业人员等一线使用者的真实操作旅程出发，识别 7 大环节的体验痛点，给出可落地的页面优化建议（含优先级与原型改造点）。</p>
+  </div>
+</div>
+
+<div class="wrap">
+
+<!-- 1 分析视角 -->
+<section>
+  <div class="sec-label">Analysis View</div>
+  <h2>一、分析视角：一线人员不是"菜单用户"</h2>
+  <p class="sub">管理侧（集团/公司安环）关注"数据完整、流程合规、可追溯"；一线人员关注"今天要干什么、怎么最快干完、别填错"。当前原型按<b>管理模块</b>组织导航（风险管理/巡检/隐患/作业），对一线是<b>任务驱动</b>而非模块驱动——这是体验落差的总根源。</p>
+  <div class="grid g3">
+    <div class="card"><h3><span class="num">1</span>任务驱动</h3><p>一线打开系统第一问是"我的待办在哪"。当前待办（待巡检/待整改/待复查/待监护/审批中）散落在 5 个模块，需逐个点开才知道。</p></div>
+    <div class="card"><h3><span class="num">2</span>现场场景</h3><p>巡检、监护、上报多发生在<b>车间现场</b>（弱网、戴手套、单手操作），PC 端抽屉式交互并不理想，需触控友好 + 移动端形态。</p></div>
+    <div class="card"><h3><span class="num">3</span>低认知负担</h3><p>一线不确定"等级怎么定、来源怎么选、方案怎么填"。系统应<b>向导化、模板化、预填</b>，把专业判断留给安环。</p></div>
+  </div>
+</section>
+
+<!-- 2 现状盘点 -->
+<section>
+  <div class="sec-label">Current Interaction</div>
+  <h2>二、现状交互盘点（原型已有的一线能力）</h2>
+  <table>
+    <thead><tr><th>一线场景</th><th>原型现状</th><th>已有基础</th></tr></thead>
+    <tbody>
+      <tr><td><b>执行巡检</b></td><td>巡检任务 →「执行巡检」→ 抽屉内逐项下拉判定 → 不合格填说明+照片 → 提交 → 一键转隐患</td><td>已完成转隐患闭环，校验（不合格必填说明/必拍）已实现</td></tr>
+      <tr><td><b>登记隐患</b></td><td>登记弹窗：标题/描述/来源/等级/关联风险/照片</td><td>巡检转隐患自动带入风险来源</td></tr>
+      <tr><td><b>整改反馈</b></td><td>待我整改 → 抽屉填方案+完成情况+前后照片</td><td>状态流转完整、时间线留痕</td></tr>
+      <tr><td><b>作业票申请</b></td><td>新建作业票弹窗：类型/地点/内容/人员/时间/方案</td><td>证书过期阻断演示到位</td></tr>
+      <tr><td><b>监护确认</b></td><td>现场执行 → 抽屉逐项选择通过/不通过 + 拍照</td><td>未全过禁止开工逻辑正确</td></tr>
+      <tr><td><b>风险告知</b></td><td>风险管理 → 岗位风险告知卡（系统在线查看）</td><td>按当前生效版本展示，不提供打印或二维码</td></tr>
+    </tbody>
+  </table>
+</section>
+
+<!-- 3 痛点 -->
+<section>
+  <div class="sec-label">Pain Points</div>
+  <h2>三、七大环节痛点与建议（一图对应）</h2>
+  <table>
+    <thead><tr><th style="width:120px">环节</th><th class="pain">现状痛点</th><th class="fix">优化建议</th><th style="width:80px">优先级</th></tr></thead>
+    <tbody>
+      <tr><td><b>① 看任务</b></td><td class="pain">待办分散在 5 个模块，一线要挨个点开找"今天干什么"</td><td class="fix">新增<b>「我的工作台」</b>聚合首页：我的巡检/我的整改/待复查/待监护/审批中 + 逾期高亮 + 一键直达</td><td><span class="tag tag-p0">P0</span></td></tr>
+      <tr><td><b>② 执行巡检</b></td><td class="pain">一屏 5 项+下拉框，项多看花眼；PC 抽屉不适合现场</td><td class="fix">巡检改为<b>逐项卡片化</b>：一次一项、大按钮（合格/不合格/不适用），顶部进度条"已检 N/M"；补移动端执行页</td><td><span class="tag tag-p0">P0</span></td></tr>
+      <tr><td><b>③ 发现异常</b></td><td class="pain">不合格=填说明+传照片+提交，现场最耗时；照片无必拍提示</td><td class="fix">不合格<b>强制弹层</b>（说明必填+拍照优先）；必拍项红色角标；支持连拍多张；弱网先存本地后重试</td><td><span class="tag tag-p0">P0</span></td></tr>
+      <tr><td><b>④ 上报/转隐患</b></td><td class="pain">等级/来源/关联风险要手选，一线不确定等级</td><td class="fix">等级<b>向导化</b>（"不确定选待确认"，安环定级）；巡检转来预填来源与照片；位置支持地图选点；顶部加<b>「随手拍」快捷上报</b></td><td><span class="tag tag-p0">P0</span></td></tr>
+      <tr><td><b>⑤ 整改反馈</b></td><td class="pain">方案/完成情况/照片全手填，缺模板与期限提醒</td><td class="fix">整改表单提供<b>常用模板</b>（紧固/更换/清理/隔离）；期限<b>倒计时</b>展示（逾期红色+催办）；提交后明确"待复查+复查时限"</td><td><span class="tag tag-p0">P0</span></td></tr>
+      <tr><td><b>⑥ 监护/作业</b></td><td class="pain">作业票申请表单长；监护确认逐项下拉+拍照，现场不便</td><td class="fix">作业票<b>模板化</b>（按作业类型预置方案/风险，从风险库自动带入）；监护确认改<b>移动端大按钮逐项确认</b>，未通过项标红阻断原因</td><td><span class="tag tag-p1">P1</span></td></tr>
+      <tr><td><b>⑦ 完工闭环</b></td><td class="pain">完工后"等谁验收、下一步"不直观</td><td class="fix">状态条上<b>高亮下一节点</b>（"待安环验收"）；完工提交后引导下一步；时间线一眼可读</td><td><span class="tag tag-p1">P1</span></td></tr>
+    </tbody>
+  </table>
+</section>
+
+<!-- 4 建议明细 -->
+<section>
+  <div class="sec-label">Recommendations</div>
+  <h2>四、按模块的落地建议</h2>
+  <div class="grid g2">
+    <div class="card"><h3><span class="tag tag-p0">P0</span>新增「我的工作台」</h3>
+      <p><b>建议</b>：增加一级入口（或登录后首页），按当前角色聚合：<br>
+      · 班组长：待巡检、待整改、待监护<br>
+      · 公司安环：待受理、待复查、待审核/审批<br>
+      · 集团安环：督办待反馈、逾期预警<br>
+      <b>收益</b>：一线"打开即见活"，减少 4-5 次跳转。</p></div>
+    <div class="card"><h3><span class="tag tag-p0">P0</span>巡检执行体验改造</h3>
+      <p>· 逐项卡片式：大按钮判定，误触可改<br>
+      · 顶部进度"已检 3/5" + 未检项提交前校验<br>
+      · 不合格弹层强制说明+拍照，必拍角标<br>
+      · 补移动端执行页（模拟器尺寸演示）<br>
+      <b>收益</b>：单项判定由 ~10s 降到 ~3s。</p></div>
+    <div class="card"><h3><span class="tag tag-p0">P0</span>隐患上报轻量化</h3>
+      <p>· 顶部「随手拍」悬浮入口：拍照→自动带位置→标题→提交（<1 分钟）<br>
+      · 等级默认"待确认"，来源/风险自动预填<br>
+      · 相似隐患提示（防重复上报）<br>
+      <b>收益</b>：降低上报门槛，提升隐患发现率。</p></div>
+    <div class="card"><h3><span class="tag tag-p0">P0</span>整改期限可视化</h3>
+      <p>· 整改列表显示倒计时（剩余 X 天/X 小时）<br>
+      · 逾期红色高亮 + 待办置顶<br>
+      · 整改模板库（紧固/更换/清理/隔离/防护）<br>
+      <b>收益</b>：降低逾期率，整改反馈更快。</p></div>
+    <div class="card"><h3><span class="tag tag-p1">P1</span>作业票模板化 + 监护移动化</h3>
+      <p>· 按作业类型预置安全方案/应急/风险控制项（从风险库带入）<br>
+      · 监护确认改移动端大按钮逐项确认+拍照，未通过项展示阻断原因<br>
+      · 证书缺失弹层：谁/什么证/何时到期/怎么补</p></div>
+    <div class="card"><h3><span class="tag tag-p1">P1</span>岗位风险卡片</h3>
+      <p>· 告知卡按"我的岗位"过滤，首页直达<br>
+      · 支持扫码查看 + 语音播报（车间场景）<br>
+      · 岗位风险 TOP3 置顶，作业前必读提示</p></div>
+    <div class="card"><h3><span class="tag tag-p1">P1</span>触控与可读性</h3>
+      <p>· 一线高频操作按钮高度 ≥40px（触屏）<br>
+      · 列表行高加大、重点字段加粗上色<br>
+      · 错误提示靠近字段，成功 Toast 后提示"下一步"</p></div>
+    <div class="card"><h3><span class="tag tag-p2">P2</span>现场增强</h3>
+      <p>· 弱网离线缓存 + 恢复重试（不重复建单）<br>
+      · 消息推送（企业微信/短信）：任务分派、逾期、证书到期提醒<br>
+      · 大屏/看板投屏给一线交接班</p></div>
+  </div>
+</section>
+
+<!-- 5 改造清单 -->
+<section>
+  <div class="sec-label">Prototype Change List</div>
+  <h2>五、原型可立即落地的改造清单</h2>
+  <p class="sub">以下改动可直接在当前整体原型（overall）上实现，不改变数据模型与状态流转。</p>
+  <table>
+    <thead><tr><th style="width:52px">#</th><th>改造项</th><th>落点页面</th><th>改动量</th></tr></thead>
+    <tbody>
+      <tr><td>1</td><td>新增「我的工作台」首页（角色化待办聚合 + 逾期高亮）</td><td>新页面 workbench.html + 导航</td><td>中</td></tr>
+      <tr><td>2</td><td>巡检执行改为逐项卡片 + 进度条 + 不合格弹层</td><td>inspection.html</td><td>中</td></tr>
+      <tr><td>3</td><td>隐患登记等级向导（默认待确认）+ 随手拍入口 + 位置</td><td>hazards.html</td><td>小</td></tr>
+      <tr><td>4</td><td>整改列表加倒计时/逾期红 + 模板提示</td><td>hazards.html</td><td>小</td></tr>
+      <tr><td>5</td><td>作业票申请模板化 + 监护确认大按钮</td><td>work-permits.html</td><td>中</td></tr>
+      <tr><td>6</td><td>岗位风险卡片按角色过滤 + 首页直达</td><td>risks.html</td><td>小</td></tr>
+      <tr><td>7</td><td>高频按钮尺寸 ≥40px + 触控间距</td><td>assets/app.css 全局</td><td>小</td></tr>
+    </tbody>
+  </table>
+</section>
+
+<!-- 6 优先级 -->
+<section style="border-bottom:none;">
+  <div class="sec-label">Priority</div>
+  <h2>六、实施优先级建议</h2>
+  <div class="callout">
+    <b>第一批（P0，先做体验主线）</b>：我的工作台 → 巡检卡片化 → 隐患轻上报 → 整改期限提醒。这四个改造直接回答一线"看任务—干巡检—报问题—改问题"的主干体验。<br><br>
+    <b>第二批（P1，做深场景）</b>：作业票模板化、监护移动化、岗位风险卡片、触控可读性。<br><br>
+    <b>第三批（P2，锦上添花）</b>：离线/推送/播报等现场增强，依赖后端能力，建议随正式开发推进。<br><br>
+    <b>总体原则</b>：一线界面坚持"任务优先、模板优先、默认值优先、大按钮优先"，把专业判断留给管理侧角色——这既降低一线使用门槛，也减少安环的纠错成本。
+  </div>
+</section>
+
+<div class="footer">太重数智 · 安全管理平台原型评审输入 · 2026-08-01</div>
+</div>
+</body>
+</html>

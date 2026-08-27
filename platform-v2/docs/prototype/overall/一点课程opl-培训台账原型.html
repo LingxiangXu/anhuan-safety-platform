@@ -1,0 +1,953 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>一点课程OPL - 原型</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;background:#f0f2f5;font-size:14px;color:#303133;height:100vh;display:flex;flex-direction:column;overflow:hidden}
+
+/* Top Nav */
+.top-nav{height:56px;background:#4b63b7;color:#fff;display:flex;align-items:center;justify-content:space-between;padding:0 16px;flex-shrink:0;box-shadow:0 2px 4px rgba(0,0,0,.08);z-index:100}
+.top-nav .left{display:flex;align-items:center;gap:16px}
+.top-nav .logo{width:32px;height:32px;border-radius:50%;background:rgba(255,255,255,.2);display:flex;align-items:center;justify-content:center;font-weight:700;font-size:14px}
+.top-nav .title{font-weight:700;font-size:16px;letter-spacing:.03em}
+.top-nav .nav-items{display:flex;gap:24px;font-size:13px;opacity:.85;margin-left:32px}
+.top-nav .nav-items span{cursor:pointer;padding:4px 0}
+.top-nav .nav-items span:hover{opacity:1}
+.top-nav .nav-items span.active{font-weight:600;border-bottom:2px solid #fff}
+.top-nav .right{display:flex;align-items:center;gap:20px;font-size:16px}
+.top-nav .right .badge{position:relative;cursor:pointer}
+.top-nav .right .badge::after{content:'3';position:absolute;top:-6px;right:-8px;background:#f56c6c;color:#fff;font-size:10px;border-radius:50%;width:16px;height:16px;display:flex;align-items:center;justify-content:center}
+.top-nav .right .user{display:flex;align-items:center;gap:8px;font-size:13px}
+.top-nav .right .user-avatar{width:28px;height:28px;border-radius:50%;background:rgba(255,255,255,.25);display:flex;align-items:center;justify-content:center;font-size:12px}
+
+/* Body */
+.body-container{display:flex;flex:1;overflow:hidden}
+
+/* Sidebar */
+.sidebar{width:220px;background:#fff;border-right:1px solid #e4e7ed;flex-shrink:0;overflow-y:auto}
+.sidebar-header{height:48px;display:flex;align-items:center;padding:0 60px;border-bottom:1px solid #f0f0f0;font-weight:500;font-size:13px;color:#6062666}
+.sidebar .menu-item{padding:10px 60px;font-size:14px;color:#303133;cursor:pointer;display:flex;align-items:center;transition:background .2s}
+.sidebar .menu-item:hover{background:#f5f7fa}
+.sidebar .menu-item .arrow{font-size:12px;color:#909399;margin-left:auto}
+.sidebar .menu-item .icon{width:18px;text-align:center;margin-right:8px}
+.sidebar .submenu{background:#fff;list-style:none}
+.sidebar .submenu li{padding:9px 16px 9px 60px;font-size:13px;color:#606266;cursor:pointer;transition:all .2s}
+.sidebar .submenu li:hover{color:#409eff;background:#f5f7fa}
+.sidebar .submenu li.active{background:#ecf5ff;color:#409eff;font-weight:500;border-right:3px solid #409eff}
+
+/* Main */
+.main{flex:1;display:flex;flex-direction:column;overflow:hidden;background:#f0f2f5}
+.breadcrumb{height:48px;background:#fff;border-bottom:1px solid #e4e7ed;display:flex;align-items:center;justify-content:space-between;padding:0 16px;flex-shrink:0}
+.breadcrumb .crumbs{font-size:13px}
+.breadcrumb .crumbs .sep{color:#c0c4cc;margin:0 6px}
+.breadcrumb .crumbs .parent{color:#909399;cursor:pointer}
+.breadcrumb .crumbs .parent:hover{color:#409eff}
+.breadcrumb .crumbs .current{color:#303133;font-weight:500}
+.content{flex:1;overflow:auto;padding:16px}
+.content-inner{background:#fff;border:1px solid #e4e7ed;border-radius:2px;padding:16px;min-height:100%}
+
+/* Search */
+.search-area{margin-bottom:16px}
+.search-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px 16px;margin-bottom:12px}
+.search-item{display:flex;align-items:center}
+.search-item label{width:80px;text-align:right;font-size:13px;color:#606266;margin-right:8px;flex-shrink:0;white-space:nowrap}
+.search-item .input-wrap{flex:1;position:relative}
+.search-item input,.search-item select{width:100%;border:1px solid #dcdfe6;border-radius:4px;padding:6px 24px 6px 8px;font-size:13px;color:#606266;outline:none;transition:border-color .2s;appearance:none;background:#fff;height:32px}
+.search-item input:focus,.search-item select:focus{border-color:#409eff}
+.search-item input::placeholder{color:#c0c4cc}
+.search-item .arrow-icon{position:absolute;right:8px;top:50%;transform:translateY(-50%);color:#c0c4cc;pointer-events:none;font-size:11px}
+.search-actions{display:flex;justify-content:flex-end;align-items:center;gap:8px;padding-top:12px;border-top:1px dashed #e4e7ed}
+.search-actions .expand-btn{color:#606266;font-size:13px;cursor:pointer;margin-right:auto}
+.search-actions .expand-btn:hover{color:#409eff}
+
+/* Buttons */
+.btn{padding:6px 16px;border-radius:4px;font-size:13px;cursor:pointer;border:1px solid #dcdfe6;transition:all .2s;white-space:nowrap}
+.btn-primary{background:#4b63b7;color:#fff;border-color:#4b63b7}
+.btn-primary:hover{background:#3d52a3}
+.btn-default{background:#fff;color:#606266}
+.btn-default:hover{color:#409eff;border-color:#c6e2ff}
+.btn-text{background:#fff;color:#409eff;border-color:#dcdfe6}
+.btn-text:hover{background:#ecf5ff}
+.toolbar{display:flex;gap:8px;margin-bottom:12px}
+.toolbar .btn-gray{background:#e6e8eb;color:#606266;border-color:#dcdfe6;padding:6px 14px}
+.toolbar .btn-gray:hover{background:#dcdfe6}
+
+/* Table */
+.table-wrap{border:1px solid #ebeef5;border-radius:2px;overflow-x:auto}
+table.data-table{width:100%;border-collapse:collapse;font-size:13px}
+table.data-table th{background:#f5f7fa;color:#909399;font-weight:600;padding:10px 8px;text-align:left;border-bottom:1px solid #ebeef5;white-space:nowrap;font-size:12px}
+table.data-table th .sort-icon{color:#c0c4cc;margin-left:4px;font-size:11px}
+table.data-table td{padding:10px 8px;border-bottom:1px solid #ebeef5;color:#606266;vertical-align:middle}
+table.data-table tr:hover td{background:#f5f7fa}
+table.data-table .center{text-align:center}
+table.data-table .link{color:#409eff;cursor:pointer}
+table.data-table .link:hover{text-decoration:underline}
+
+/* Pagination */
+.pagination{display:flex;justify-content:space-between;align-items:center;margin-top:16px;font-size:13px;color:#606266}
+.pagination .left{display:flex;align-items:center;gap:8px}
+.pagination .right{display:flex;align-items:center;gap:8px}
+.pagination .page-btn{border:1px solid #dcdfe6;border-radius:4px;padding:4px 10px;cursor:pointer;background:#fff}
+.pagination .page-btn.active{background:#4b63b7;color:#fff;border-color:#4b63b7}
+.pagination .page-btn:disabled{color:#c0c4cc;cursor:not-allowed}
+.pagination select{border:1px solid #dcdfe6;border-radius:4px;padding:4px 8px;font-size:13px}
+.pagination .page-jump{width:36px;border:1px solid #dcdfe6;border-radius:4px;text-align:center;padding:4px;font-size:13px}
+
+/* Modal (Detail Page) */
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.3);z-index:200;display:none}
+.modal-overlay.show{display:block}
+.modal-container{position:fixed;inset:0;z-index:201;display:none;flex-direction:column;background:#fff}
+.modal-container.show{display:flex}
+.modal-header{height:56px;display:flex;align-items:center;justify-content:space-between;padding:0 20px;border-bottom:1px solid #e4e7ed;flex-shrink:0}
+.modal-header h1{font-size:16px;font-weight:600;color:#303133}
+.modal-header .close-btn{color:#909399;font-size:20px;cursor:pointer;transition:color .2s;background:none;border:none}
+.modal-header .close-btn:hover{color:#303133}
+.modal-content{flex:1;overflow-y:auto;padding:20px;background:#fff}
+
+/* Section */
+.section{margin-bottom:28px}
+.section-title{position:relative;padding-left:10px;font-weight:600;color:#303133;font-size:14px;margin-bottom:16px}
+.section-title::before{content:'';position:absolute;left:0;top:50%;transform:translateY(-50%);height:14px;width:3px;background:#409eff;border-radius:2px}
+.section-title .required{color:#f56c6c;margin-right:4px}
+
+/* Form */
+.form-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:16px 24px;margin-left:4px}
+.form-item{display:flex;align-items:center}
+.form-item label{width:90px;text-align:right;font-size:13px;color:#606266;margin-right:8px;flex-shrink:0;white-space:nowrap}
+.form-item label .req{color:#f56c6c;margin-right:2px}
+.form-item .input-wrap{flex:1;position:relative}
+.form-item input,.form-item select,.form-item textarea{width:100%;border:1px solid #dcdfe6;border-radius:4px;padding:6px 24px 6px 8px;font-size:13px;color:#606266;outline:none;transition:border-color .2s;appearance:none;background:#fff;height:32px}
+.form-item input:focus,.form-item select:focus,.form-item textarea:focus{border-color:#409eff}
+.form-item input::placeholder,.form-item textarea::placeholder{color:#c0c4cc}
+.form-item input:read-only{background:#f5f7fa;color:#909399}
+.form-item .arrow-icon{position:absolute;right:8px;top:50%;transform:translateY(-50%);color:#c0c4cc;pointer-events:none;font-size:11px}
+.form-item.full{grid-column:span 2}
+.form-item .tree-select{width:100%;border:1px solid #dcdfe6;border-radius:4px;padding:6px 8px;font-size:13px;color:#c0c4cc;cursor:pointer;height:32px;display:flex;align-items:center;justify-content:space-between;background:#fff}
+.form-item .tree-select:hover{border-color:#c0c4cc}
+
+/* Image Grid */
+.image-section{margin-left:4px}
+.image-grid{display:grid;grid-template-columns:repeat(2,1fr);grid-template-rows:repeat(2,160px);gap:8px;margin-bottom:8px;overflow:auto;max-height:340px}
+.image-card{border:1px solid #e4e7ed;border-radius:4px;display:flex;align-items:center;justify-content:center;background:#fafafa;position:relative;overflow:hidden}
+.image-card .placeholder{text-align:center;color:#c0c4cc}
+.image-card .placeholder svg{width:28px;height:28px;margin-bottom:6px;display:block;margin-left:auto;margin-right:auto;stroke:#c0c4cc;fill:none;stroke-width:1.5}
+.image-card .placeholder span{font-size:12px}
+.image-card .img-content{width:100%;height:100%;display:flex;align-items:center;justify-content:center;background:linear-gradient(135deg,#e8ecf1,#d5dce6);color:#909399;font-size:12px}
+.image-card .img-content svg{width:48px;height:48px;opacity:.5}
+.image-upload-btn{display:inline-flex;align-items:center;gap:6px;padding:6px 14px;border:1px dashed #dcdfe6;border-radius:4px;color:#606266;font-size:13px;cursor:pointer;background:#fafafa;transition:all .2s}
+.image-upload-btn:hover{border-color:#409eff;color:#409eff}
+
+/* Editor */
+.editor-wrap{border:1px solid #dcdfe6;border-radius:4px;margin-left:4px;margin-top:12px}
+.editor-toolbar{display:flex;align-items:center;gap:2px;padding:6px 8px;border-bottom:1px solid #ebeef5;background:#fafafa;flex-wrap:wrap}
+.editor-toolbar button{border:none;background:transparent;cursor:pointer;padding:4px 8px;border-radius:3px;font-size:13px;color:#606266;transition:all .15s}
+.editor-toolbar button:hover{background:#ecf5ff;color:#409eff}
+.editor-toolbar .sep{width:1px;height:18px;background:#dcdfe6;margin:0 4px}
+.editor-content{min-height:120px;padding:12px;font-size:13px;line-height:1.7;color:#606266;outline:none}
+.editor-content:empty::before{content:'请输入设备基础知识内容...';color:#c0c4cc}
+
+/* Sub Table */
+.subtable-toolbar{display:flex;gap:8px;margin-bottom:8px;margin-left:4px}
+.subtable-toolbar .btn-sm{padding:4px 12px;border-radius:4px;font-size:12px;cursor:pointer;border:1px solid #d9ecff;background:#ecf5ff;color:#409eff;transition:all .2s}
+.subtable-toolbar .btn-sm:hover{background:#d9ecff}
+.subtable-toolbar .btn-sm.gray{background:#f4f4f5;color:#909399;border-color:#e9e9eb}
+.subtable-toolbar .btn-sm.gray:hover{background:#ebeef5}
+.subtable-wrap{border:1px solid #ebeef5;border-radius:2px;overflow-x:auto;margin-left:4px}
+table.sub-table{width:100%;border-collapse:collapse;font-size:13px}
+table.sub-table th{background:#f5f7fa;color:#909399;font-weight:600;padding:8px 6px;text-align:center;border-bottom:1px solid #ebeef5;font-size:12px;white-space:nowrap}
+table.sub-table td{padding:6px;border-bottom:1px solid #ebeef5;vertical-align:middle}
+table.sub-table tr:hover td{background:#f5f7fa}
+table.sub-table .center{text-align:center}
+table.sub-table input,table.sub-table select{width:100%;border:1px solid #dcdfe6;border-radius:4px;padding:4px 6px;font-size:12px;color:#606266;outline:none;height:28px;appearance:none;background:#fff}
+table.sub-table input:focus,table.sub-table select:focus{border-color:#409eff}
+table.sub-table .delete-btn{color:#f56c6c;cursor:pointer;font-size:14px}
+table.sub-table .delete-btn:hover{opacity:.7}
+
+/* Footer */
+.modal-footer{height:64px;display:flex;align-items:center;justify-content:flex-end;padding:0 20px;border-top:1px solid #e4e7ed;background:#fff;flex-shrink:0;gap:12px}
+.modal-footer .btn{padding:8px 20px;font-size:14px}
+
+/* Checkbox */
+input[type="checkbox"]{cursor:pointer;accent-color:#4b63b7}
+
+/* Scrollbar */
+::-webkit-scrollbar{width:8px;height:8px}
+::-webkit-scrollbar-track{background:#f1f1f1}
+::-webkit-scrollbar-thumb{background:#c1c1c1;border-radius:4px}
+::-webkit-scrollbar-thumb:hover{background:#a8a8a8}
+
+/* View toggle */
+.view-detail .list-view{display:none}
+.ledger-view{display:none}
+.ledger-header{display:flex;align-items:flex-start;justify-content:space-between;gap:16px;margin-bottom:16px}
+.ledger-header h2{font-size:18px;font-weight:600;color:#303133;margin-bottom:6px}
+.ledger-header p{font-size:12px;color:#909399}
+.ledger-context{display:flex;align-items:center;gap:8px;font-size:12px;color:#606266}
+.ledger-context select{height:32px;border:1px solid #dcdfe6;border-radius:4px;padding:0 8px;color:#606266;background:#fff}
+.ledger-tabs{display:flex;gap:8px;border-bottom:1px solid #ebeef5;margin-bottom:16px}
+.ledger-tab{border:none;background:transparent;color:#606266;padding:9px 16px;font-size:13px;cursor:pointer;border-bottom:2px solid transparent}
+.ledger-tab.active{color:#409eff;border-bottom-color:#409eff;font-weight:600}
+.ledger-summary{display:flex;gap:12px;margin-bottom:16px}
+.summary-card{min-width:150px;padding:12px 16px;background:#f8faff;border:1px solid #e5ecff;border-radius:4px}
+.summary-card .label{display:block;color:#909399;font-size:12px;margin-bottom:6px}
+.summary-card strong{font-size:20px;color:#303133}
+.status-tag{display:inline-block;padding:3px 8px;border-radius:12px;font-size:12px;white-space:nowrap}
+.status-done{color:#67c23a;background:#f0f9eb}.status-pending{color:#e6a23c;background:#fdf6ec}.status-progress{color:#409eff;background:#ecf5ff}
+.action-link{border:0;background:none;color:#409eff;cursor:pointer;font-size:12px;margin-right:8px;padding:0}.action-link:hover{text-decoration:underline}
+.select-button{width:100%;min-height:28px;border:1px solid #dcdfe6;border-radius:4px;background:#fff;color:#606266;text-align:left;padding:5px 8px;cursor:pointer;font-size:12px}
+.select-button:hover{border-color:#409eff;color:#409eff}
+.sub-table .status-select{width:100%;height:28px;border:1px solid #dcdfe6;border-radius:4px;padding:0 4px;font-size:12px;color:#606266;background:#fff}
+.eval-state{font-size:11px;color:#909399;line-height:1.6;white-space:nowrap}
+.modal-dialog{position:fixed;left:50%;top:50%;transform:translate(-50%,-50%);width:620px;max-height:78vh;background:#fff;border-radius:6px;box-shadow:0 8px 30px rgba(0,0,0,.2);z-index:301;display:none;flex-direction:column}
+.modal-dialog.show{display:flex}
+.modal-dialog .dialog-header{display:flex;align-items:center;justify-content:space-between;padding:16px 20px;border-bottom:1px solid #ebeef5}
+.modal-dialog .dialog-header h3{font-size:16px;font-weight:600}.dialog-close{border:0;background:none;color:#909399;font-size:20px;cursor:pointer}
+.dialog-body{padding:18px 20px;overflow:auto}.dialog-footer{display:flex;justify-content:flex-end;gap:8px;padding:12px 20px;border-top:1px solid #ebeef5}
+.person-list{display:grid;grid-template-columns:repeat(2,1fr);gap:8px 16px}.person-option{display:flex;align-items:center;gap:8px;padding:8px;border:1px solid #ebeef5;border-radius:4px;color:#606266;font-size:13px;cursor:pointer}.person-option:hover{background:#f8faff;border-color:#c6e2ff}
+.eval-row{display:grid;grid-template-columns:1fr 180px;align-items:center;gap:12px;padding:10px 0;border-bottom:1px solid #f0f0f0}.eval-row:last-child{border-bottom:0}.eval-row small{display:block;color:#909399;margin-top:3px}
+.score-input{width:100%;height:32px;border:1px solid #dcdfe6;border-radius:4px;padding:0 8px}.score-hint{padding:10px 12px;background:#f8faff;color:#606266;font-size:12px;border-radius:4px;margin-bottom:12px}
+.detail-note{padding:10px 12px;background:#fdf6ec;border:1px solid #faecd8;color:#a67c52;font-size:12px;border-radius:4px;margin:0 4px 12px}
+</style>
+</head>
+<body>
+
+<!-- Top Nav -->
+<header class="top-nav">
+  <div class="left">
+    <div class="logo">E</div>
+    <span class="title">EAM 资产管理</span>
+    <nav class="nav-items">
+      <span>基础数据</span>
+      <span class="active">资产管理</span>
+    </nav>
+  </div>
+  <div class="right">
+    <span class="badge">🔔</span>
+    <div class="user">
+      <div class="user-avatar">王</div>
+      <span>管理员</span>
+    </div>
+  </div>
+</header>
+
+<div class="body-container">
+  <!-- Sidebar -->
+  <aside class="sidebar">
+    <div class="sidebar-header">
+      <span>EAM 资产管理</span>
+    </div>
+    <div class="menu-group">
+      <div class="menu-item" style="background:#f5f7fa;">
+        <span>资产管理</span>
+        <span class="arrow">▲</span>
+      </div>
+      <ul class="submenu">
+        <li>资产台账</li>
+        <li>资产变动</li>
+        <li>资产盘点</li>
+        <li class="active" onclick="showList()">一点课程OPL</li>
+        <li onclick="showLedger('all')">所有台账</li>
+        <li onclick="showLedger('speaker')">主讲人个人台账</li>
+        <li onclick="showLedger('trainee')">受训人个人台账</li>
+      </ul>
+    </div>
+
+  </aside>
+
+  <!-- Main -->
+  <main class="main">
+    <!-- Breadcrumb -->
+    <div class="breadcrumb">
+      <div class="crumbs">
+        <span class="parent" onclick="showList()">首页</span>
+        <span class="sep">/</span>
+        <span class="parent" onclick="showList()">资产管理</span>
+        <span class="sep">/</span>
+        <span class="current" id="crumbCurrent">一点课程OPL</span>
+      </div>
+    </div>
+
+    <!-- Content -->
+    <div class="content">
+      <div class="content-inner">
+
+        <!-- ===== LIST VIEW ===== -->
+        <div class="list-view" id="listView">
+          <!-- Search -->
+          <div class="search-area">
+            <div class="search-grid">
+              <div class="search-item">
+                <label>主题</label>
+                <div class="input-wrap">
+                  <input type="text" placeholder="多个条件请用,隔开" value="">
+                </div>
+              </div>
+              <div class="search-item">
+                <label>编号</label>
+                <div class="input-wrap">
+                  <input type="text" placeholder="多个条件请用,隔开" value="">
+                </div>
+              </div>
+              <div class="search-item">
+                <label>分类</label>
+                <div class="input-wrap">
+                  <select>
+                    <option value="">请选择</option>
+                    <option>基础知识</option>
+                    <option>清洁保养</option>
+                    <option>故障处理</option>
+                    <option>改善案例</option>
+                    <option>设备安全</option>
+                    <option>现场5S</option>
+                    <option>规范标准</option>
+                  </select>
+                </div>
+              </div>
+              <div class="search-item">
+                <label>创建单位</label>
+                <div class="input-wrap">
+                  <select>
+                    <option value="">请选择</option>
+                    <option>太重集团</option>
+                    <option>太原重工股份有限公司</option>
+                    <option>太原重工起重机分公司</option>
+                    <option>叉车公司</option>
+                    <option>重型运输装备公司</option>
+                  </select>
+                </div>
+              </div>
+              <div class="search-item">
+                <label>适用部门</label>
+                <div class="input-wrap">
+                  <select>
+                    <option value="">请选择</option>
+                    <option>太原重工起重机分公司</option>
+                    <option>太原重工矿山设备分公司</option>
+                    <option>太原重工能源中心</option>
+                    <option>叉车公司</option>
+                    <option>重型运输装备公司</option>
+                    <option>工程起重机公司</option>
+                  </select>
+                </div>
+              </div>
+              <div class="search-item">
+                <label>编制人</label>
+                <div class="input-wrap">
+                  <input type="text" placeholder="请输入">
+                </div>
+              </div>
+              <div class="search-item">
+                <label>创建时间</label>
+                <div class="input-wrap">
+                  <input type="text" placeholder="开始日期 ~ 结束日期">
+                </div>
+              </div>
+            </div>
+            <div class="search-actions">
+              <span class="expand-btn">展开 ▾</span>
+              <button class="btn btn-primary">查 询</button>
+              <button class="btn btn-default">重 置</button>
+              <button class="btn btn-text">高级查询</button>
+            </div>
+          </div>
+
+          <!-- Toolbar -->
+          <div class="toolbar">
+            <button class="btn btn-primary" onclick="showDetail('new')">新 增</button>
+            <button class="btn btn-gray" onclick="showDetail('edit')">修 改</button>
+            <button class="btn btn-gray" onclick="showLedger('all')">培训台账</button>
+            <button class="btn btn-gray">导 入</button>
+            <button class="btn btn-gray">导 出</button>
+            <button class="btn btn-gray">删 除</button>
+          </div>
+
+          <!-- Table -->
+          <div class="table-wrap">
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th class="center" style="width:36px"><input type="checkbox"></th>
+                  <th class="center" style="width:50px">序号</th>
+                  <th>主题 ⋮</th>
+                  <th>编号 ⋮</th>
+                  <th>创建单位</th>
+                  <th style="width:100px">编制日期</th>
+                  <th style="width:90px">分类</th>
+                  <th>适用部门</th>
+                  <th>适用岗位</th>
+                  <th style="width:70px">编制人</th>
+                  <th style="width:70px">审核人</th>
+                  <th style="width:70px">批准人</th>
+                  <th style="width:70px">创建人</th>
+                  <th>创建时间 ⋮</th>
+                </tr>
+              </thead>
+              <tbody id="tableBody">
+                <tr>
+                  <td class="center"><input type="checkbox"></td>
+                  <td class="center">1</td>
+                  <td><span class="link" onclick="showDetail('view')">台车电阻炉安全操作规程</span></td>
+                  <td>QZJ-2026-001</td>
+                  <td>太原重工起重机分公司</td>
+                  <td>2026-07-01</td>
+                  <td>设备安全</td>
+                  <td>起重机分公司</td>
+                  <td>操作工</td>
+                  <td>张工</td><td>李主任</td><td>王总</td><td>张工</td>
+                  <td>2026-07-01 09:30:15</td>
+                </tr>
+                <tr>
+                  <td class="center"><input type="checkbox"></td>
+                  <td class="center">2</td>
+                  <td><span class="link" onclick="showDetail('view')">液压机日常清洁保养要点</span></td>
+                  <td>KS-2026-002</td>
+                  <td>太原重工矿山设备分公司</td>
+                  <td>2026-07-03</td>
+                  <td>清洁保养</td>
+                  <td>矿山设备分公司</td>
+                  <td>维修工</td>
+                  <td>刘工</td><td>赵主管</td><td>陈总</td><td>刘工</td>
+                  <td>2026-07-03 14:22:08</td>
+                </tr>
+                <tr>
+                  <td class="center"><input type="checkbox"></td>
+                  <td class="center">3</td>
+                  <td><span class="link" onclick="showDetail('view')">数控机床故障处理流程</span></td>
+                  <td>NYZX-2026-003</td>
+                  <td>太原重工能源中心</td>
+                  <td>2026-07-05</td>
+                  <td>故障处理</td>
+                  <td>能源中心</td>
+                  <td>技术员</td>
+                  <td>孙工</td><td>周主任</td><td>吴总</td><td>孙工</td>
+                  <td>2026-07-05 10:15:42</td>
+                </tr>
+                <tr>
+                  <td class="center"><input type="checkbox"></td>
+                  <td class="center">4</td>
+                  <td><span class="link" onclick="showDetail('view')">车间5S管理改善案例分享</span></td>
+                  <td>CC-2026-004</td>
+                  <td>叉车公司</td>
+                  <td>2026-07-06</td>
+                  <td>改善案例</td>
+                  <td>叉车公司</td>
+                  <td>全体员工</td>
+                  <td>钱工</td><td>马主管</td><td>郑总</td><td>钱工</td>
+                  <td>2026-07-06 16:08:30</td>
+                </tr>
+                <tr>
+                  <td class="center"><input type="checkbox"></td>
+                  <td class="center">5</td>
+                  <td><span class="link" onclick="showDetail('view')">设备基础知识培训—轴承类型</span></td>
+                  <td>KTC-2026-005</td>
+                  <td>重型运输装备公司</td>
+                  <td>2026-07-08</td>
+                  <td>基础知识</td>
+                  <td>重型运输装备公司</td>
+                  <td>装配工</td>
+                  <td>冯工</td><td>韩主任</td><td>杨总</td><td>冯工</td>
+                  <td>2026-07-08 08:45:12</td>
+                </tr>
+                <tr>
+                  <td class="center"><input type="checkbox"></td>
+                  <td class="center">6</td>
+                  <td><span class="link" onclick="showDetail('view')">现场5S规范标准执行手册</span></td>
+                  <td>GCQZJ-2026-006</td>
+                  <td>工程起重机公司</td>
+                  <td>2026-07-09</td>
+                  <td>现场5S</td>
+                  <td>工程起重机公司</td>
+                  <td>全体员工</td>
+                  <td>褚工</td><td>卫主任</td><td>蒋总</td><td>褚工</td>
+                  <td>2026-07-09 09:12:55</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <!-- Pagination -->
+          <div class="pagination">
+            <div class="left">
+              <input type="checkbox"> <span>已选 0 行</span>
+            </div>
+            <div class="right">
+              <span>共 6 条</span>
+              <button class="page-btn" disabled>‹</button>
+              <button class="page-btn active">1</button>
+              <button class="page-btn">›</button>
+              <select>
+                <option>20条/页</option>
+                <option>50条/页</option>
+                <option>100条/页</option>
+              </select>
+              <span>前往</span>
+              <input type="text" class="page-jump" value="1">
+              <span>页</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- ===== TRAINING LEDGER VIEW ===== -->
+        <div class="ledger-view" id="ledgerView">
+          <div class="ledger-header">
+            <div>
+              <h2 id="ledgerTitle">所有台账</h2>
+              <p id="ledgerDescription">查看系统内全部培训场次、人员和评价状态</p>
+            </div>
+            <div class="ledger-context">
+              <span>个人视角</span>
+              <select id="demoUser" onchange="renderLedger()">
+                <option>张工</option>
+                <option>王操作工</option>
+                <option>刘维修工</option>
+                <option>赵操作工</option>
+                <option>孙技术员</option>
+              </select>
+            </div>
+          </div>
+          <div class="ledger-tabs">
+            <button class="ledger-tab active" id="ledgerTabAll" onclick="showLedger('all')">所有台账</button>
+            <button class="ledger-tab" id="ledgerTabSpeaker" onclick="showLedger('speaker')">主讲人个人台账</button>
+            <button class="ledger-tab" id="ledgerTabTrainee" onclick="showLedger('trainee')">受训人个人台账</button>
+          </div>
+          <div class="ledger-summary">
+            <div class="summary-card"><span class="label">当前范围记录</span><strong id="ledgerCount">0</strong></div>
+            <div class="summary-card"><span class="label">已完成培训</span><strong id="ledgerDoneCount">0</strong></div>
+            <div class="summary-card"><span class="label">待评价</span><strong id="ledgerPendingCount">0</strong></div>
+          </div>
+          <div class="table-wrap">
+            <table class="data-table">
+              <thead>
+                <tr><th>课程主题</th><th>培训日期</th><th>台账角色</th><th>主讲人</th><th>受训人</th><th>培训状态</th><th>评价进度</th><th>操作</th></tr>
+              </thead>
+              <tbody id="ledgerTableBody"></tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- ===== DETAIL VIEW ===== -->
+        <div class="detail-view" id="detailView" style="display:none">
+          <!-- Section 1: Basic Info -->
+          <div class="section">
+            <div class="section-title"><span class="required">*</span>基本信息</div>
+            <div class="form-grid">
+              <div class="form-item">
+                <label><span class="req">*</span>主题</label>
+                <div class="input-wrap">
+                  <input type="text" placeholder="请输入主题" id="f_subject" value="台车电阻炉安全操作规程">
+                </div>
+              </div>
+              <div class="form-item">
+                <label><span class="req">*</span>编号</label>
+                <div class="input-wrap">
+                  <input type="text" id="f_code" value="QZJ-2026-001" style="color:#409eff">
+                </div>
+              </div>
+              <div class="form-item">
+                <label>创建单位</label>
+                <div class="input-wrap">
+                  <input type="text" value="太原重工起重机分公司" readonly>
+                </div>
+              </div>
+              <div class="form-item">
+                <label>编制日期</label>
+                <div class="input-wrap">
+                  <input type="text" value="2026-07-01">
+                </div>
+              </div>
+              <div class="form-item">
+                <label><span class="req">*</span>分类</label>
+                <div class="input-wrap">
+                  <select id="f_category">
+                    <option value="">请选择</option>
+                    <option>基础知识</option>
+                    <option>清洁保养</option>
+                    <option>故障处理</option>
+                    <option>改善案例</option>
+                    <option selected>设备安全</option>
+                    <option>现场5S</option>
+                    <option>规范标准</option>
+                  </select>
+                </div>
+              </div>
+              <div class="form-item">
+                <label>适用部门</label>
+                <div class="input-wrap">
+                  <div class="tree-select" onclick="toggleDeptTree()">
+                    <span id="deptSelLabel">太原重工起重机分公司</span>
+                    <span style="font-size:11px;color:#c0c4cc;">▾</span>
+                  </div>
+                  <div id="deptTreeDropdown" style="display:none;position:absolute;top:34px;left:0;right:0;background:#fff;border:1px solid #dcdfe6;border-radius:4px;z-index:10;max-height:240px;overflow-y:auto;padding:4px 0;box-shadow:0 2px 8px rgba(0,0,0,.1);">
+                    <div style="padding:4px 12px;font-size:12px;color:#909399;">太重集团</div>
+                    <div style="padding:4px 12px 4px 24px;font-size:13px;color:#606266;cursor:pointer;" onmouseover="this.style.background='#f5f7fa'" onmouseout="this.style.background=''">太原重工股份有限公司</div>
+                    <div style="padding:4px 12px 4px 36px;font-size:13px;color:#409eff;cursor:pointer;" onmouseover="this.style.background='#f5f7fa'" onmouseout="this.style.background=''">✓ 太原重工起重机分公司</div>
+                    <div style="padding:4px 12px 4px 36px;font-size:13px;color:#606266;cursor:pointer;" onmouseover="this.style.background='#f5f7fa'" onmouseout="this.style.background=''">太原重工矿山设备分公司</div>
+                    <div style="padding:4px 12px 4px 36px;font-size:13px;color:#606266;cursor:pointer;" onmouseover="this.style.background='#f5f7fa'" onmouseout="this.style.background=''">太原重工能源中心</div>
+                    <div style="padding:4px 12px 4px 24px;font-size:13px;color:#606266;cursor:pointer;" onmouseover="this.style.background='#f5f7fa'" onmouseout="this.style.background=''">叉车公司</div>
+                    <div style="padding:4px 12px 4px 24px;font-size:13px;color:#606266;cursor:pointer;" onmouseover="this.style.background='#f5f7fa'" onmouseout="this.style.background=''">重型运输装备公司</div>
+                    <div style="padding:4px 12px 4px 24px;font-size:13px;color:#606266;cursor:pointer;" onmouseover="this.style.background='#f5f7fa'" onmouseout="this.style.background=''">工程起重机公司</div>
+                  </div>
+                </div>
+              </div>
+              <div class="form-item">
+                <label>适用岗位</label>
+                <div class="input-wrap">
+                  <input type="text" value="操作工">
+                </div>
+              </div>
+              <div class="form-item">
+                <label>编制人</label>
+                <div class="input-wrap">
+                  <input type="text" value="张工">
+                </div>
+              </div>
+              <div class="form-item">
+                <label>审核人</label>
+                <div class="input-wrap">
+                  <input type="text" value="李主任">
+                </div>
+              </div>
+              <div class="form-item">
+                <label>批准人</label>
+                <div class="input-wrap">
+                  <input type="text" value="王总">
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Section 2: Structure Images -->
+          <div class="section">
+            <div class="section-title">结构示意图</div>
+            <div class="image-section">
+              <div class="image-grid">
+                <div class="image-card">
+                  <div class="img-content">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                      <rect x="3" y="3" width="18" height="18" rx="2"/>
+                      <circle cx="8.5" cy="8.5" r="1.5"/>
+                      <polyline points="21 15 16 10 5 21"/>
+                    </svg>
+                  </div>
+                </div>
+                <div class="image-card">
+                  <div class="placeholder">
+                    <svg viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                    <span>点击上传图片</span>
+                  </div>
+                </div>
+                <div class="image-card">
+                  <div class="placeholder">
+                    <svg viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                    <span>点击上传图片</span>
+                  </div>
+                </div>
+                <div class="image-card">
+                  <div class="placeholder">
+                    <svg viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                    <span>点击上传图片</span>
+                  </div>
+                </div>
+              </div>
+              <div class="image-upload-btn">
+                <span>⬆ 上传图片</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Section 3: Device Knowledge -->
+          <div class="section">
+            <div class="section-title">设备基础知识</div>
+            <div class="editor-wrap">
+              <div class="editor-toolbar">
+                <button title="加粗"><b>B</b></button>
+                <button title="斜体"><i>I</i></button>
+                <button title="下划线"><u>U</u></button>
+                <span class="sep"></span>
+                <button title="左对齐">⬅</button>
+                <button title="居中">⬌</button>
+                <button title="右对齐">➡</button>
+                <span class="sep"></span>
+                <button title="无序列表">• List</button>
+                <button title="有序列表">1. List</button>
+                <span class="sep"></span>
+                <button title="插入图片">🖼</button>
+                <button title="插入表格">⊞</button>
+                <button title="插入链接">🔗</button>
+                <span class="sep"></span>
+                <button title="撤销">↶</button>
+                <button title="重做">↷</button>
+              </div>
+              <div class="editor-content" contenteditable="true">台车电阻炉安全操作规程：<br><br>1. 开炉前检查冷却水系统是否正常<br>2. 确认炉门密封性良好<br>3. 按照工艺要求设置加热温度<br>4. 运行过程中定期巡视设备状态</div>
+            </div>
+          </div>
+
+          <!-- Section 4: Training Records -->
+          <div class="section">
+            <div class="section-title">培训记录</div>
+            <div class="subtable-toolbar">
+              <button class="btn-sm" onclick="addRow()">+ 添加</button>
+              <button class="btn-sm gray">✕ 删除</button>
+            </div>
+            <div class="subtable-wrap">
+              <table class="sub-table">
+                <thead>
+                  <tr>
+                    <th style="width:36px"><input type="checkbox"></th>
+                    <th style="width:50px">序号</th>
+                    <th style="width:120px">培训实施日期</th>
+                    <th style="width:140px">主讲人</th>
+                    <th style="width:210px">受训人</th>
+                    <th style="width:105px">培训状态</th>
+                    <th style="width:170px">评价进度</th>
+                    <th style="width:170px">操作</th>
+                  </tr>
+                </thead>
+                <tbody id="subTableBody"></tbody>
+              </table>
+            </div>
+          </div>
+
+          <!-- Footer -->
+          <div class="modal-footer">
+            <button class="btn btn-default" onclick="showList()">取 消</button>
+            <button class="btn btn-primary" onclick="showList()">保 存</button>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </main>
+        </div>
+
+        <div class="modal-overlay" id="dialogOverlay" onclick="closeDialog()"></div>
+        <div class="modal-dialog" id="personPickerDialog">
+          <div class="dialog-header"><h3 id="personPickerTitle">选择人员</h3><button class="dialog-close" onclick="closeDialog()">×</button></div>
+          <div class="dialog-body">
+            <div class="detail-note" id="personPickerNote">人员来自系统组织人员，可按本次培训场次选择。</div>
+            <div class="person-list" id="personList"></div>
+          </div>
+          <div class="dialog-footer"><button class="btn btn-default" onclick="closeDialog()">取消</button><button class="btn btn-primary" onclick="savePersonSelection()">确定</button></div>
+        </div>
+        <div class="modal-dialog" id="evaluationDialog">
+          <div class="dialog-header"><h3 id="evaluationTitle">培训评价</h3><button class="dialog-close" onclick="closeDialog()">×</button></div>
+          <div class="dialog-body" id="evaluationBody"></div>
+          <div class="dialog-footer"><button class="btn btn-default" onclick="closeDialog()">取消</button><button class="btn btn-primary" id="evaluationSaveButton" onclick="saveEvaluation()">提交评价</button></div>
+        </div>
+
+<script>
+var people = ['张工', '刘工', '王操作工', '刘维修工', '赵操作工', '孙技术员', '李主任', '王总'];
+var currentUser = '张工';
+var ledgerMode = 'all';
+var pickerRecordId = null;
+var pickerType = '';
+var evaluationRecordId = null;
+var evaluationType = '';
+var trainingRecords = [
+  {id:1, course:'台车电阻炉安全操作规程', code:'QZJ-2026-001', date:'2026-07-05', speaker:'张工', trainees:['王操作工','刘维修工'], status:'已完成', speakerEvaluations:{'王操作工':'C','刘维修工':'D'}, traineeEvaluations:{'王操作工':8,'刘维修工':null}},
+  {id:2, course:'台车电阻炉安全操作规程', code:'QZJ-2026-001', date:'2026-07-06', speaker:'张工', trainees:['赵操作工','孙技术员'], status:'已完成', speakerEvaluations:{'赵操作工':'D','孙技术员':'C'}, traineeEvaluations:{'赵操作工':9,'孙技术员':8}},
+  {id:3, course:'液压机日常清洁保养要点', code:'KS-2026-002', date:'2026-07-10', speaker:'刘工', trainees:['王操作工'], status:'进行中', speakerEvaluations:{}, traineeEvaluations:{'王操作工':null}}
+];
+
+function esc(value) {
+  return String(value == null ? '' : value).replace(/[&<>"']/g, function(ch) {
+    return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch];
+  });
+}
+
+function toggleDeptTree() {
+  var el = document.getElementById('deptTreeDropdown');
+  el.style.display = el.style.display === 'none' ? 'block' : 'none';
+}
+
+document.addEventListener('click', function(e) {
+  var dropdown = document.getElementById('deptTreeDropdown');
+  var treeSel = document.querySelector('.tree-select');
+  if (dropdown && treeSel && !treeSel.contains(e.target) && !dropdown.contains(e.target)) dropdown.style.display = 'none';
+});
+
+function setView(view) {
+  document.getElementById('listView').style.display = view === 'list' ? 'block' : 'none';
+  document.getElementById('detailView').style.display = view === 'detail' ? 'block' : 'none';
+  document.getElementById('ledgerView').style.display = view === 'ledger' ? 'block' : 'none';
+}
+
+function showDetail(mode) {
+  setView('detail');
+  if (mode === 'new') {
+    document.getElementById('crumbCurrent').textContent = '新增一点课程';
+    document.getElementById('f_subject').value = '';
+    document.getElementById('f_code').value = 'QZJ-2026-007';
+    document.getElementById('f_category').selectedIndex = 0;
+  } else {
+    document.getElementById('crumbCurrent').textContent = mode === 'edit' ? '编辑一点课程' : '查看一点课程';
+  }
+  renderTrainingRows();
+  document.querySelector('.content').scrollTop = 0;
+}
+
+function showList() {
+  setView('list');
+  document.getElementById('crumbCurrent').textContent = '一点课程OPL';
+}
+
+function showLedger(mode) {
+  ledgerMode = mode;
+  setView('ledger');
+  var title = {all:'所有台账', speaker:'主讲人个人台账', trainee:'受训人个人台账'}[mode];
+  var desc = {all:'查看系统内全部培训场次、人员和评价状态', speaker:'查看当前人员主讲的全部培训记录', trainee:'查看当前人员参加的全部培训记录'}[mode];
+  document.getElementById('ledgerTitle').textContent = title;
+  document.getElementById('ledgerDescription').textContent = desc;
+  ['all','speaker','trainee'].forEach(function(item) { document.getElementById('ledgerTab' + item.charAt(0).toUpperCase() + item.slice(1)).classList.toggle('active', item === mode); });
+  document.getElementById('crumbCurrent').textContent = title;
+  renderLedger();
+}
+
+function statusTag(status) {
+  var cls = status === '已完成' ? 'status-done' : status === '进行中' ? 'status-progress' : 'status-pending';
+  return '<span class="status-tag ' + cls + '">' + esc(status) + '</span>';
+}
+
+function progress(record) {
+  var total = record.trainees.length;
+  var speakerDone = record.trainees.filter(function(name) { return !!record.speakerEvaluations[name]; }).length;
+  var traineeDone = record.trainees.filter(function(name) { return record.traineeEvaluations[name] != null; }).length;
+  return {total:total, speakerDone:speakerDone, traineeDone:traineeDone, complete:total > 0 && traineeDone === total};
+}
+
+function renderLedger() {
+  currentUser = document.getElementById('demoUser').value;
+  var records = trainingRecords.filter(function(record) {
+    return ledgerMode === 'all' || (ledgerMode === 'speaker' ? record.speaker === currentUser : record.trainees.indexOf(currentUser) >= 0);
+  });
+  var done = records.filter(function(record) { return record.status === '已完成'; }).length;
+  var pending = records.filter(function(record) { var p = progress(record); return !p.complete; }).length;
+  document.getElementById('ledgerCount').textContent = records.length;
+  document.getElementById('ledgerDoneCount').textContent = done;
+  document.getElementById('ledgerPendingCount').textContent = pending;
+  var body = document.getElementById('ledgerTableBody');
+  if (!records.length) { body.innerHTML = '<tr><td colspan="8" style="text-align:center;color:#909399;padding:28px">当前人员暂无符合条件的培训记录</td></tr>'; return; }
+  body.innerHTML = records.map(function(record, index) {
+    var p = progress(record);
+    var role = ledgerMode === 'all' ? '全部记录' : ledgerMode === 'speaker' ? '主讲人' : '受训人';
+    var actions = '<button class="action-link" onclick="showDetail(\'view\')">查看课程</button>';
+    if (ledgerMode === 'all') actions += '<button class="action-link" onclick="openAdminEvaluationDetails(' + record.id + ')">评价详情</button>';
+    if (ledgerMode === 'speaker' && record.status === '已完成') actions += '<button class="action-link" onclick="openSpeakerEvaluation(' + record.id + ')">评价受训人</button>';
+    if (ledgerMode === 'trainee' && record.status === '已完成') actions += '<button class="action-link" onclick="openTraineeEvaluation(' + record.id + ')">评价主讲人</button>';
+    if (ledgerMode === 'speaker' && p.complete) actions += '<button class="action-link" onclick="openAdminEvaluationDetails(' + record.id + ', true)">总体评价</button>';
+    return '<tr><td><span class="link" onclick="showDetail(\'view\')">' + esc(record.course) + '</span></td><td>' + esc(record.date) + '</td><td>' + role + '</td><td>' + esc(record.speaker) + '</td><td>' + esc(record.trainees.join('、')) + '</td><td>' + statusTag(record.status) + '</td><td><div class="eval-state">主讲人 ' + p.speakerDone + '/' + p.total + '<br>受训人 ' + p.traineeDone + '/' + p.total + '</div></td><td>' + actions + '</td></tr>';
+  }).join('');
+}
+
+function renderTrainingRows() {
+  var tbody = document.getElementById('subTableBody');
+  if (!tbody) return;
+  tbody.innerHTML = trainingRecords.map(function(record, index) {
+    var p = progress(record);
+    var actions = '<button class="action-link" onclick="completeTraining(' + record.id + ')">' + (record.status === '已完成' ? '已完成' : '完成培训') + '</button>';
+    actions += '<button class="action-link" onclick="openSpeakerEvaluation(' + record.id + ')">主讲评价</button>';
+    actions += '<button class="action-link" onclick="openAdminEvaluationDetails(' + record.id + ')">评价详情</button>';
+    actions += '<span class="delete-btn" onclick="removeTrainingRecord(' + record.id + ')">✕</span>';
+    return '<tr><td class="center"><input type="checkbox"></td><td class="center">' + (index + 1) + '</td><td><input type="date" value="' + esc(record.date) + '" onchange="updateRecordDate(' + record.id + ', this.value)"></td><td><button class="select-button" onclick="openPersonPicker(' + record.id + ', \'speaker\')">' + (record.speaker ? esc(record.speaker) : '选择主讲人') + '</button></td><td><button class="select-button" onclick="openPersonPicker(' + record.id + ', \'trainees\')">' + (record.trainees.length ? esc(record.trainees.join('、')) : '选择受训人') + '</button></td><td><select class="status-select" onchange="updateRecordStatus(' + record.id + ', this.value)"><option ' + (record.status === '未开始' ? 'selected' : '') + '>未开始</option><option ' + (record.status === '进行中' ? 'selected' : '') + '>进行中</option><option ' + (record.status === '已完成' ? 'selected' : '') + '>已完成</option></select></td><td><div class="eval-state">主讲人 ' + p.speakerDone + '/' + p.total + '<br>受训人 ' + p.traineeDone + '/' + p.total + (p.complete ? '<br><span style="color:#67c23a">总体评价可见</span>' : '') + '</div></td><td class="center">' + actions + '</td></tr>';
+  }).join('');
+}
+
+function getRecord(id) { return trainingRecords.find(function(record) { return record.id === id; }); }
+function updateRecordDate(id, value) { getRecord(id).date = value; renderLedger(); }
+function updateRecordStatus(id, value) { getRecord(id).status = value; renderTrainingRows(); renderLedger(); showToast('培训状态已更新为“' + value + '”'); }
+function completeTraining(id) { var record = getRecord(id); if (record.status !== '已完成') { record.status = '已完成'; renderTrainingRows(); renderLedger(); showToast('培训已完成，现在可以进行双向评价'); } }
+function removeTrainingRecord(id) { trainingRecords = trainingRecords.filter(function(record) { return record.id !== id; }); renderTrainingRows(); renderLedger(); showToast('培训记录已移除'); }
+
+function addRow() {
+  var id = Math.max.apply(null, trainingRecords.map(function(record) { return record.id; })) + 1;
+  trainingRecords.push({id:id, course:document.getElementById('f_subject').value || '新建一点课程', code:document.getElementById('f_code').value, date:'', speaker:'', trainees:[], status:'未开始', speakerEvaluations:{}, traineeEvaluations:{}});
+  renderTrainingRows();
+}
+
+function openPersonPicker(id, type) {
+  pickerRecordId = id; pickerType = type;
+  var record = getRecord(id);
+  document.getElementById('personPickerTitle').textContent = type === 'speaker' ? '选择主讲人（单选）' : '选择受训人（多选）';
+  document.getElementById('personPickerNote').textContent = type === 'speaker' ? '主讲人只能选择1人，人员来自系统组织人员。' : '受训人可多选，人员来自系统组织人员。';
+  var selected = type === 'speaker' ? [record.speaker] : record.trainees;
+  document.getElementById('personList').innerHTML = people.map(function(person) {
+    var checked = selected.indexOf(person) >= 0 ? ' checked' : '';
+    var inputType = type === 'speaker' ? 'radio' : 'checkbox';
+    return '<label class="person-option"><input type="' + inputType + '" name="pickedPerson" value="' + esc(person) + '"' + checked + '><span>' + esc(person) + '</span></label>';
+  }).join('');
+  openDialog('personPickerDialog');
+}
+
+function savePersonSelection() {
+  var record = getRecord(pickerRecordId);
+  var selected = Array.prototype.slice.call(document.querySelectorAll('input[name="pickedPerson"]:checked')).map(function(input) { return input.value; });
+  if (pickerType === 'speaker') {
+    record.speaker = selected[0] || '';
+    record.trainees = record.trainees.filter(function(name) { return name !== record.speaker; });
+  } else {
+    record.trainees = selected.filter(function(name) { return name !== record.speaker; });
+    record.trainees.forEach(function(name) { if (record.traineeEvaluations[name] === undefined) record.traineeEvaluations[name] = null; });
+  }
+  closeDialog(); renderTrainingRows(); renderLedger(); showToast('人员选择已保存');
+}
+
+function openDialog(id) { document.getElementById('dialogOverlay').style.display = 'block'; document.getElementById(id).classList.add('show'); }
+function closeDialog() { document.getElementById('dialogOverlay').style.display = 'none'; document.getElementById('personPickerDialog').classList.remove('show'); document.getElementById('evaluationDialog').classList.remove('show'); }
+
+function openSpeakerEvaluation(id) {
+  var record = getRecord(id); evaluationRecordId = id; evaluationType = 'speaker';
+  document.getElementById('evaluationTitle').textContent = '主讲人评价受训人';
+  document.getElementById('evaluationSaveButton').style.display = 'inline-block';
+  document.getElementById('evaluationBody').innerHTML = '<div class="score-hint">当前主讲人：' + esc(record.speaker || '未选择') + '。请对本次培训的每名受训人分别评价。</div>' + record.trainees.map(function(name) { return '<div class="eval-row"><div>' + esc(name) + '<small>培训实施后能力评价</small></div><select class="score-input speaker-score" data-trainee="' + esc(name) + '"><option value="">请选择</option><option value="A" ' + (record.speakerEvaluations[name] === 'A' ? 'selected' : '') + '>A - 知道但不会做</option><option value="B" ' + (record.speakerEvaluations[name] === 'B' ? 'selected' : '') + '>B - 在帮助下会做</option><option value="C" ' + (record.speakerEvaluations[name] === 'C' ? 'selected' : '') + '>C - 能独立进行</option><option value="D" ' + (record.speakerEvaluations[name] === 'D' ? 'selected' : '') + '>D - 能教育别人</option></select></div>'; }).join('');
+  openDialog('evaluationDialog');
+}
+
+function openTraineeEvaluation(id) {
+  var record = getRecord(id); evaluationRecordId = id; evaluationType = 'trainee';
+  if (record.trainees.indexOf(currentUser) < 0) { showToast('当前个人视角不是本次培训的受训人'); return; }
+  document.getElementById('evaluationTitle').textContent = '受训人评价主讲人';
+  document.getElementById('evaluationSaveButton').style.display = 'inline-block';
+  document.getElementById('evaluationBody').innerHTML = '<div class="score-hint">请对主讲人“' + esc(record.speaker) + '”本次培训进行1—10分评价。评价结果用于主讲人课程总体评价，不展示个人详情。</div><div class="eval-row"><div>我的评价<small>当前受训人：' + esc(currentUser) + '</small></div><input class="score-input" id="traineeScore" type="number" min="1" max="10" value="' + (record.traineeEvaluations[currentUser] || '') + '" placeholder="请输入1—10分"></div>';
+  openDialog('evaluationDialog');
+}
+
+function openAdminEvaluationDetails(id, summaryOnly) {
+  var record = getRecord(id); evaluationRecordId = id; evaluationType = 'admin';
+  var p = progress(record);
+  document.getElementById('evaluationTitle').textContent = summaryOnly ? '主讲人课程总体评价' : '评价详情（管理员/培训管理人员）';
+  document.getElementById('evaluationSaveButton').style.display = 'none';
+  var ratings = record.trainees.map(function(name) { return '<div class="eval-row"><div>' + esc(name) + '<small>主讲人对受训人的评价：' + esc(record.speakerEvaluations[name] || '未评价') + '</small></div><strong>' + (record.traineeEvaluations[name] == null ? '未评价' : record.traineeEvaluations[name] + '分') + '</strong></div>'; }).join('');
+  var nums = record.trainees.map(function(name) { return record.traineeEvaluations[name]; }).filter(function(value) { return value != null; });
+  var avg = nums.length ? (nums.reduce(function(sum, value) { return sum + Number(value); }, 0) / nums.length).toFixed(1) : '—';
+  document.getElementById('evaluationBody').innerHTML = '<div class="score-hint">课程：' + esc(record.course) + '　主讲人：' + esc(record.speaker) + '<br>总体评价：<strong>' + avg + (avg === '—' ? '' : '分') + '</strong>　已评价 ' + p.traineeDone + '/' + p.total + ' 人</div>' + (summaryOnly ? '<div class="detail-note">主讲人仅可查看总体评价，具体人员、分数和评价内容对主讲人隐藏。</div>' : ratings);
+  openDialog('evaluationDialog');
+}
+
+function saveEvaluation() {
+  var record = getRecord(evaluationRecordId);
+  if (evaluationType === 'speaker') {
+    document.querySelectorAll('.speaker-score').forEach(function(select) { record.speakerEvaluations[select.getAttribute('data-trainee')] = select.value; });
+    showToast('主讲人对受训人的评价已保存，并同步到受训人参培记录');
+  } else if (evaluationType === 'trainee') {
+    var score = Number(document.getElementById('traineeScore').value);
+    if (!score || score < 1 || score > 10) { showToast('请输入1—10之间的评价分数'); return; }
+    record.traineeEvaluations[currentUser] = score;
+    showToast('对主讲人的评价已提交');
+  }
+  closeDialog(); renderTrainingRows(); renderLedger();
+}
+
+function showToast(message) {
+  var toast = document.getElementById('prototypeToast');
+  if (!toast) { toast = document.createElement('div'); toast.id = 'prototypeToast'; toast.style.cssText = 'position:fixed;top:72px;left:50%;transform:translateX(-50%);z-index:500;padding:9px 18px;border-radius:4px;background:#303133;color:#fff;font-size:13px;box-shadow:0 2px 8px rgba(0,0,0,.18)'; document.body.appendChild(toast); }
+  toast.textContent = message; toast.style.display = 'block'; clearTimeout(window.__toastTimer); window.__toastTimer = setTimeout(function() { toast.style.display = 'none'; }, 2200);
+}
+
+document.addEventListener('DOMContentLoaded', function() { renderTrainingRows(); renderLedger(); });
+</script>
+
+</body>
+</html>

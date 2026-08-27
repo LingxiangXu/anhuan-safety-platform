@@ -1,0 +1,410 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>特殊作业管控 · 安全管理平台</title>
+<link rel="icon" href="assets/logo.svg">
+<link rel="stylesheet" href="assets/app.css">
+</head>
+<body>
+<div class="app">
+  <div class="topbar"></div>
+  <div class="body">
+    <aside class="sidebar"><div class="nav-tree"></div></aside>
+    <div class="content">
+      <div class="page-header"></div>
+      <div class="page-body" id="pageBody"></div>
+    </div>
+  </div>
+</div>
+<script src="assets/store.js"></script>
+<script src="assets/ui.js"></script>
+<script>
+(function(){
+"use strict";
+var params=new URLSearchParams(location.search);
+var tab=params.get('tab')||'ledger';
+var body=document.getElementById('pageBody');
+UI.renderShell('permits',tab);
+var TITLES={ledger:'作业票台账',review:'待我审核',approve:'待我审批',execute:'现场执行',archived:'已归档'};
+UI.pageHeader(['特殊作业管控',TITLES[tab]],TITLES[tab],'<button class="btn btn-outline" onclick="openPermitRules()">审批规则</button>');
+
+var TYPE_KEYS={hotwork:'动火作业',height:'高处作业',power:'临时用电',confined:'有限空间'};
+var STEPS=['作业申请','资格校验','风险分析','审批路径','审批完成','监护确认','开工执行','完工验收','归档'];
+function directoryOptions(selected){return (App.directoryMembers||[]).filter(function(p){return p.status==='在职';}).map(function(p){return '<option value="'+p.id+'" '+(p.id===selected?'selected':'')+'>'+p.name+' · '+p.org+' · '+p.post+'</option>';}).join('');}
+function directoryPerson(id){return App.directoryMemberById(id)||{};}
+function typeTag(t){var map={hotwork:'<span class="tag tag-error">动火</span>',height:'<span class="tag tag-big">高处</span>',power:'<span class="tag tag-blue">临电</span>',confined:'<span class="tag tag-purple">有限空间</span>'};return map[t]||t;}
+function statusTag(s){
+  var map={'资格校验失败':'<span class="tag tag-error">资格阻断</span>','审批中':'<span class="tag tag-warn">审批中</span>',
+  '待监护确认':'<span class="tag tag-purple">待监护确认</span>','待开工':'<span class="tag tag-blue">待开工</span>','执行中':'<span class="tag tag-green">执行中</span>',
+  '已暂停':'<span class="tag tag-warn">已暂停</span>','待验收':'<span class="tag tag-purple">待验收</span>','已归档':'<span class="tag tag-gray">已归档</span>',
+  '超时阻断':'<span class="tag tag-error">超时阻断（禁止作业）</span>',
+  '延期审批中':'<span class="tag tag-error">延期审批中（禁止作业）</span>',
+  '已退回':'<span class="tag tag-error">已退回</span>','已驳回':'<span class="tag tag-error">已驳回</span>','监护条件不满足':'<span class="tag tag-error">条件不满足</span>','待重新申请':'<span class="tag tag-error">变更待重申</span>','草稿':'<span class="tag tag-gray">草稿</span>'};
+  return map[s]||('<span class="tag tag-gray">'+s+'</span>');
+}
+
+/* ================= 作业票台账 ================= */
+function viewLedger(){
+  body.innerHTML=
+  '<div class="alert info">演示入口：作业票 <b>WP-20260801-001 有限空间作业</b> 处于 <b>资格校验失败</b>（人员证书过期阻断），可演示「补齐资格 → 重新校验 → 按类型×级别审批路径提交」全链路。</div>'+
+  '<div class="filter-bar">'+
+    '<div class="f-item">作业类型 <select id="fType"><option value="">全部</option><option>动火作业</option><option>高处作业</option><option>临时用电</option><option>有限空间</option></select></div>'+
+    '<div class="f-item">状态 <select id="fStatus"><option value="">全部</option><option>资格校验失败</option><option>执行中</option><option>超时阻断</option><option>已归档</option></select></div>'+ 
+    '<button class="btn btn-outline btn-sm" onclick="renderLedger()">查询</button>'+
+    '<button class="btn btn-primary btn-sm" style="margin-left:auto" onclick="openCreatePermit()">+ 新建作业票</button>'+
+  '</div>'+
+  '<div class="tbl-wrap"><table class="tbl"><thead><tr><th>作业票编号</th><th>类型</th><th>级别</th><th>作业内容</th><th>作业地点</th><th>申请人</th><th>作业负责人</th><th>监护人</th><th>状态</th><th>操作</th></tr></thead><tbody id="ledgerBody">'+
+  '</tbody></table></div>';
+  renderLedger();
+}
+function renderLedger(){
+  var ty=document.getElementById('fType')?document.getElementById('fType').value:'';
+  var st=document.getElementById('fStatus')?document.getElementById('fStatus').value:'';
+  var rows=App.workPermits.filter(function(w){return (!App.inCurrentOrgScope||App.inCurrentOrgScope(w.org))&&(!ty||w.type===ty)&&(!st||w.status===st);});
+  document.getElementById('ledgerBody').innerHTML=rows.map(function(w){
+    return '<tr><td class="mono">'+w.code+'</td><td>'+typeTag(w.typeKey)+'</td><td><span class="tag tag-blue">'+(w.workLevel||'三级')+'</span></td><td>'+w.workContent+'</td><td>'+w.location+'</td>'+
+    '<td>'+w.applicant+'</td><td>'+w.workLeader+'</td><td>'+(w.guardian||'<span class="tag tag-error">未指定</span>')+'</td>'+
+    '<td>'+statusTag(w.status)+'</td><td><button class="btn btn-text" onclick="openPermit(\''+w.id+'\')">详情</button></td></tr>';
+  }).join('')||UI.empty('暂无作业票');
+}
+
+/* ================= 待我审核 / 待我审批 ================= */
+function viewReview(){
+  var rows=App.workPermits.filter(function(w){return (!App.inCurrentOrgScope||App.inCurrentOrgScope(w.org))&&(w.status==='审批中'||w.status==='延期审批中')&&w.currentApprovalNode;});
+  body.innerHTML=
+  '<div class="hint-line">本页办理安全管理平台内置审批；完整展示审批节点、审批人、意见和时间，待办推送企业微信。延期批准前禁止继续作业。</div>'+ 
+  '<div class="tbl-wrap"><table class="tbl"><thead><tr><th>作业票编号</th><th>类型</th><th>作业内容</th><th>地点</th><th>计划时间</th><th>作业级别</th><th>当前审批节点</th><th>操作</th></tr></thead><tbody>'+
+  rows.map(function(w){return '<tr><td class="mono">'+w.code+'</td><td>'+typeTag(w.typeKey)+'</td><td>'+w.workContent+'</td><td>'+w.location+'</td><td>'+w.plannedStart+' ~ '+w.plannedEnd+'</td><td><span class="tag tag-big">'+(w.workLevel||'三级')+'</span></td>'+
+    '<td><span class="tag tag-warn">'+w.currentApprovalNode+'</span></td><td><button class="btn btn-primary btn-sm" onclick="openApproval(\''+w.id+'\')">平台内'+(w.status==='延期审批中'?'延期':'作业票')+'审批 ▸</button></td></tr>';}).join('')||
+  UI.empty('当前无审批中作业票')+'</tbody></table></div>';
+}
+function viewApprove(){
+  var rows=App.workPermits.filter(function(w){return (!App.inCurrentOrgScope||App.inCurrentOrgScope(w.org))&&(w.status==='审批中'||w.status==='延期审批中')&&w.currentApprovalNode;});
+  body.innerHTML=
+  '<div class="hint-line">本页展示平台内置审批节点；全部节点通过后才进入监护确认，每个节点待办同步推送企业微信。</div>'+ 
+  '<div class="tbl-wrap"><table class="tbl"><thead><tr><th>作业票编号</th><th>类型</th><th>作业内容</th><th>作业级别</th><th>当前审批节点</th><th>操作</th></tr></thead><tbody>'+
+  rows.map(function(w){return '<tr><td class="mono">'+w.code+'</td><td>'+typeTag(w.typeKey)+'</td><td>'+w.workContent+'</td><td><span class="tag tag-big">'+(w.workLevel||'三级')+'</span></td>'+
+    '<td><span class="tag tag-warn">'+w.currentApprovalNode+'</span></td><td><button class="btn btn-primary btn-sm" onclick="openApproval(\''+w.id+'\')">'+w.currentApprovalNode+' · 平台内办理 ▸</button></td></tr>';}).join('')||
+  UI.empty('当前无审批中作业票')+'</tbody></table></div>';
+}
+
+/* ================= 现场执行 ================= */
+function viewExecute(){
+  var rows=App.workPermits.filter(function(w){return (!App.inCurrentOrgScope||App.inCurrentOrgScope(w.org))&&(w.status==='待监护确认'||w.status==='待开工'||w.status==='执行中'||w.status==='已暂停'||w.status==='超时阻断'||w.status==='待验收'||w.status==='监护条件不满足'||w.status==='延期审批中');});
+  body.innerHTML=
+  '<div class="card" style="margin-bottom:14px"><div class="card-title">现场作业地图 / 列表入口</div><div class="hint-line">地图仅显示审批中、待监护确认、待开工、执行中、暂停、超时阻断和延期审批中的作业票；完工和归档不显示。</div><button class="btn btn-outline btn-sm" onclick="openPermitMap()">查看未完成作业票地图</button></div>'+ 
+  '<div class="tbl-wrap"><table class="tbl"><thead><tr><th>作业票编号</th><th>类型</th><th>作业内容</th><th>现场阶段</th><th>监护人</th><th>状态</th><th>操作</th></tr></thead><tbody>'+
+  rows.map(function(w){
+    var act='';
+    if(w.status==='待监护确认'||w.status==='监护条件不满足')act='<button class="btn btn-primary btn-sm" onclick="openGuardian(\''+w.id+'\')">监护确认 ▸</button>';
+    else if(w.status==='待开工')act='<button class="btn btn-green btn-sm" onclick="doStart(\''+w.id+'\')">开工</button>';
+    else if(w.status==='执行中')act='<button class="btn btn-warn btn-sm" onclick="doPause(\''+w.id+'\')">暂停</button> <button class="btn btn-outline btn-sm" onclick="requestExtension(\''+w.id+'\')">申请延期</button> <button class="btn btn-outline btn-sm" onclick="doComplete(\''+w.id+'\')">完工</button>';
+    else if(w.status==='已暂停')act='<button class="btn btn-outline btn-sm" onclick="doResume(\''+w.id+'\')">恢复作业</button> <button class="btn btn-outline btn-sm" onclick="requestExtension(\''+w.id+'\')">申请延期</button>';
+    else if(w.status==='超时阻断')act='<span class="tag tag-error">延期批准前禁止作业</span> <button class="btn btn-primary btn-sm" onclick="requestExtension(\''+w.id+'\')">申请延期</button>';
+    else if(w.status==='延期审批中')act='<span class="tag tag-error">审批前禁止继续作业</span> <button class="btn btn-primary btn-sm" onclick="openExtensionApproval(\''+w.id+'\')">处理延期</button>';
+    else if(w.status==='待验收')act='<button class="btn btn-green btn-sm" onclick="doAccept(\''+w.id+'\')">完工验收</button>';
+    return '<tr><td class="mono">'+w.code+'</td><td>'+typeTag(w.typeKey)+'</td><td>'+w.workContent+'</td><td>'+stepOf(w.status)+'</td><td>'+(w.guardian||'-')+'</td><td>'+statusTag(w.status)+'</td><td>'+act+'</td></tr>';
+  }).join('')||UI.empty('暂无现场作业')+'</tbody></table></div>'+
+  '<div class="hint-line">现场执行阶段：监护确认 → 开工 → 暂停/恢复 → 完工 → 验收 → 归档。作业票超时必须申请延期，批准前禁止继续作业。</div>';
+}
+function openPermitMap(){
+  var rows=App.workPermits.filter(function(w){return (!App.inCurrentOrgScope||App.inCurrentOrgScope(w.org))&&App.mapPermitStatuses.indexOf(w.status)>-1;});
+  UI.modal('<div class="alert info">当前为作业位置示意图，不代表 GIS 精确定位；正式地图能力需接入厂区底图和位置坐标。</div><div class="mobile-map" style="height:300px"><div class="road h"></div><div class="road v"></div>'+rows.map(function(w,i){return '<span class="pin '+(w.status==='执行中'?'major':'blue')+'" style="left:'+(25+(i*27)%60)+'%;top:'+(30+(i*21)%55)+'%" title="'+w.code+' '+w.status+'"></span>';}).join('')+'</div><div class="hint-line">当前展示 '+rows.length+' 张未完成作业票，点击列表可查看详情。</div><div class="mobile-list" style="margin-top:10px">'+rows.map(function(w){return '<div class="mobile-row"><span><b>'+w.code+'</b><span class="sub">'+w.type+' · '+w.location+'</span></span>'+statusTag(w.status)+'</div>';}).join('')+'</div>',{title:'现场作业地图（未完成）',wide:true,footer:'<button class="btn btn-outline" data-close>关闭</button>'});
+}
+function stepOf(status){
+  var map={'待监护确认':7,'监护条件不满足':7,'待开工':7,'执行中':7,'已暂停':7,'超时阻断':7,'延期审批中':7,'待验收':8,'已归档':9};
+  return '第 '+(map[status]||'-')+' 步';
+}
+
+/* ================= 已归档 ================= */
+function viewArchived(){
+  var rows=App.workPermits.filter(function(w){return (!App.inCurrentOrgScope||App.inCurrentOrgScope(w.org))&&w.status==='已归档';});
+  body.innerHTML=
+  '<div class="tbl-wrap"><table class="tbl"><thead><tr><th>作业票编号</th><th>类型</th><th>作业内容</th><th>归档时间</th><th>操作</th></tr></thead><tbody>'+
+  rows.map(function(w){return '<tr><td class="mono">'+w.code+'</td><td>'+typeTag(w.typeKey)+'</td><td>'+w.workContent+'</td><td>'+(w.archivedAt||'-')+'</td>'+
+    '<td><button class="btn btn-text" onclick="openPermit(\''+w.id+'\')">查看归档档案</button></td></tr>';}).join('')||
+  UI.empty('暂无归档作业票')+'</tbody></table></div>'+
+  '<div class="hint-line">归档后作业票、审批意见、资格校验、监护确认和照片<b>只读</b>，形成可追溯档案。</div>';
+}
+
+/* ================= 作业票详情（九步流程） ================= */
+function openPermit(id){
+  var w=App.permit.byId(id);
+  if(!w||App.inCurrentOrgScope&&!App.inCurrentOrgScope(w.org)){App.toast('当前组织范围无权查看该作业票','error');return;}
+  var stepIdx=stepIndexOf(w.status);
+  UI.drawer(
+    '<div class="steps" style="margin-bottom:16px">'+STEPS.map(function(s,i){
+      var n=i+1,cls=n<stepIdx?'done':(n===stepIdx?'current':'');
+      if(n===2&&w.status==='资格校验失败')cls='block';
+      return '<div class="step"><div class="dot '+cls+'">'+(n<stepIdx?'✓':n)+'</div><div class="s-name '+(n===stepIdx?'current':'')+'">'+s+'</div></div>'+(n<9?'<div class="step-line '+(n<stepIdx?'done':'')+'"></div>':'');
+    }).join('')+'</div>'+
+    '<div class="desc desc-2">'+
+      '<div class="d-item"><span class="d-label">作业票编号</span><span class="d-value">'+w.code+'</span></div>'+
+      '<div class="d-item"><span class="d-label">作业类型</span><span class="d-value">'+w.type+'</span></div>'+
+      '<div class="d-item"><span class="d-label">作业级别</span><span class="d-value"><span class="tag tag-blue">'+(w.workLevel||'三级')+'</span></span></div>'+
+      '<div class="d-item"><span class="d-label">地点</span><span class="d-value">'+w.location+'</span></div>'+
+      '<div class="d-item"><span class="d-label">风险等级</span><span class="d-value">'+w.riskLevel+'</span></div>'+
+      '<div class="d-item"><span class="d-label">计划窗口</span><span class="d-value">'+w.plannedStart+' ~ '+w.plannedEnd+'</span></div>'+
+      '<div class="d-item"><span class="d-label">状态</span><span class="d-value">'+statusTag(w.status)+'</span></div>'+ 
+      '<div class="d-item full"><span class="d-label">类型×级别审批路径</span><span class="d-value">'+(w.approvalPath||App.approvalPathFor(w)).join(' → ')+'</span></div>'+ 
+      '<div class="d-item full"><span class="d-label">作业内容</span><span class="d-value">'+w.workContent+'</span></div>'+
+      '<div class="d-item full"><span class="d-label">安全方案</span><span class="d-value">'+w.safetyPlan+'</span></div>'+
+      '<div class="d-item full"><span class="d-label">应急处置</span><span class="d-value">'+(w.emergencyPlan||'-')+'</span></div>'+ 
+      '<div class="d-item full"><span class="d-label">风险措施引用快照</span><span class="d-value">'+((w.risks||[]).map(function(r){return r.ref||'现场风险分析：'+r.hazard;}).join('；')||'未关联风险措施')+'</span></div>'+ 
+    '</div>'+
+    ((w.extensionRequests||[]).length?'<div class="section-head"><h3>延期记录</h3></div><div class="tbl-wrap"><table class="tbl"><thead><tr><th>原结束时间</th><th>申请延期至</th><th>原因</th><th>状态</th><th>申请人/时间</th></tr></thead><tbody>'+w.extensionRequests.map(function(x){return '<tr><td>'+x.oldEnd+'</td><td>'+x.newEnd+'</td><td>'+x.reason+'</td><td>'+statusTag(x.status)+'</td><td>'+x.by+' / '+x.createdAt+'</td></tr>';}).join('')+'</tbody></table></div>':'')+
+    '<div class="section-head"><h3>作业人员与资格校验</h3></div>'+
+    '<div class="tbl-wrap"><table class="tbl"><thead><tr><th>人员</th><th>角色</th><th>所需证书</th><th>资格状态</th><th>校验时间</th></tr></thead><tbody>'+ 
+    w.persons.map(function(p){return '<tr><td>'+p.user+'</td><td>'+p.role+'</td><td>'+(p.certRequired?(p.requiredCert||'按作业规则校验'):'不要求')+'</td>'+ 
+      '<td>'+(p.qualification==='过期'?'<span class="tag tag-error">过期</span>':p.qualification==='有效'?'<span class="tag tag-green">有效</span>':'<span class="tag tag-warn">'+p.qualification+'</span>')+'</td><td>'+p.checkedAt+'</td></tr>';}).join('')+
+    '</tbody></table></div>'+
+    (w.qualificationFailed?'<div class="block-panel" style="margin-top:12px"><div class="bp-title">⛔ 资格校验阻断</div><table>'+
+      w.persons.filter(function(p){return p.qualification==='过期';}).map(function(p){return '<tr><td>缺失证书</td><td><b>'+p.missingCert+'</b></td></tr>';}).join('')+
+      '<tr><td>处理方式</td><td>在“培训与证书 → 证书管理”维护有效证书后重新校验，方可提交审核。 <button class="btn btn-text" onclick="openCertificateLedger(\''+w.id+'\')">前往证书管理</button></td></tr></table></div>':'')+
+    '<div class="section-head"><h3>现场确认项（监护）</h3></div>'+
+    '<div class="tbl-wrap"><table class="tbl"><thead><tr><th>类型</th><th>确认内容</th><th>结果</th><th>确认人</th></tr></thead><tbody>'+
+    w.checks.map(function(c){return '<tr><td>'+c.type+'</td><td>'+(c.check_text||c.text)+'</td><td>'+(c.result==='通过'?'<span class="tag tag-green">通过</span>':c.result==='不通过'?'<span class="tag tag-error">不通过</span>':'<span class="tag tag-gray">未确认</span>')+'</td><td>'+(c.checkedBy||'-')+'</td></tr>';}).join('')+
+    '</tbody></table></div>'+
+    '<div class="section-head"><h3>操作时间线</h3></div><ul class="timeline">'+
+    w.actions.map(function(a){return '<li><div class="t-date">'+a.at+'</div><div class="t-title">'+a.type+'</div><div class="t-note">'+(a.note||'')+'</div><div class="t-actor">操作人：'+a.by+'</div></li>';}).join('')+'</ul>',
+    {title:'作业票详情 · '+w.code,wide:true,
+     footer:'<button class="btn btn-outline" data-close>关闭</button>'+
+     (w.status==='资格校验失败'?'<button class="btn btn-primary" onclick="fixQualification(\''+w.id+'\')">补齐资格并重新校验</button>':'')+
+     (w.status==='审批中'?'<button class="btn btn-primary" onclick="openApproval(\''+w.id+'\')">平台内审批：'+(w.currentApprovalNode||'审批')+'</button>':'')+
+     ((w.status==='执行中'||w.status==='已暂停')?'<button class="btn btn-outline" onclick="requestExtension(\''+w.id+'\')">申请延期</button><button class="btn btn-outline" onclick="requestPermitChange(\''+w.id+'\')">变更重新申请</button>':'')+
+     (w.status==='超时阻断'?'<button class="btn btn-primary" onclick="requestExtension(\''+w.id+'\')">申请延期</button>':'')+
+     (w.status==='延期审批中'?'<button class="btn btn-primary" onclick="openExtensionApproval(\''+w.id+'\')">处理延期申请</button>':'')});
+}
+function stepIndexOf(status){
+  var map={'资格校验失败':2,'审批中':4,'待监护确认':6,'监护条件不满足':6,'待开工':6,'执行中':7,'已暂停':7,'超时阻断':7,'延期审批中':7,'待验收':8,'已归档':9,'草稿':1,'已退回':4,'已驳回':4,'待重新申请':1};
+  return map[status]||1;
+}
+function requestPermitChange(id){
+  UI.modal('<div class="alert warn">人员、地点、时间或关键措施变化时必须重新申请，原审批不自动沿用。</div><div class="form-item"><span class="form-label">变化项</span><textarea id="changeNote" placeholder="如：地点变化、监护人变更、关键措施调整"></textarea></div>',{title:'作业票变更重新申请',footer:'<button class="btn btn-outline" data-close>取消</button><button class="btn btn-primary" id="changeOk">提交重新申请</button>'});
+  document.getElementById('changeOk').onclick=function(){var note=document.getElementById('changeNote').value.trim();if(!note){App.toast('请填写变化项','error');return;}App.permit.requestChange(id,[note]);document.querySelectorAll('.modal').forEach(function(n){n.remove();});route();};
+}
+function futurePermitEnd(){var d=new Date(Date.now()+4*60*60*1000);return d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate())+' '+pad(d.getHours())+':'+pad(d.getMinutes());}
+function requestExtension(id){var w=App.permit.byId(id);if(!w)return;UI.modal('<div class="alert warn">超过当前作业票有效时间后不得继续作业。延期前必须重新核对五类安全条件，批准前保持禁止执行。'+(w.typeKey==='hotwork'&&w.workLevel==='一级'?'<br><b>一级动火每次延期最多延长 8 小时。</b>':'')+'</div><div class="form-grid"><div class="form-item"><span class="form-label">原结束时间</span><input value="'+w.plannedEnd+'" disabled></div><div class="form-item"><span class="form-label">申请延期至 <span class="req">*</span></span><input id="extEnd" value="'+futurePermitEnd()+'"></div><div class="form-item full"><span class="form-label">延期原因 <span class="req">*</span></span><textarea id="extReason" placeholder="说明未按期完成的原因"></textarea></div><div class="form-item full"><span class="form-label">延期安全条件复核 <span class="req">*</span></span><div class="check-grid"><label><input type="checkbox" data-ext-check="personnel"> 作业人员及资格无变化</label><label><input type="checkbox" data-ext-check="guardian"> 监护人员持续到位</label><label><input type="checkbox" data-ext-check="location"> 作业地点及范围无变化</label><label><input type="checkbox" data-ext-check="environment"> 环境、气体和天气条件已复核</label><label><input type="checkbox" data-ext-check="measures"> 隔离、防护和应急措施持续有效</label></div></div><div class="form-item full"><span class="form-label">条件变化说明</span><textarea id="extSafetyNote" placeholder="无变化可填写“无”；有变化时说明重新确认情况"></textarea></div></div>',{title:'申请作业票延期 · '+w.code,footer:'<button class="btn btn-outline" data-close>取消</button><button class="btn btn-primary" onclick="submitExtension(\''+id+'\')">提交延期</button>'});}
+function submitExtension(id){var end=(document.getElementById('extEnd')||{}).value||'',reason=(document.getElementById('extReason')||{}).value||'',review={note:(document.getElementById('extSafetyNote')||{}).value||''};document.querySelectorAll('[data-ext-check]').forEach(function(box){review[box.getAttribute('data-ext-check')]=box.checked;});var result=App.permit.requestExtension(id,end.trim(),reason.trim(),review);if(result&&result.ok){document.querySelectorAll('.modal').forEach(function(n){n.remove();});route();}}
+function openExtensionApproval(id){var w=App.permit.byId(id),req=w&&w.extensionRequests&&w.extensionRequests[0];if(!req){App.toast('没有待处理的延期申请','warn');return;}var sr=req.safetyReview||{};UI.drawer('<div class="alert error">延期使用安全管理平台内置审批；批准前现场不得继续作业。批准后仍需重新完成监护确认，才能恢复开工。</div><div class="desc desc-2"><div class="d-item"><span class="d-label">作业票</span><span class="d-value">'+w.code+' · '+w.type+' · '+(w.workLevel||'三级')+'</span></div><div class="d-item"><span class="d-label">申请人/时间</span><span class="d-value">'+req.by+' / '+req.createdAt+'</span></div><div class="d-item"><span class="d-label">当前审批岗位</span><span class="d-value">'+(w.currentApprovalNode||'原作业票审批人')+'</span></div><div class="d-item"><span class="d-label">待办推送</span><span class="d-value">企业微信 · 已送达</span></div><div class="d-item"><span class="d-label">原结束时间</span><span class="d-value">'+req.oldEnd+'</span></div><div class="d-item"><span class="d-label">申请延期至</span><span class="d-value">'+req.newEnd+'</span></div><div class="d-item full"><span class="d-label">延期原因</span><span class="d-value">'+req.reason+'</span></div><div class="d-item full"><span class="d-label">安全条件复核</span><span class="d-value">人员、监护、地点、环境、措施均已逐项确认'+(sr.note?'；变化说明：'+sr.note:'')+'</span></div></div><div class="form-item" style="margin-top:14px"><span class="form-label">审批意见</span><textarea id="extApprovalNote" placeholder="填写批准或驳回意见"></textarea></div>',{title:'平台延期审批 · '+w.code,wide:true,footer:'<button class="btn btn-outline" data-close>取消</button><button class="btn btn-danger" onclick="doExtensionApproval(\''+id+'\',0)">驳回延期</button><button class="btn btn-green" onclick="doExtensionApproval(\''+id+'\',1)">批准延期</button>'});}
+function doExtensionApproval(id,pass){var note=(document.getElementById('extApprovalNote')||{}).value||'',result=App.permit.approveExtension(id,pass===1,note.trim());if(result&&result.ok){document.querySelectorAll('.mask,.drawer').forEach(function(n){n.remove();});route();}}
+
+/* ================= 资格阻断与补齐 ================= */
+function fixQualification(id){
+  var w=App.permit.byId(id);
+  UI.modal(
+    '<div class="alert error">提交/开工已被阻断：作业人员 <b>张云龙</b> 的「有限空间作业证（QS14***205）」已于 <b>2025-11-20</b> 到期。</div>'+ 
+    '<div class="tbl-wrap"><table class="tbl"><thead><tr><th>人员</th><th>证书</th><th>到期时间</th><th>状态</th><th>操作</th></tr></thead><tbody>'+ 
+    '<tr><td>张云龙</td><td>有限空间作业证 QS14***205</td><td>2025-11-20</td><td><span class="tag tag-error">已过期</span></td><td><button class="btn btn-text" onclick="openCertificateLedger(\''+id+'\')">前往证书管理换证</button></td></tr>'+ 
+    '</tbody></table></div><div class="hint-line">资格校验读取证书台账。完成换证后返回本作业票，点击“重新资格校验”。</div>',
+    {title:'补齐作业人员资格',footer:'<button class="btn btn-outline" data-close>取消</button><button class="btn btn-primary" id="fixOk">重新资格校验</button>'});
+  document.getElementById('fixOk').onclick=function(){
+    var res=App.permit.qualificationCheck(id);
+    if(res.ok){
+      App.toast('资格校验通过，可提交审核');
+      document.querySelectorAll('.modal').forEach(function(n){n.remove();});
+      setTimeout(function(){openPermit(id);},300);
+    }
+  };
+}
+function openCertificateLedger(id){location.href='training-certificates.html?tab=certificates&status=已过期&user='+encodeURIComponent('张云龙')+'&fromPermit='+encodeURIComponent(id);}
+
+/* ================= 动态审批路径 ================= */
+function openApproval(id){
+  var w=App.permit.byId(id);
+  if(w.status==='延期审批中'){openExtensionApproval(id);return;}
+  var path=w.approvalPath&&w.approvalPath.length?w.approvalPath:App.approvalPathFor(w);
+  var index=typeof w.approvalIndex==='number'?w.approvalIndex:0;
+  var node=path[index]||path[0]||'当前审批节点';
+  UI.drawer(
+    '<div class="alert info">作业票使用安全管理平台内置审批，平台展示完整节点、审批人、意见和时间；当前节点待办已推送企业微信。作业票 <b>'+w.code+'</b>（'+w.type+' · '+(w.workLevel||'三级')+'）当前节点：<b>'+node+'</b><br>完整审批路径：<b>'+path.join(' → ')+'</b>。</div>'+ 
+    '<div class="desc desc-2">'+
+      '<div class="d-item full"><span class="d-label">安全方案</span><span class="d-value">'+w.safetyPlan+'</span></div>'+
+      '<div class="d-item full"><span class="d-label">应急处置</span><span class="d-value">'+(w.emergencyPlan||'-')+'</span></div>'+
+      '<div class="d-item"><span class="d-label">作业级别</span><span class="d-value">'+(w.workLevel||'三级')+'</span></div>'+
+      '<div class="d-item"><span class="d-label">监护人</span><span class="d-value">'+(w.guardian||'<span class="tag tag-error">未指定</span>')+'</span></div>'+
+    '</div>'+
+    '<div class="form-item" style="margin-top:14px"><span class="form-label">节点意见</span><textarea id="approvalNote" placeholder="填写当前岗位意见…"></textarea></div>',
+    {title:node+' · 平台内审批 · '+w.code,
+     footer:'<button class="btn btn-outline" data-close>取消</button><button class="btn btn-danger" onclick="doApproval(\''+id+'\',0)">退回</button><button class="btn btn-green" onclick="doApproval(\''+id+'\',1)">通过并推进</button>'});
+}
+function doApproval(id,pass){
+  var w=App.permit.byId(id);
+  var note=document.getElementById('approvalNote')?document.getElementById('approvalNote').value.trim():'';
+  if(!pass&&!note)note='当前岗位退回申请';
+  var result=App.permit.approve(id,pass===1,note);
+  if(!result.ok)return;
+  document.querySelectorAll('.mask,.drawer').forEach(function(n){n.remove();});
+  route();
+}
+/* ================= 监护确认 ================= */
+function openGuardian(id){
+  var w=App.permit.byId(id);
+  UI.drawer(
+    '<div class="alert info">监护人 <b>'+w.guardian+'</b> 现场逐项确认，全部通过后方可开工。</div>'+
+    '<div class="tbl-wrap"><table class="tbl"><thead><tr><th>类型</th><th>确认内容</th><th>结果</th><th>留证</th></tr></thead><tbody>'+
+    w.checks.map(function(c){
+      return '<tr><td>'+c.type+'</td><td>'+(c.check_text||c.text)+'</td>'+ 
+      '<td><select class="g-res" data-check="'+c.id+'"><option value="">选择</option><option value="通过">通过</option><option value="不通过">不通过</option><option value="不适用">不适用</option></select></td>'+
+      '<td><div class="photo-box" style="height:44px" onclick="mockPhoto(this)"><span>拍照</span></div></td></tr>';
+    }).join('')+'</tbody></table></div>'+
+    '<div class="hint-line" id="gHint">确认项全部通过后自动解锁「确认并开工」。</div>',
+    {title:'监护确认 · '+w.code,
+     footer:'<button class="btn btn-outline" data-close>取消</button><button class="btn btn-green" id="gOk">确认并开工</button>'});
+  document.getElementById('gOk').onclick=function(){
+    var results={};var all=true;
+    document.querySelectorAll('.g-res').forEach(function(sel){
+      if(!sel.value){all=false;return;}
+      results[sel.getAttribute('data-check')]=sel.value;
+      if(sel.value!=='通过')all=false;
+    });
+    if(!all){App.toast('存在未确认或未通过项，禁止开工','error');return;}
+    var ok=App.permit.guardianConfirm(id,results);
+    if(ok){
+      App.toast('监护确认全部通过，作业票可开工');
+      document.querySelectorAll('.mask,.drawer').forEach(function(n){n.remove();});
+      setTimeout(function(){openGuardianStart(id);},400);
+    }
+  };
+}
+function openGuardianStart(id){
+  var w=App.permit.byId(id);
+  UI.drawer('<div class="alert green">✓ 现场确认全部通过，作业票已就绪。</div>'+
+    '<div class="desc desc-2">'+
+      '<div class="d-item"><span class="d-label">作业票</span><span class="d-value">'+w.code+'</span></div>'+
+      '<div class="d-item"><span class="d-label">作业内容</span><span class="d-value">'+w.workContent+'</span></div>'+
+      '<div class="d-item"><span class="d-label">监护人</span><span class="d-value">'+w.guardian+'</span></div>'+
+      '<div class="d-item"><span class="d-label">状态</span><span class="d-value">'+statusTag(w.status)+'</span></div>'+
+    '</div>',
+    {title:'现场执行 · '+w.code,
+     footer:'<button class="btn btn-outline" data-close>关闭</button><button class="btn btn-green" onclick="doStart(\''+id+'\')">开工 ▸</button>'});
+}
+
+/* ================= 执行动作 ================= */
+function doStart(id){
+  var w=App.permit.byId(id);document.querySelectorAll('.mask,.drawer').forEach(function(n){n.remove();});
+  UI.modal('<div class="alert warn">开工前必须确认现场位置并留存开工照片。现场操作建议在移动端完成，PC 原型保留同等校验。</div><div class="form-grid"><div class="form-item full"><span class="form-label">许可作业地点</span><input id="pcStartLocation" value="'+w.location+'" disabled></div><div class="form-item"><span class="form-label">位置校验 <span class="req">*</span></span><select id="pcLocationPassed"><option value="1">定位通过</option><option value="0">定位异常</option></select></div><div class="form-item full"><span class="form-label">定位异常说明</span><textarea id="pcLocationNote" placeholder="定位异常时必须说明"></textarea></div><div class="form-item"><span class="form-label">开工照片 <span class="req">*</span></span><div id="pcStartPhoto" class="photo-box" style="height:60px" onclick="mockPhoto(this)"><span>+ 留存开工照片</span></div></div></div>',{title:'开工确认 · '+w.code,footer:'<button class="btn btn-outline" data-close>取消</button><button class="btn btn-green" onclick="confirmStart(\''+id+'\')">确认开工</button>'});
+}
+function confirmStart(id){var pass=document.getElementById('pcLocationPassed').value==='1',note=document.getElementById('pcLocationNote').value.trim(),photo=document.getElementById('pcStartPhoto');if(!pass&&!note){App.toast('定位异常时必须填写说明','error');return;}if(!photo.dataset.done){App.toast('请留存开工照片','error');return;}var result=App.permit.start(id,{location:document.getElementById('pcStartLocation').value,locationPassed:pass,locationException:note,photo:true});if(result&&result.ok){document.querySelectorAll('.modal').forEach(function(n){n.remove();});App.toast('作业已开工，状态：执行中');route();}}
+function doPause(id){
+  App.permit.pause(id);
+  App.toast('作业已暂停','warn');
+  route();
+}
+function doResume(id){
+  App.permit.resume(id);
+  route();
+}
+function doComplete(id){
+  var result=App.permit.complete(id);
+  if(!result||!result.ok)return;
+  App.toast('已申请完工验收，等待安环验收');
+  route();
+}
+function doAccept(id){
+  var w=App.permit.byId(id);
+  UI.drawer(
+    '<div class="alert info">完工验收核对：人员撤离 / 工具清点 / 现场清理 / 隔离恢复 / 遗留风险。</div>'+
+    '<div class="form-grid">'+
+      '<div class="form-item"><span class="form-label">人员撤离</span><select><option>已确认</option></select></div>'+
+      '<div class="form-item"><span class="form-label">工具清点</span><select><option>已确认</option></select></div>'+
+      '<div class="form-item"><span class="form-label">现场清理</span><select><option>已确认</option></select></div>'+
+      '<div class="form-item"><span class="form-label">隔离恢复</span><select><option>已确认</option></select></div>'+
+      '<div class="form-item full"><span class="form-label">遗留风险</span><input placeholder="无" value="无"></div>'+
+    '</div>',
+    {title:'完工验收 · '+w.code,
+     footer:'<button class="btn btn-outline" data-close>取消</button><button class="btn btn-green" onclick="doArchive(\''+id+'\')">验收通过并归档</button>'});
+}
+function doArchive(id){
+  App.permit.acceptAndArchive(id);
+  document.querySelectorAll('.mask,.drawer').forEach(function(n){n.remove();});
+  route();
+}
+
+/* ================= 新建作业票 ================= */
+function openCreatePermit(){
+  UI.modal('<div class="alert info">作业负责人、监护人和作业人员均从企业微信在职人员中选择，原型不允许手工输入姓名。</div><div class="form-grid">'+
+    '<div class="form-item"><span class="form-label">作业类型 <span class="req">*</span></span><select id="wpType"><option value="hotwork">动火作业</option><option value="height">高处作业</option><option value="power">临时用电</option><option value="confined">有限空间</option></select></div>'+ 
+    '<div class="form-item"><span class="form-label">作业级别 <span class="req">*</span></span><select id="wpLevel"><option>三级</option><option>二级</option><option>一级</option><option>特级</option></select></div>'+
+    '<div class="form-item full"><span class="form-label">作业地点</span><input id="wpLoc" placeholder="如：自动线组造型工位"></div>'+
+    '<div class="form-item full"><span class="form-label">作业内容 <span class="req">*</span></span><textarea id="wpContent" placeholder="作业内容与步骤…"></textarea></div>'+
+    '<div class="form-item"><span class="form-label">作业负责人 <span class="req">*</span></span><select id="wpLeader">'+directoryOptions('P-004')+'</select><div class="field-hint">来源：企业微信组织人员</div></div>'+ 
+    '<div class="form-item"><span class="form-label">监护人 <span class="req">*</span></span><select id="wpGuardians" multiple size="6">'+directoryOptions('P-001')+'</select><div class="field-hint">可多选；监护人与作业人员分别选择，不能为同一人员。</div></div>'+ 
+    '<div class="form-item full"><span class="form-label">作业人员 <span class="req">*</span></span><select id="wpWorkers" multiple size="6">'+directoryOptions('P-004')+'</select><div class="field-hint">按住 Ctrl 可多选；每名人员分别进行证书资格校验。</div></div>'+
+    '<div class="form-item"><span class="form-label">开始时间</span><input id="wpStart" value="2026-08-01 15:00"></div>'+
+    '<div class="form-item"><span class="form-label">结束时间</span><input id="wpEnd" value="2026-08-01 18:00"></div>'+
+    '<div class="form-item full"><span class="form-label">安全方案</span><textarea id="wpPlan" placeholder="安全方案与应急…"></textarea></div>'+
+  '</div>',{title:'新建作业票',size:'lg',footer:'<button class="btn btn-outline" data-close>取消</button><button class="btn btn-primary" id="wpOk">创建并资格校验</button>'});
+  document.getElementById('wpOk').onclick=function(){
+    var content=document.getElementById('wpContent').value.trim(),locationValue=document.getElementById('wpLoc').value.trim(),leader=directoryPerson(document.getElementById('wpLeader').value),guardianIds=[].slice.call(document.getElementById('wpGuardians').selectedOptions).map(function(x){return x.value;}),guardians=guardianIds.map(directoryPerson).filter(function(p){return p.id;}),workerIds=[].slice.call(document.getElementById('wpWorkers').selectedOptions).map(function(x){return x.value;}),workers=workerIds.map(directoryPerson).filter(function(p){return p.id;});
+    if(!content||!locationValue||!leader.id||!guardians.length||!workers.length){App.toast('请完整填写地点、内容，并从企业微信选择负责人、至少一名监护人和作业人员','error');return;}
+    if(guardians.some(function(g){return workerIds.indexOf(g.id)>-1;})){App.toast('监护人与作业人员必须分别选择，不能为同一人员','error');return;}
+    var typeKey=document.getElementById('wpType').value;
+    var workLevel=document.getElementById('wpLevel').value,plannedStart=document.getElementById('wpStart').value,plannedEnd=document.getElementById('wpEnd').value,startAt=Date.parse(plannedStart.replace(/-/g,'/')),endAt=Date.parse(plannedEnd.replace(/-/g,'/'));
+    if(!startAt||!endAt||endAt<=startAt){App.toast('请填写有效的作业开始和结束时间','error');return;}
+    if(typeKey==='hotwork'&&workLevel==='一级'&&endAt-startAt>8*60*60*1000){App.toast('一级动火单次作业时间最多 8 小时','error');return;}
+    var requiredCert={hotwork:'动火作业证',height:'高处作业证',power:'电工作业证',confined:'有限空间作业证'}[typeKey];
+    var applicant=(App.directoryMembers||[]).filter(function(p){return p.name===App.currentUser();})[0]||directoryPerson('P-001'),permitOrg=String(App.currentOrg||'').indexOf('智能加工配送中心')>-1?'智能加工配送中心':'造型作业区';
+    var people=workers.map(function(p){return {id:uid(),personId:p.id,weComId:p.weComId,user:p.name,role:'作业人员',certRequired:true,requiredCert:requiredCert,qualification:'待校验',checkedAt:now()};});
+    guardians.forEach(function(guardian){people.push({id:uid(),personId:guardian.id,weComId:guardian.weComId,user:guardian.name,role:'监护人',certRequired:true,requiredCert:'安全管理人员资格证',qualification:'待校验',checkedAt:now()});});
+    var w={id:uid(),code:'WP-'+dstr()+'-'+seq('wp'),type:TYPE_KEYS[typeKey],typeKey:typeKey,
+      org:permitOrg,location:locationValue,workContent:content,
+      applicant:applicant.name,applicantPersonId:applicant.id,workLeader:leader.name,workLeaderPersonId:leader.id,guardian:guardians.map(function(g){return g.name;}).join('、'),guardians:guardians.map(function(g){return g.name;}),guardianPersonIds:guardians.map(function(g){return g.id;}),guardianRequired:true,
+      plannedStart:plannedStart,plannedEnd:plannedEnd,workLevel:workLevel,riskLevel:'较大',status:'资格校验失败',createdAt:now(),
+      safetyPlan:document.getElementById('wpPlan').value||'按标准作业方案执行。',emergencyPlan:'按应急预案执行。',
+      persons:people,
+      risks:[{id:uid(),ref:null,hazard:'作业过程危险因素',control:'按安全方案控制',confirmed:true}],
+      checks:[{id:uid(),type:'隔离',text:'作业区域已隔离警戒',result:'未确认'},{id:uid(),type:'人员',text:'人员证书有效、监护人到位',result:'未确认'},{id:uid(),type:'防护',text:'劳保穿戴齐全',result:'未确认'}],
+      actions:[{type:'创建',at:now(),by:App.currentUser(),note:'提交作业申请'}],
+      qualificationFailed:false};
+    App.workPermits.unshift(w);
+    var result=App.permit.qualificationCheck(w.id);
+    App.toast(result.ok?'作业票已创建，资格校验通过':'作业票已创建，但资格校验阻断，请维护有效证书后重新校验',result.ok?'success':'warn');
+    document.querySelectorAll('.modal').forEach(function(n){n.remove();});
+    route();
+  };
+}
+
+/* ================= 作业类型 × 级别审批矩阵 ================= */
+function openPermitRules(){
+  var levels=['三级','二级','一级','特级'],rules=App.permitApprovalRules||{};
+  UI.drawer('<div class="alert warn"><b>业务确认边界：</b>以下为可交互的演示默认矩阵，四类作业的正式审批岗位须由业务单位签字确认后再固化；集团监督检查不参与特殊作业审批。</div><div class="tbl-wrap"><table class="tbl"><thead><tr><th>作业类型</th>'+levels.map(function(x){return '<th>'+x+'</th>';}).join('')+'</tr></thead><tbody>'+Object.keys(TYPE_KEYS).map(function(key){var rule=rules[key]||{base:[],levels:{}};return '<tr><td><b>'+TYPE_KEYS[key]+'</b><br><span class="muted">固定前置：'+(rule.base||[]).join(' → ')+'</span></td>'+levels.map(function(level){var path=(rule.base||[]).concat((rule.levels||{})[level]||[]);return '<td><div>'+path.join(' → ')+'</div><button class="btn btn-text" onclick="openPermitRuleEditor(\''+key+'\',\''+level+'\')">编辑该级别</button></td>';}).join('')+'</tr>';}).join('')+'</tbody></table></div>',{title:'特殊作业审批规则',wide:true,footer:'<button class="btn btn-outline" data-close>关闭</button>'});
+}
+function openPermitRuleEditor(typeKey,level){
+  var rule=(App.permitApprovalRules||{})[typeKey],selected=((rule&&rule.levels&&rule.levels[level])||[]),fixed=(rule&&rule.base)||[];
+  UI.modal('<div class="alert info">固定前置节点：<b>'+fixed.join(' → ')+'</b>。以下只配置该作业级别的后续审批岗位。</div><div class="check-grid">'+(App.permitApprovalPostOptions||[]).filter(function(p){return fixed.indexOf(p)<0;}).map(function(p){return '<label><input type="checkbox" class="permitRulePost" value="'+p+'" '+(selected.indexOf(p)>-1?'checked':'')+'> '+p+'</label>';}).join('')+'</div><div class="field-hint">勾选顺序按页面岗位字典顺序生成。正式规则需业务确认，不应由原型自行决定。</div>',{title:TYPE_KEYS[typeKey]+' · '+level+'审批岗位',size:'lg',footer:'<button class="btn btn-outline" data-close>取消</button><button class="btn btn-primary" id="permitRuleSave">保存演示规则</button>'});
+  document.getElementById('permitRuleSave').onclick=function(){var posts=[].slice.call(document.querySelectorAll('.permitRulePost:checked')).map(function(n){return n.value;});if(!posts.length){App.toast('至少保留一个级别审批岗位','error');return;}App.permitApprovalRules[typeKey].levels[level]=posts;App.workPermits.forEach(function(w){w.approvalPath=App.approvalPathFor(w);if(w.status==='审批中')w.currentApprovalNode=w.approvalPath[w.approvalIndex||0]||null;});App.log('特殊作业','[审批规则演示配置] '+TYPE_KEYS[typeKey]+' '+level+' → '+posts.join(' → '));App._emit();document.querySelectorAll('.modal,.mask,.drawer').forEach(function(n){n.remove();});App.toast('演示审批规则已保存','success');openPermitRules();};
+}
+
+/* ================= 工具 ================= */
+function dstr(){var d=new Date();return String(d.getFullYear())+pad(d.getMonth()+1)+pad(d.getDate());}
+function pad(n){return String(n).padStart(2,'0');}
+function seq(p){App._seq[p]=(App._seq[p]||0)+1;return String(App._seq[p]).padStart(2,'0');}
+function now(){var d=new Date();return d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate())+' '+pad(d.getHours())+':'+pad(d.getMinutes());}
+function uid(){return 'ID-'+Date.now().toString(36)+Math.random().toString(36).slice(2,6);}
+function mockPhoto(box){box.dataset.done='1';box.innerHTML='<span style="font-size:11px;color:#0B7A1C">✓ 已留证（模拟）</span>';box.style.borderColor='#00AA1C';box.style.background='#F0FFF2';}
+
+/* ================= 路由 ================= */
+function route(){
+  if(tab==='ledger')viewLedger();
+  else if(tab==='review')viewReview();
+  else if(tab==='approve')viewApprove();
+  else if(tab==='execute')viewExecute();
+  else if(tab==='archived')viewArchived();
+  else viewLedger();
+}
+window.openPermit=openPermit;window.openApproval=openApproval;window.doApproval=doApproval;window.requestPermitChange=requestPermitChange;window.requestExtension=requestExtension;window.submitExtension=submitExtension;window.openExtensionApproval=openExtensionApproval;window.doExtensionApproval=doExtensionApproval;
+window.openGuardian=openGuardian;window.fixQualification=fixQualification;window.openCertificateLedger=openCertificateLedger;window.mockPhoto=mockPhoto;
+window.doStart=doStart;window.confirmStart=confirmStart;window.doPause=doPause;window.doResume=doResume;window.doComplete=doComplete;window.doAccept=doAccept;
+window.renderLedger=renderLedger;window.openCreatePermit=openCreatePermit;window.openPermitMap=openPermitMap;
+window.openPermitRules=openPermitRules;window.openPermitRuleEditor=openPermitRuleEditor;
+window.openGuardianStart=openGuardianStart;window.doArchive=doArchive;
+window.drill=function(){};
+route();
+if(params.get('id'))setTimeout(function(){openPermit(params.get('id'));},0);
+})();
+</script>
+</body>
+</html>

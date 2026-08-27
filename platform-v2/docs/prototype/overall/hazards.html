@@ -1,0 +1,468 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>隐患治理与督办 · 安全管理平台</title>
+<link rel="icon" href="assets/logo.svg">
+<link rel="stylesheet" href="assets/app.css">
+</head>
+<body>
+<div class="app">
+  <div class="topbar"></div>
+  <div class="body">
+    <aside class="sidebar"><div class="nav-tree"></div></aside>
+    <div class="content">
+      <div class="page-header"></div>
+      <div class="page-body" id="pageBody"></div>
+    </div>
+  </div>
+</div>
+<script src="assets/store.js"></script>
+<script src="assets/oa-bridge.js"></script>
+<script src="assets/ui.js"></script>
+<script>
+(function(){
+"use strict";
+var params=new URLSearchParams(location.search);
+var tab=params.get('tab')||'overview';
+var body=document.getElementById('pageBody');
+UI.renderShell('hazards',tab);
+var TITLES={overview:'隐患总览',ledger:'隐患台账','mine-rect':'待我整改','mine-review':'待我复查',professional:'专业检查台账',supervision:'隐患督办',stats:'统计分析'};
+UI.pageHeader(['隐患治理与督办',TITLES[tab]],TITLES[tab]);
+
+var STATUS_TAG={'待受理':'<span class="tag tag-warn">待受理</span>','待整改':'<span class="tag tag-blue">待整改</span>',
+  '整改中':'<span class="tag tag-warn">整改中</span>','待复查':'<span class="tag tag-purple">待复查</span>','已闭环':'<span class="tag tag-green">已闭环</span>','不受理关闭':'<span class="tag tag-gray">不受理关闭</span>','审批中':'<span class="tag tag-warn">审批中</span>','驳回起草人':'<span class="tag tag-error">驳回起草人</span>','已拒绝':'<span class="tag tag-error">已拒绝</span>','已撤销':'<span class="tag tag-gray">已撤销</span>','已终止':'<span class="tag tag-gray">已终止</span>'};
+function tagOfStatus(s){return STATUS_TAG[s]||('<span class="tag tag-gray">'+s+'</span>');}
+function esc(v){return String(v==null?'':v).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];});}
+  function sevTag(s){return s==='重大'?'<span class="tag tag-error">重大隐患</span>':s==='一般'?'<span class="tag tag-common">一般隐患</span>':'<span class="tag tag-warn">未定级</span>';}
+function sourceLabel(h){return h.sourceLabel||App.sourceLabel(h.source);}
+function hazardStatusCell(h){if(h.source==='HSE_SUPERVISION'&&h.oaStatus==='审批中'&&h.oaStatusUrl)return '<button class="btn btn-text" title="在新窗口打开 OA 审批状态" onclick="openOaApprovalForHazard(\''+h.id+'\')">审批中</button>';return tagOfStatus(h.status);}
+function openOaApprovalForHazard(id){var h=App.hazard.byId(id);if(!h||!h.oaStatusUrl){App.toast('OA 尚未返回审批状态链接','warn');return;}window.open(h.oaStatusUrl,'oa_supervision_'+id);}
+function canAccept(h){return App.hazard&&App.hazard.canAccept?App.hazard.canAccept(h):false;}
+function acceptRoleName(h){var key=App.hazard.acceptRole(h),map={section_manager:'工段/作业区负责人',company_safety:'二级单位安全管理人员',group_safety:'集团监督检查'};return map[key]||'无需受理';}
+function visibleHazards(){
+  var scoped=App.hazards.filter(function(h){return !App.inCurrentOrgScope||App.inCurrentOrgScope(h.org);});
+  if(App.currentRole!=='professional_inspector')return scoped;
+  return scoped.filter(function(h){return h.source==='PROFESSIONAL_DEPT_CHECK'&&(!h.professionalDeptId||h.professionalDeptId==='equipment_energy');});
+}
+function hazardUsers(){return (App.directoryMembers||[]).filter(function(p){return p.status==='在职';}).map(function(p){return {id:p.id,weComId:p.weComId,name:p.name,dept:p.org,post:p.post};});}
+function personSelect(id,value){return '<select id="'+id+'">'+hazardUsers().map(function(u){return '<option value="'+u.id+'" '+(u.id===value?'selected':'')+'>'+esc(u.name)+' · '+esc(u.dept)+' · '+esc(u.post)+'</option>';}).join('')+'</select>';}
+function overdue(h){var final=['已闭环','不受理关闭','已拒绝','已撤销','已终止','已作废'],due=h.deadline&&Date.parse(String(h.deadline).replace(/-/g,'/'));return !!(due&&due<Date.now()&&final.indexOf(h.status)<0&&h.status!=='待受理');}
+
+/* ================= 隐患总览 ================= */
+function viewOverview(){
+  var hs=visibleHazards();
+  var pending=hs.filter(function(h){return h.status==='待受理';}).length;
+  var recting=hs.filter(function(h){return h.status==='待整改'||h.status==='整改中';}).length;
+  var review=hs.filter(function(h){return h.status==='待复查';}).length;
+  var closed=hs.filter(function(h){return h.status==='已闭环'||h.status==='不受理关闭';}).length;
+  var overdueCount=hs.filter(overdue).length;
+  body.innerHTML=
+  '<div class="kpi-grid g5">'+
+    '<div class="kpi clickable" onclick="location.href=\'hazards.html?tab=ledger&st=待受理\'"><div class="k-label">待受理</div><div class="k-num warn">'+pending+'</div><div class="k-sub">含巡检转来</div></div>'+
+    '<div class="kpi clickable" onclick="location.href=\'hazards.html?tab=mine-rect\'"><div class="k-label">待整改/整改中</div><div class="k-num blue">'+recting+'</div><div class="k-sub">责任部门执行中</div></div>'+
+    '<div class="kpi clickable" onclick="location.href=\'hazards.html?tab=mine-review\'"><div class="k-label">待复查</div><div class="k-num purple">'+review+'</div><div class="k-sub">待作业区负责人复查</div></div>'+ 
+    '<div class="kpi"><div class="k-label">已闭环</div><div class="k-num green">'+closed+'</div><div class="k-sub">复查通过</div></div>'+
+    '<div class="kpi clickable" onclick="location.href=\'hazards.html?tab=ledger&overdue=1\'"><div class="k-label">逾期隐患</div><div class="k-num danger">'+overdueCount+'</div><div class="k-sub">按整改期限判断</div></div>'+ 
+  '</div>'+
+  '<div class="grid-2-1" style="margin-top:16px">'+
+    '<div class="card"><div class="card-title">隐患台账一览</div><div class="tbl-wrap"><table class="tbl"><thead><tr><th>编号</th><th>标题</th><th>等级</th><th>状态</th><th>责任人</th><th>期限</th><th>操作</th></tr></thead><tbody>'+
+    hs.map(function(h){return '<tr><td class="mono">'+h.code+'</td><td>'+h.title+'</td><td>'+sevTag(h.severity)+'</td><td>'+hazardStatusCell(h)+'</td><td>'+(h.responsibleUser||'-')+'</td><td>'+(h.deadline||'-')+'</td>'+
+      '<td><button class="btn btn-text" onclick="openHazard(\''+h.id+'\')">详情</button></td></tr>';}).join('')+
+    '</tbody></table></div></div>'+
+    '<div class="card"><div class="card-title">业务闭环</div>'+
+    '<div style="display:flex;flex-direction:column;gap:10px">'+
+      '<button class="btn btn-primary" onclick="openRegister()">+ 登记隐患</button>'+
+       '<button class="btn btn-outline" onclick="location.href=\'hazards.html?tab=supervision\'">隐患督办（'+App.supervisions.filter(function(s){return s.status!=='已关闭';}).length+' 活跃）</button>'+
+      '<button class="btn btn-outline" onclick="location.href=\'hazards.html?tab=stats\'">统计分析</button>'+
+    '</div>'+
+    '<div class="hint-line" style="margin-top:14px">巡检、随手拍进入受理、整改、复查闭环；集团监督检查走 OA；集团专业检查记录考核责任人和罚款后提交即形成已闭环台账，不进入整改流程。</div></div>'+ 
+  '</div>';
+}
+
+/* ================= 隐患台账 ================= */
+function viewLedger(){
+  var stParam=params.get('st'),openOnly=params.get('open')==='1',overdueOnly=params.get('overdue')==='1';
+  body.innerHTML=
+  '<div class="filter-bar">'+
+    '<div class="f-item">状态 <select id="fStatus"><option value="">全部</option><option>审批中</option><option>驳回起草人</option><option>待受理</option><option>待整改</option><option>整改中</option><option>待复查</option><option>已闭环</option><option>不受理关闭</option><option>已拒绝</option><option>已撤销</option><option>已终止</option></select></div>'+
+    '<div class="f-item">来源 <select id="fSource"><option value="">全部</option><option value="INSPECTION">巡检发现</option><option value="MOBILE_REPORT">移动随手拍</option><option value="PROFESSIONAL_DEPT_CHECK">集团专业检查</option><option value="HSE_SUPERVISION">集团监督检查</option></select></div>'+ 
+    '<button class="btn btn-outline btn-sm" onclick="renderLedger()">查询</button>'+
+    '<button class="btn btn-primary btn-sm" style="margin-left:auto" onclick="openRegister()">+ 登记隐患</button>'+
+  '</div>'+
+  '<div class="tbl-wrap"><table class="tbl"><thead><tr><th>隐患编号</th><th>隐患标题</th><th>位置</th><th>来源</th><th>等级</th><th>关联风险</th><th>状态</th><th>责任人</th><th>整改期限</th><th>操作</th></tr></thead><tbody id="ledgerBody">'+
+  '</tbody></table></div>';
+  if(stParam){setTimeout(function(){document.getElementById('fStatus').value=stParam;renderLedger();},0);}
+  else renderLedger();
+}
+function renderLedger(){
+  var st=document.getElementById('fStatus')?document.getElementById('fStatus').value:'';
+  var src=document.getElementById('fSource')?document.getElementById('fSource').value:'';
+  var openOnly=params.get('open')==='1',overdueOnly=params.get('overdue')==='1',openStatuses=['待受理','待整改','整改中','待复查'];
+  var rows=visibleHazards().filter(function(h){return (!st||h.status===st)&&(!src||h.source===src)&&(!openOnly||openStatuses.indexOf(h.status)>-1)&&(!overdueOnly||overdue(h));});
+  document.getElementById('ledgerBody').innerHTML=rows.map(function(h){
+    return '<tr><td class="mono">'+h.code+'</td><td>'+h.title+'</td><td>'+esc(h.location||'-')+'</td><td><span class="tag tag-gray">'+sourceLabel(h)+'</span></td>'+
+    '<td>'+sevTag(h.severity)+'</td><td>'+(h.riskCode||'-')+'</td><td>'+hazardStatusCell(h)+'</td>'+
+    '<td>'+(h.responsibleUser||'-')+'</td><td>'+(h.deadline||'-')+'</td>'+
+    '<td><button class="btn btn-text" onclick="openHazard(\''+h.id+'\')">详情</button>'+
+    (h.status==='待受理'&&canAccept(h)?'<button class="btn btn-text" onclick="openAccept(\''+h.id+'\')">受理</button>':'')+
+    (h.status==='待复查'?'<button class="btn btn-text" onclick="openReview(\''+h.id+'\')">复查</button>':'')+
+    (h.status==='待整改'||h.status==='整改中'?'<button class="btn btn-text" onclick="openRectify(\''+h.id+'\')">整改反馈</button>':'')+
+    (overdue(h)?'<button class="btn btn-text danger" onclick="suggestSup(\''+h.id+'\')">逾期督办建议</button>':'')+'</td></tr>';
+  }).join('')||UI.empty('暂无隐患');
+}
+
+/* ================= 待我整改 ================= */
+function viewMineRect(){
+  var rows=visibleHazards().filter(function(h){return h.status==='待整改'||h.status==='整改中';});
+  body.innerHTML=
+  '<div class="tbl-wrap"><table class="tbl"><thead><tr><th>隐患编号</th><th>标题</th><th>等级</th><th>整改期限</th><th>状态</th><th>操作</th></tr></thead><tbody>'+ 
+  rows.map(function(h){return '<tr><td class="mono">'+h.code+'</td><td>'+h.title+'</td><td>'+sevTag(h.severity)+'</td><td>'+h.deadline+'</td><td>'+tagOfStatus(h.status)+'</td>'+
+    '<td><button class="btn btn-primary btn-sm" onclick="openRectify(\''+h.id+'\')">提交整改反馈</button></td></tr>';}).join('')||
+  UI.empty('暂无待整改任务')+'</tbody></table></div>';
+}
+
+/* ================= 待我复查 ================= */
+function viewMineReview(){
+  var rows=visibleHazards().filter(function(h){return h.status==='待复查';});
+  body.innerHTML=
+  '<div class="tbl-wrap"><table class="tbl"><thead><tr><th>隐患编号</th><th>标题</th><th>整改情况说明</th><th>提交时间</th><th>操作</th></tr></thead><tbody>'+
+  rows.map(function(h){return '<tr><td class="mono">'+h.code+'</td><td>'+h.title+'</td>'+
+    '<td>'+(h.rectification?h.rectification.completed:'-')+'</td><td>'+(h.rectification?h.rectification.submittedAt:'-')+'</td>'+
+    '<td><button class="btn btn-primary btn-sm" onclick="openReview(\''+h.id+'\')">复查验收 ▸</button></td></tr>';}).join('')||
+  UI.empty('暂无待复查隐患')+'</tbody></table></div>';
+}
+
+/* ================= 隐患详情与操作 ================= */
+function hazardTimeline(h){
+  return '<div class="section-head"><h3>操作时间线</h3></div><ul class="timeline">'+
+  h.actions.map(function(a){return '<li><div class="t-date">'+a.at+'</div><div class="t-title">'+a.type+'</div>'+
+    '<div class="t-note">'+(a.note||'')+'</div><div class="t-actor">操作人：'+a.by+'</div></li>';}).join('')+'</ul>';
+}
+function openHazard(id){
+  var h=App.hazard.byId(id);
+  if(!h||visibleHazards().indexOf(h)<0){App.toast('当前角色或组织范围无权查看该记录','error');return;}
+  UI.drawer(
+    '<div class="desc desc-2">'+
+      '<div class="d-item"><span class="d-label">隐患编号</span><span class="d-value">'+h.code+'</span></div>'+
+      '<div class="d-item"><span class="d-label">标题</span><span class="d-value">'+h.title+'</span></div>'+
+      '<div class="d-item"><span class="d-label">来源</span><span class="d-value">'+sourceLabel(h)+(h.sourceRef?'（'+h.sourceRef+'）':'')+'</span></div>'+
+      '<div class="d-item"><span class="d-label">等级</span><span class="d-value">'+sevTag(h.severity)+'</span></div>'+
+      '<div class="d-item"><span class="d-label">关联风险</span><span class="d-value">'+(h.riskCode||'-')+'</span></div>'+
+      '<div class="d-item"><span class="d-label">位置</span><span class="d-value">'+h.location+'</span></div>'+ 
+      '<div class="d-item"><span class="d-label">填报人</span><span class="d-value">'+(h.reporter||'-')+'</span></div>'+ 
+      '<div class="d-item"><span class="d-label">责任部门</span><span class="d-value">'+(h.responsibleDept||'-')+'</span></div>'+
+      '<div class="d-item"><span class="d-label">责任人</span><span class="d-value">'+(h.responsibleUser||'-')+'</span></div>'+ 
+      '<div class="d-item"><span class="d-label">整改期限</span><span class="d-value">'+(h.deadline||'-')+'</span></div>'+ 
+      '<div class="d-item"><span class="d-label">受理人</span><span class="d-value">'+(h.acceptedBy||'-')+'</span></div>'+ 
+      '<div class="d-item"><span class="d-label">受理时间</span><span class="d-value">'+(h.acceptedAt||'-')+'</span></div>'+ 
+      '<div class="d-item"><span class="d-label">应受理岗位</span><span class="d-value">'+acceptRoleName(h)+'</span></div>'+ 
+      (h.source==='PROFESSIONAL_DEPT_CHECK'?'<div class="d-item"><span class="d-label">检查部门</span><span class="d-value">'+(h.inspectionDept||'-')+'</span></div><div class="d-item"><span class="d-label">考核责任人/金额</span><span class="d-value">'+(h.assessmentResponsible||'-')+' / '+(h.penaltyAmount==null?'0':h.penaltyAmount)+' 元</span></div><div class="d-item"><span class="d-label">台账方式</span><span class="d-value">直接登记已闭环</span></div>':'')+
+      (h.source==='HSE_SUPERVISION'?'<div class="d-item"><span class="d-label">检查部门</span><span class="d-value">'+(h.inspectionDept||'-')+'</span></div><div class="d-item"><span class="d-label">考核责任人/金额</span><span class="d-value">'+(h.assessmentResponsible||'待 OA 最终回传')+' / '+(h.penaltyAmount==null?'待回传':h.penaltyAmount+' 元')+'</span></div><div class="d-item"><span class="d-label">流转方式</span><span class="d-value">平台发起 OA；不展示 OA 流程</span></div>':'')+
+      (h.source==='HSE_SUPERVISION'?'<div class="d-item"><span class="d-label">OA 实例</span><span class="d-value">'+(h.oaInstanceId||'-')+'</span></div><div class="d-item"><span class="d-label">OA 状态</span><span class="d-value">'+(h.oaStatus==='审批中'?'<button class="btn btn-text" onclick="openOaApprovalForHazard(\''+h.id+'\')">审批中</button>':tagOfStatus(h.oaStatus))+'</span></div>':'')+
+      (h.source==='MOBILE_REPORT'?'<div class="d-item"><span class="d-label">奖励资格</span><span class="d-value">'+(h.rewardEligible?(h.rewardStatus||'待评定'):'不参与奖励')+'</span></div>':'')+
+      '<div class="d-item full"><span class="d-label">受理意见</span><span class="d-value">'+(h.acceptanceOpinion||'-')+'</span></div>'+ 
+      '<div class="d-item full"><span class="d-label">整改要求</span><span class="d-value">'+(h.rectificationRequirement||'-')+'</span></div>'+ 
+      (h.status==='不受理关闭'?'<div class="d-item full"><span class="d-label">不受理原因</span><span class="d-value">'+esc(h.rejectionReason||'-')+'</span></div>':'')+
+      '<div class="d-item"><span class="d-label">发现照片</span><span class="d-value">'+(h.sourceEvidence&&h.sourceEvidence.photo?'<span class="tag tag-green">已带入来源照片</span>':'<span class="tag tag-gray">未留存</span>')+'</span></div>'+ 
+      '<div class="d-item"><span class="d-label">状态</span><span class="d-value">'+hazardStatusCell(h)+'</span></div>'+
+      '<div class="d-item full"><span class="d-label">描述</span><span class="d-value">'+h.description+'</span></div>'+
+    '</div>'+
+    (h.rectification?'<div class="section-head"><h3>整改反馈</h3></div><div class="desc desc-2">'+
+      '<div class="d-item full"><span class="d-label">整改情况说明</span><span class="d-value">'+(h.rectification.summary||h.rectification.completed||h.rectification.plan||'-')+'</span></div>'+
+      '<div class="d-item"><span class="d-label">整改前照片</span><span class="d-value">'+(h.rectification.evidenceBefore?'<span class="tag tag-green">已带入发现照片</span>':'<span class="tag tag-gray">未留存</span>')+'</span></div>'+ 
+      '<div class="d-item"><span class="d-label">整改后照片</span><span class="d-value">'+(h.rectification.evidenceAfter?'<span class="tag tag-green">已上传</span>':'<span class="tag tag-warn">未上传</span>')+'</span></div>'+ 
+      '<div class="d-item"><span class="d-label">复查状态</span><span class="d-value">'+(h.rectification.reviewStatus||'-')+'</span></div></div>':'')+
+    hazardTimeline(h),
+    {title:'隐患详情 · '+h.code,wide:true,
+     footer:'<button class="btn btn-outline" data-close>关闭</button>'+
+      (h.status==='待受理'&&canAccept(h)?'<button class="btn btn-primary" onclick="closeDrawerOpenAccept(\''+h.id+'\')">受理并分派</button>':'')+
+     (h.status==='待整改'||h.status==='整改中'?'<button class="btn btn-primary" onclick="closeDrawerOpenRectify(\''+h.id+'\')">提交整改反馈</button>':'')+
+     (h.status==='待复查'?'<button class="btn btn-primary" onclick="closeDrawerOpenReview(\''+h.id+'\')">复查验收</button>':'')+
+     (h.source==='HSE_SUPERVISION'&&h.status==='驳回起草人'?'<button class="btn btn-primary" onclick="editSupervisionDraft(\''+h.id+'\')">继续编辑并按原 OA 重提</button>':'')}
+  );
+}
+function closeDrawerOpenAccept(id){document.querySelectorAll('.mask,.drawer').forEach(function(n){n.remove();});openAccept(id);}
+function closeDrawerOpenRectify(id){document.querySelectorAll('.mask,.drawer').forEach(function(n){n.remove();});openRectify(id);}
+function closeDrawerOpenReview(id){document.querySelectorAll('.mask,.drawer').forEach(function(n){n.remove();});openReview(id);}
+
+function openAccept(id){
+  var h=App.hazard.byId(id);if(!h)return;
+  if(!canAccept(h)){App.toast('当前角色无受理权限，本隐患应由'+acceptRoleName(h)+'处理','error');return;}
+  var phrases=(App.hazardPhrases||[]).map(function(text,index){return '<button type="button" class="btn btn-outline btn-sm" onclick="applyAcceptancePhrase('+index+')">'+esc(text)+'</button>';}).join('');
+  UI.modal('<div class="alert info">受理人负责确认等级、整改责任人和期限；也可选择“不受理”并填写关闭原因。</div><div class="form-grid">'+
+    '<div class="form-item"><span class="form-label">受理人</span><input id="aAcceptor" value="'+App.currentUser()+'" disabled></div>'+ 
+    '<div class="form-item"><span class="form-label">受理角色</span><input value="'+acceptRoleName(h)+'" disabled></div>'+ 
+    '<div class="form-item"><span class="form-label">确认等级 <span class="req">*</span></span><select id="aSev"><option>一般</option><option>重大</option></select></div>'+ 
+    '<div id="majorAcceptanceHint" class="form-item full" style="display:none"><div class="alert error" style="margin-bottom:0">重大隐患须升级确认并纳入重点管控。<label class="check-row" style="margin-top:8px"><input id="aMajorConfirmed" type="checkbox"> 已确认按重大隐患升级管控</label></div></div>'+ 
+    '<div class="form-item"><span class="form-label">整改期限</span><input id="aDeadline" value="2026-08-03"></div>'+
+    '<div class="form-item"><span class="form-label">责任部门</span><input id="aDept" value="造型作业区 / 自动线组" disabled><span class="field-hint">随所选企业微信人员自动带出</span></div>'+
+    '<div class="form-item"><span class="form-label">责任人</span>'+personSelect('aUser',h.responsiblePersonId||'P-001')+'<span class="field-hint">来源：企业微信在职人员</span></div>'+
+    '<div class="form-item full"><span class="form-label">常用整改要求</span><div class="inline-actions">'+phrases+'<button type="button" class="btn btn-text" onclick="manageAcceptancePhrases()">维护常用语</button></div></div>'+ 
+    '<div class="form-item full"><span class="form-label">受理意见</span><textarea id="aOpinion" placeholder="填写受理判断、分派依据或补充说明"></textarea></div>'+ 
+    '<div class="form-item full"><span class="form-label">整改要求 <span class="req">*</span></span><textarea id="aNote" placeholder="说明整改目标、要求或验收标准"></textarea></div>'+
+  '</div>',{title:'受理隐患 · 定级分派',footer:'<button class="btn btn-outline" data-close>取消</button><button class="btn btn-danger" onclick="rejectAcceptance(\''+id+'\')">不受理</button><button class="btn btn-primary" id="aOk">受理并分派</button>'});
+  document.getElementById('aSev').addEventListener('change',function(){document.getElementById('majorAcceptanceHint').style.display=this.value==='重大'?'block':'none';});
+  document.getElementById('aUser').addEventListener('change',function(){var u=hazardUsers().filter(function(x){return x.id===this.value;},this)[0];if(u)document.getElementById('aDept').value=u.dept;});
+  document.getElementById('aOk').onclick=function(){
+    var personId=document.getElementById('aUser').value,selected=hazardUsers().filter(function(u){return u.id===personId;})[0],chosen=selected&&selected.name;
+    if(!selected){App.toast('责任人需从企业微信组织人员中选择','error');return;}
+    if(document.getElementById('aSev').value==='重大'&&!document.getElementById('aMajorConfirmed').checked){App.toast('重大隐患必须完成升级确认','error');return;}
+    if(!document.getElementById('aNote').value.trim()){App.toast('请填写整改要求','error');return;}
+    var accepted=App.hazard.accept(id,document.getElementById('aSev').value,document.getElementById('aDept').value,
+      chosen,document.getElementById('aDeadline').value,document.getElementById('aNote').value.trim(),document.getElementById('aOpinion').value.trim(),personId);
+    if(!accepted||!accepted.ok)return;
+    App.toast('隐患已受理并分派给 '+chosen);
+    document.querySelectorAll('.modal').forEach(function(n){n.remove();});
+    route();
+  };
+}
+function applyAcceptancePhrase(index){var note=document.getElementById('aNote'),text=(App.hazardPhrases||[])[index];if(note&&text)note.value=text;}
+function manageAcceptancePhrases(){
+  var current=(App.hazardPhrases||[]).join('\n');
+  UI.modal('<div class="form-item"><span class="form-label">常用整改要求（每行一条，最多 3 条）</span><textarea id="phraseText" rows="6">'+esc(current)+'</textarea></div>',{title:'维护受理常用语',footer:'<button class="btn btn-outline" data-close>取消</button><button class="btn btn-primary" id="phraseOk">保存</button>'});
+  document.getElementById('phraseOk').onclick=function(){var rows=document.getElementById('phraseText').value.split(/\r?\n/).map(function(x){return x.trim();}).filter(Boolean).slice(0,3);if(!rows.length){App.toast('请至少保留一条常用语','error');return;}App.hazardPhrases=rows;App.persist();document.querySelectorAll('.modal').forEach(function(n){n.remove();});App.toast('常用语已保存，下次受理时生效','success');};
+}
+function rejectAcceptance(id){
+  UI.modal('<div class="form-item"><span class="form-label">不受理原因 <span class="req">*</span></span><textarea id="rejectReason" placeholder="说明不受理原因，记录将关闭并保留在台账"></textarea></div>',{title:'确认不受理',footer:'<button class="btn btn-outline" data-close>取消</button><button class="btn btn-danger" id="rejectOk">确认关闭</button>'});
+  document.getElementById('rejectOk').onclick=function(){var reason=document.getElementById('rejectReason').value.trim();if(!reason){App.toast('请填写不受理原因','error');return;}var result=App.hazard.reject(id,reason);if(!result||!result.ok)return;document.querySelectorAll('.modal').forEach(function(n){n.remove();});App.toast('已记录不受理原因并关闭','success');route();};
+}
+function openRectify(id){
+  var h=App.hazard.byId(id);
+  var before=h.sourceEvidence&&h.sourceEvidence.photo;
+  UI.drawer(
+    '<div class="alert info">隐患 <b>'+h.code+'</b>：'+h.title+'</div>'+
+    '<div class="form-grid">'+
+      '<div class="form-item full"><span class="form-label">整改情况说明 <span class="req">*</span></span><textarea id="rSummary" placeholder="说明采取的整改措施和实际完成结果"></textarea></div>'+
+      '<div class="form-item"><span class="form-label">整改前照片</span><div class="photo-box" style="height:70px;cursor:default;'+(before?'border-color:#00AA1C;background:#F0FFF2':'')+'"><span style="font-size:11px;color:'+(before?'#0B7A1C':'#7B8794')+'">'+(before?'✓ 已带入'+(h.sourceEvidence.label?'（'+h.sourceEvidence.label+'）':''):'来源未留存')+'</span></div></div>'+
+      '<div class="form-item"><span class="form-label">整改后照片 <span class="req">*</span></span><div id="rAfterPhoto" class="photo-box" style="height:70px" onclick="mockPhoto(this)"><span>+ 上传整改后照片</span></div></div>'+ 
+    '</div>',
+    {title:'提交整改反馈 · '+h.code,
+     footer:'<button class="btn btn-outline" data-close>取消</button><button class="btn btn-primary" id="rOk">提交整改反馈</button>'});
+  document.getElementById('rOk').onclick=function(){
+    var summary=document.getElementById('rSummary').value.trim(),after=!!document.getElementById('rAfterPhoto').dataset.done;
+    if(!summary){App.toast('请填写整改情况说明','error');return;}
+    if(!after){App.toast('请上传整改后照片','error');return;}
+    App.hazard.rectify(id,summary,after);
+    App.toast('整改反馈已提交，状态变为待复查');
+    document.querySelectorAll('.mask,.drawer').forEach(function(n){n.remove();});
+    route();
+  };
+}
+function openReview(id){
+  var h=App.hazard.byId(id);
+  if(App.currentRole!=='section_manager'){App.toast('整改复查由作业区负责人办理，当前角色仅可查看','error');return;}
+  UI.drawer(
+    '<div class="alert info">隐患 <b>'+h.code+'</b> 整改反馈（'+(h.rectification?h.rectification.submittedAt:'')+' 提交）：</div>'+
+    '<div class="desc desc-2">'+
+      '<div class="d-item full"><span class="d-label">整改情况说明</span><span class="d-value">'+(h.rectification?(h.rectification.summary||h.rectification.completed||h.rectification.plan):'-')+'</span></div>'+
+      '<div class="d-item full"><span class="d-label">照片证据</span><span class="d-value">整改前 '+(h.rectification&&h.rectification.evidenceBefore?'<span class="tag tag-green">已带入</span>':'<span class="tag tag-gray">未留存</span>')+'　整改后 '+(h.rectification&&h.rectification.evidenceAfter?'<span class="tag tag-green">已上传</span>':'<span class="tag tag-warn">未上传</span>')+'</span></div>'+ 
+    '</div>'+
+    '<div class="form-item" style="margin-top:14px"><span class="form-label">复查意见</span><textarea id="rvNote" placeholder="复查意见…"></textarea></div>',
+    {title:'复查验收 · '+h.code,
+     footer:'<button class="btn btn-outline" data-close>取消</button>'+
+      '<button class="btn btn-danger" onclick="doReview(\''+id+'\',0)">复查退回</button>'+
+      '<button class="btn btn-green" onclick="doReview(\''+id+'\',1)">复查通过 · 闭环</button>'});
+}
+function doReview(id,pass){
+  if(App.currentRole!=='section_manager'){App.toast('仅作业区负责人可办理复查','error');return;}
+  var note=document.getElementById('rvNote')?document.getElementById('rvNote').value.trim():'';
+  if(!note){App.toast('请填写复查意见','error');return;}
+  App.hazard.review(id,pass===1,note);
+  App.toast(pass===1?'隐患已闭环关闭':'已退回整改');
+  document.querySelectorAll('.mask,.drawer').forEach(function(n){n.remove();});
+  route();
+}
+function suggestSup(id){
+  var s=App.hazard.createOverdueSuggestion(id);if(!s)return;
+  UI.modal('<div class="alert warn">该隐患已逾期，确认后生成督办记录。</div>',{title:'确认逾期督办',footer:'<button class="btn btn-outline" data-close>取消</button><button class="btn btn-primary" id="suggestOk">确认督办</button>'});
+  document.getElementById('suggestOk').onclick=function(){var s2=App.hazard.authorizeSupervision(id,'逾期隐患督办', '2026-08-05');if(s2)App.supervision.receive(s2.id);document.querySelectorAll('.modal').forEach(function(n){n.remove();});App.toast('已生成督办记录 '+(s2?s2.code:'') ,'success');location.href='hazards.html?tab=supervision';};
+}
+
+/* ================= 隐患督办 ================= */
+function viewSupervision(){
+  var rows=App.supervisions;
+  body.innerHTML=
+  '<div class="tbl-wrap"><table class="tbl"><thead><tr><th>督办编号</th><th>督办事项</th><th>关联隐患</th><th>期限</th><th>状态</th><th>操作</th></tr></thead><tbody>'+ 
+  rows.map(function(s){
+    var related=App.hazards.filter(function(h){return h.code===s.hazardCode;})[0];
+    return '<tr><td class="mono">'+s.code+'</td><td>'+s.title+'</td><td><button class="btn btn-text" onclick="openHazard(\''+related.id+'\')">'+s.hazardCode+' ▸</button></td>'+
+    '<td>'+s.deadline+'</td>'+ 
+    '<td>'+(s.status==='已关闭'?'<span class="tag tag-green">已关闭</span>':s.status==='反馈中'?'<span class="tag tag-purple">反馈中</span>':s.status==='已接收'?'<span class="tag tag-blue">已接收</span>':'<span class="tag tag-warn">'+s.status+'</span>')+'</td>'+
+    '<td><button class="btn btn-text" onclick="openSup(\''+s.id+'\')">详情</button></td></tr>';
+  }).join('')+'</tbody></table></div>';
+}
+function openSup(id){
+  var s=App.supervision.byId(id);
+  var related=App.hazards.filter(function(h){return h.code===s.hazardCode;})[0];
+  UI.drawer(
+    '<div class="desc desc-2">'+
+      '<div class="d-item"><span class="d-label">督办编号</span><span class="d-value">'+s.code+'</span></div>'+
+      '<div class="d-item"><span class="d-label">关联隐患</span><span class="d-value">'+s.hazardCode+'（<button class="btn btn-text" style="padding:0" onclick="openHazard(\''+related.id+'\')">查看原隐患 ▸</button>）</span></div>'+
+      '<div class="d-item"><span class="d-label">发起方</span><span class="d-value">'+s.fromOrg+'</span></div>'+
+      '<div class="d-item"><span class="d-label">被督办方</span><span class="d-value">'+s.toOrg+'</span></div>'+
+      '<div class="d-item"><span class="d-label">督办期限</span><span class="d-value">'+s.deadline+'</span></div>'+
+      '<div class="d-item"><span class="d-label">状态</span><span class="d-value">'+s.status+'</span></div>'+
+      '<div class="d-item full"><span class="d-label">督办意见</span><span class="d-value">'+s.opinion+'</span></div>'+
+    '</div>'+
+    '<div class="section-head"><h3>进度反馈（'+s.feedbackCount+' 次）</h3></div>'+
+    (s.feedbacks.length?s.feedbacks.map(function(f){return '<div class="card" style="margin-bottom:10px;padding:12px 16px"><div style="display:flex;justify-content:space-between"><b style="font-size:13px">'+f.progress+'%</b><span class="tag tag-gray">'+f.at+' · '+f.by+'</span></div><p style="font-size:13px;margin-top:6px">'+f.text+'</p><span class="tag tag-green" style="margin-top:8px">含附件（模拟）</span></div>';}).join(''):'<div class="tbl-empty">暂无反馈</div>')+
+    '<div class="section-head"><h3>督办时间线</h3></div><ul class="timeline">'+
+    s.actions.map(function(a){return '<li><div class="t-date">'+a.at+'</div><div class="t-title">'+a.type+'</div><div class="t-note">'+(a.note||'')+'</div><div class="t-actor">操作人：'+a.by+'</div></li>';}).join('')+'</ul>',
+    {title:'隐患督办详情 · '+s.code,wide:true,
+     footer:'<button class="btn btn-outline" data-close>关闭</button>'+
+     (s.status!=='已关闭'?'<button class="btn btn-primary" onclick="doFeedback(\''+s.id+'\')">提交进度反馈</button>':'')+
+     (s.status!=='已关闭'?'<button class="btn btn-green" onclick="doCloseSup(\''+s.id+'\')">验收关闭</button>':'')});
+}
+function doFeedback(id){
+  UI.modal('<div class="form-grid">'+
+    '<div class="form-item"><span class="form-label">进度百分比</span><select id="fbPct"><option>25%</option><option>50%</option><option>75%</option><option selected>100%</option></select></div>'+
+    '<div class="form-item"><span class="form-label">反馈附件</span><div class="photo-box" style="height:50px" onclick="mockPhoto(this)"><span>+ 上传附件</span></div></div>'+
+    '<div class="form-item full"><span class="form-label">阶段进展 <span class="req">*</span></span><textarea id="fbText" placeholder="进展、困难和下一步…"></textarea></div>'+
+  '</div>',{title:'提交督办进度反馈',footer:'<button class="btn btn-outline" data-close>取消</button><button class="btn btn-primary" id="fbOk">提交反馈</button>'});
+  document.getElementById('fbOk').onclick=function(){
+    var txt=document.getElementById('fbText').value.trim();
+    if(!txt){App.toast('请填写阶段进展','error');return;}
+    App.supervision.feedback(id,+document.getElementById('fbPct').value.replace('%',''),txt);
+    App.toast('进度反馈已提交');
+    document.querySelectorAll('.modal').forEach(function(n){n.remove();});
+    route();
+  };
+}
+function doCloseSup(id){
+  App.supervision.close(id);
+  setTimeout(function(){document.querySelectorAll('.mask,.drawer').forEach(function(n){n.remove();});route();},600);
+}
+
+/* ================= 集团专业检查台账（一期直接闭环） ================= */
+function viewProfessional(){
+  var rows=visibleHazards().filter(function(h){return h.source==='PROFESSIONAL_DEPT_CHECK';});
+  body.innerHTML='<div class="alert info">一期仅登记已经完成整改的专业检查台账，提交即闭环，不进入受理、分派、整改和复查流程。</div>'+ 
+    '<div class="inline-actions" style="justify-content:flex-end;margin:14px 0"><button class="btn btn-primary" '+(App.currentRole==='professional_inspector'?'':'disabled')+' onclick="openProfessionalRegister()">+ 新增专业检查台账</button></div>'+
+    '<div class="tbl-wrap"><table class="tbl"><thead><tr><th>台账编号</th><th>问题标题</th><th>检查部门/检查人</th><th>位置</th><th>等级</th><th>整改责任人</th><th>闭环时间</th><th>考核金额</th><th>状态</th><th>操作</th></tr></thead><tbody>'+
+    (rows.map(function(h){return '<tr><td class="mono">'+esc(h.code)+'</td><td>'+esc(h.title)+'</td><td>'+esc(h.inspectionDept||'-')+'<br><span class="muted">'+esc(h.reporter||'-')+'</span></td><td>'+esc(h.location||'-')+'</td><td>'+sevTag(h.severity)+'</td><td>'+esc(h.responsibleUser||'-')+'</td><td>'+esc(h.closedAt||'-')+'</td><td>'+esc(h.penaltyAmount==null?'0':h.penaltyAmount)+' 元</td><td>'+tagOfStatus(h.status)+'</td><td><button class="btn btn-text" onclick="openHazard(\''+h.id+'\')">详情</button></td></tr>';}).join('')||'<tr><td colspan="10">'+UI.empty('暂无专业检查台账')+'</td></tr>')+'</tbody></table></div>';
+}
+function openProfessionalRegister(){
+  if(App.currentRole!=='professional_inspector'){App.toast('仅集团专业检查角色可新增本专业台账','error');return;}
+  var riskOptions='<option value="">未关联风险点</option>'+(App.risks||[]).filter(function(r){return r.status==='已发布'||r.status==='管控中';}).map(function(r){return '<option value="'+esc(r.code)+'">'+esc(r.code)+' · '+esc(r.name)+'</option>';}).join('');
+  UI.modal('<div class="alert info">请登记已经完成整改的结果信息。提交后直接形成已闭环台账，仅同专业部门人员可查看。</div><div class="form-grid">'+
+    '<div class="form-item"><span class="form-label">检查部门</span><input id="proDept" value="设备能源部" disabled></div><div class="form-item"><span class="form-label">检查人</span><input value="'+esc(App.currentUser())+'" disabled><span class="field-hint">企业微信自动带入</span></div>'+
+    '<div class="form-item"><span class="form-label">检查时间 <span class="req">*</span></span><input id="proCheckAt" value="2026-08-23 09:00"></div><div class="form-item"><span class="form-label">原业务编号</span><input id="proRef" placeholder="可选，如专业检查记录编号"></div>'+
+    '<div class="form-item full"><span class="form-label">关联风险点</span><select id="proRisk">'+riskOptions+'</select></div>'+
+    '<div class="form-item full"><span class="form-label">问题标题 <span class="req">*</span></span><input id="proTitle" placeholder="概括检查发现的问题"></div>'+
+    '<div class="form-item full"><span class="form-label">问题描述 <span class="req">*</span></span><textarea id="proDesc" placeholder="说明发现的问题、现场情况和影响"></textarea></div>'+
+    '<div class="form-item"><span class="form-label">位置 <span class="req">*</span></span><input id="proLocation" value="自动线组造型工位"></div><div class="form-item"><span class="form-label">隐患等级 <span class="req">*</span></span><select id="proSeverity"><option>一般</option><option>重大</option></select></div>'+
+    '<div class="form-item"><span class="form-label">整改部门 <span class="req">*</span></span><input id="proRectDept" value="造型作业区"></div><div class="form-item"><span class="form-label">整改责任人 <span class="req">*</span></span>'+personSelect('proRectUser','P-001')+'</div>'+
+    '<div class="form-item"><span class="form-label">受理人 <span class="req">*</span></span>'+personSelect('proAcceptor','P-001')+'</div><div class="form-item"><span class="form-label">受理时间 <span class="req">*</span></span><input id="proAcceptedAt" value="2026-08-23 09:20"></div>'+
+    '<div class="form-item full"><span class="form-label">整改及闭环情况 <span class="req">*</span></span><textarea id="proSummary" placeholder="说明已采取措施、整改结果和闭环依据"></textarea></div>'+
+    '<div class="form-item"><span class="form-label">整改期限 <span class="req">*</span></span><input id="proDeadline" type="date" value="2026-08-23"></div><div class="form-item"><span class="form-label">闭环时间 <span class="req">*</span></span><input id="proClosedAt" value="2026-08-23 16:00"></div>'+
+    '<div class="form-item"><span class="form-label">发现照片</span><div id="proBeforePhoto" class="photo-box" style="height:56px" onclick="mockPhoto(this)"><span>+ 上传发现照片</span></div></div><div class="form-item"><span class="form-label">整改后照片 <span class="req">*</span></span><div id="proAfterPhoto" class="photo-box" style="height:56px" onclick="mockPhoto(this)"><span>+ 上传整改后照片</span></div></div>'+
+    '<div class="form-item"><span class="form-label">考核责任人 <span class="req">*</span></span>'+personSelect('proPenaltyUser','P-001')+'</div><div class="form-item"><span class="form-label">考核金额（元）</span><input id="proPenalty" type="number" min="0" value="0"></div>'+
+    '<div class="form-item full"><span class="form-label">考核依据/说明</span><textarea id="proPenaltyNote" placeholder="填写制度条款或考核说明；无考核可填“无”"></textarea></div>'+ 
+  '</div>',{title:'新增专业检查已闭环台账',size:'lg',footer:'<button class="btn btn-outline" data-close>取消</button><button class="btn btn-primary" id="proOk">提交并闭环</button>'});
+  document.getElementById('proOk').onclick=function(){
+    var title=document.getElementById('proTitle').value.trim(),desc=document.getElementById('proDesc').value.trim(),locationValue=document.getElementById('proLocation').value.trim(),summary=document.getElementById('proSummary').value.trim(),after=!!document.getElementById('proAfterPhoto').dataset.done;
+    var rectifier=App.directoryMemberById(document.getElementById('proRectUser').value),acceptor=App.directoryMemberById(document.getElementById('proAcceptor').value),penalty=App.directoryMemberById(document.getElementById('proPenaltyUser').value);
+    if(!title||!desc||!locationValue||!summary||!rectifier||!acceptor||!penalty){App.toast('请完整填写标题、描述、位置、整改闭环信息和人员字段','error');return;}if(!after){App.toast('已闭环台账必须上传整改后照片','error');return;}
+    var created=now(),closedAt=document.getElementById('proClosedAt').value.trim(),riskCode=document.getElementById('proRisk').value||null;
+    App.hazards.unshift({id:uid(),code:'PRO-'+dstr()+'-'+seq('hz'),title:title,org:(App.currentOrg||'造型作业区').split(' / ').pop(),location:locationValue,source:'PROFESSIONAL_DEPT_CHECK',sourceLabel:'集团专业检查',sourceRef:document.getElementById('proRef').value.trim()||null,severity:document.getElementById('proSeverity').value,riskCode:riskCode,professionalDeptId:'equipment_energy',inspectionDept:'设备能源部',inspectionAt:document.getElementById('proCheckAt').value.trim(),assessmentResponsible:penalty.name,assessmentResponsiblePersonId:penalty.id,penaltyAmount:+document.getElementById('proPenalty').value||0,penaltyNote:document.getElementById('proPenaltyNote').value.trim()||'无',responsibleDept:document.getElementById('proRectDept').value.trim(),responsibleUser:rectifier.name,responsiblePersonId:rectifier.id,deadline:document.getElementById('proDeadline').value,status:'已闭环',reporter:App.currentUser(),createdAt:created,acceptedBy:acceptor.name,acceptedAt:document.getElementById('proAcceptedAt').value.trim(),closedAt:closedAt,description:desc,sourceEvidence:{photo:!!document.getElementById('proBeforePhoto').dataset.done,note:desc,label:'专业检查发现照片'},rectification:{summary:summary,completed:summary,evidenceBefore:!!document.getElementById('proBeforePhoto').dataset.done,evidenceAfter:true,submittedAt:closedAt,reviewStatus:'提交即闭环'},actions:[{type:'专业检查登记',at:created,by:App.currentUser(),note:'已完整登记整改与考核信息，提交即闭环'}]});
+    App.persist();document.querySelectorAll('.modal').forEach(function(n){n.remove();});App.toast('专业检查已提交并形成已闭环台账','success');tab='professional';viewProfessional();
+  };
+}
+
+/* ================= 统计分析 ================= */
+function viewStats(){
+  var hs=visibleHazards();
+  var pending=hs.filter(function(h){return h.status==='待受理';}).length;
+  var recting=hs.filter(function(h){return h.status==='待整改'||h.status==='整改中';}).length;
+  var review=hs.filter(function(h){return h.status==='待复查';}).length;
+  var closed=hs.filter(function(h){return h.status==='已闭环'||h.status==='不受理关闭';}).length;
+  var overdueCount=hs.filter(overdue).length;
+  body.innerHTML=
+  '<div class="kpi-grid g5">'+
+    '<div class="kpi"><div class="k-label">待处理</div><div class="k-num warn">'+pending+'</div></div>'+
+    '<div class="kpi"><div class="k-label">整改中</div><div class="k-num blue">'+recting+'</div></div>'+
+    '<div class="kpi"><div class="k-label">待复查</div><div class="k-num purple">'+review+'</div></div>'+
+    '<div class="kpi"><div class="k-label">已关闭</div><div class="k-num green">'+closed+'</div></div>'+
+    '<div class="kpi"><div class="k-label">已逾期</div><div class="k-num danger">'+overdueCount+'</div></div>'+ 
+  '</div>'+ 
+  '<div class="card" style="margin-top:16px"><div class="card-title">隐患状态分布</div><div class="tbl-wrap"><table class="tbl"><thead><tr><th>状态</th><th>数量</th><th>入口</th></tr></thead><tbody>'+ 
+    '<tr><td>待受理</td><td>'+pending+'</td><td><button class="btn btn-text" onclick="location.href=\'hazards.html?tab=ledger&st=待受理\'">查看</button></td></tr>'+ 
+    '<tr><td>待整改/整改中</td><td>'+recting+'</td><td><button class="btn btn-text" onclick="location.href=\'hazards.html?tab=mine-rect\'">查看</button></td></tr>'+ 
+    '<tr><td>待复查</td><td>'+review+'</td><td><button class="btn btn-text" onclick="location.href=\'hazards.html?tab=mine-review\'">查看</button></td></tr>'+ 
+    '<tr><td>已关闭</td><td>'+closed+'</td><td><button class="btn btn-text" onclick="location.href=\'hazards.html?tab=ledger&st=已闭环\'">查看</button></td></tr>'+ 
+  '</tbody></table></div></div>';
+}
+
+/* ================= 登记隐患 ================= */
+function openRegister(){
+  UI.modal('<div class="form-grid">'+
+    '<div class="form-item full"><span class="form-label">隐患标题 <span class="req">*</span></span><input id="hTitle" placeholder="如：配电箱箱门破损"></div>'+
+    '<div class="form-item"><span class="form-label">位置 <span class="req">*</span></span><input id="hLocation" value="'+((App.currentOrg||'造型作业区').split(' / ').pop()+'现场')+'" placeholder="可修改现场位置"></div>'+ 
+    '<div class="form-item"><span class="form-label">来源 <span class="req">*</span></span><select id="hSource" onchange="syncRegisterSource()"><option value="MOBILE_REPORT">移动随手拍</option><option value="HSE_SUPERVISION">集团监督检查</option></select></div>'+ 
+    '<div class="form-item"><span class="form-label">填报人</span><input value="'+App.currentUser()+'" disabled></div>'+ 
+    '<div class="form-item"><span class="form-label">建议等级</span><select id="hSeverity"><option value="">未定级（受理时确认）</option><option>一般</option><option>重大</option></select></div>'+ 
+    '<div id="sourceExtra" class="form-item full"></div>'+ 
+    '<div class="form-item full"><span class="form-label">事实描述</span><textarea id="hDesc" placeholder="描述隐患事实或不安全状态"></textarea></div>'+ 
+    '<div class="form-item"><span class="form-label">现场照片</span><div id="hDiscoveryPhoto" class="photo-box" style="height:56px" onclick="mockPhoto(this)"><span>+ 留存现场照片</span></div></div>'+ 
+  '</div>',{title:'登记隐患',footer:'<button class="btn btn-outline" data-close>取消</button><button class="btn btn-primary" id="hOk">登记</button>'});
+  var sourceSelect=document.getElementById('hSource');
+  if(App.currentRole==='professional_inspector'){document.querySelectorAll('.modal').forEach(function(n){n.remove();});openProfessionalRegister();return;}
+  if(App.currentRole==='group_safety')sourceSelect.value='HSE_SUPERVISION';
+  syncRegisterSource();
+  document.getElementById('hOk').onclick=function(){
+    var t=document.getElementById('hTitle').value.trim();
+    if(!t){App.toast('请填写隐患标题','error');return;}
+    var location=document.getElementById('hLocation').value.trim();
+    if(!location){App.toast('请填写隐患位置','error');return;}
+    var source=document.getElementById('hSource').value;
+    var photo=!!document.getElementById('hDiscoveryPhoto').dataset.done;
+    var supervision=source==='HSE_SUPERVISION',created=now(),hid=uid(),hcode='HZ-'+dstr()+'-'+seq('hz'),instance=supervision?('OA-HSE-'+dstr()+'-'+String(App._seq.hz).padStart(2,'0')):null;
+    App.hazards.unshift({id:hid,code:hcode,title:t,org:(App.currentOrg||'造型作业区').split(' / ').pop(),location:location,
+      source:source,sourceLabel:App.sourceLabel(source),sourceRef:null,severity:document.getElementById('hSeverity').value||null,riskCode:null,
+      professionalDeptId:null,inspectionDept:supervision?'集团监督检查':null,assessmentResponsible:null,assessmentResponsiblePersonId:null,penaltyAmount:null,oaRequired:supervision,oaStatus:supervision?'审批中':'不走OA',oaInstanceId:instance,oaStatusUrl:supervision?OABridge.detailUrl(instance):null,rewardEligible:source==='MOBILE_REPORT',rewardStatus:source==='MOBILE_REPORT'?'待闭环后评定':'不参与奖励',
+      responsibleDept:null,responsibleUser:null,deadline:null,status:supervision?'审批中':'待受理',reporter:App.currentUser(),
+      createdAt:created,closedAt:null,description:document.getElementById('hDesc').value||'-',sourceEvidence:{photo:photo,note:document.getElementById('hDesc').value||'',label:App.sourceLabel(source)+'现场证据'},rectification:null,
+      actions:[{type:'登记',at:created,by:App.currentUser(),note:supervision?'集团监督检查已发起 OA；平台只保存实例号和状态链接':App.sourceLabel(source)}]});
+    if(supervision)syncSupervisionToOa(App.hazards[0]);
+    App.toast(supervision?'集团监督检查已发起 OA；点击“审批中”查看状态':'隐患已登记，待受理');
+    document.querySelectorAll('.modal').forEach(function(n){n.remove();});
+    route();
+  };
+}
+function syncRegisterSource(){var source=(document.getElementById('hSource')||{}).value,box=document.getElementById('sourceExtra');if(!box)return;if(source==='MOBILE_REPORT'){box.innerHTML='<div class="alert info">随手拍隐患由二级单位安全管理人员受理；闭环后可进入奖励评定。</div>';return;}if(source==='HSE_SUPERVISION'){box.innerHTML='<div class="alert info">安全管理平台发起 OA 并保存实例号和审批状态链接，不展示 OA 流程。考核责任人和考核金额在 OA 最终结果回传后写入台账。</div>';return;}box.innerHTML='';}
+function syncSupervisionToOa(h){if(!h||h.source!=='HSE_SUPERVISION')return;h.oaStatusUrl=OABridge.detailUrl(h.oaInstanceId);OABridge.submit({instanceId:h.oaInstanceId,businessType:'supervision',businessId:h.id,businessCode:h.code,title:h.title,applicant:h.reporter||App.currentUser(),applicantOrg:'太重集团',targetOrg:'铸锻件分公司 / '+h.org,priority:h.severity,currentNode:'二级单位领导审批',safetyUrl:'../hazards.html?tab=ledger',summary:{location:h.location,description:h.description,source:'集团监督检查'},materials:['现场检查记录','现场证据照片']});}
+function editSupervisionDraft(id){var h=App.hazard.byId(id);if(!h||h.source!=='HSE_SUPERVISION'||h.status!=='驳回起草人')return;document.querySelectorAll('.mask,.drawer').forEach(function(n){n.remove();});UI.modal('<div class="alert warn">OA 已驳回起草人。请在安全管理平台修改业务数据，重新提交时沿用原 OA 实例 <b>'+h.oaInstanceId+'</b>。</div><div class="form-grid"><div class="form-item full"><span class="form-label">隐患标题</span><input id="hseEditTitle" value="'+h.title+'"></div><div class="form-item"><span class="form-label">位置</span><input id="hseEditLocation" value="'+h.location+'"></div><div class="form-item full"><span class="form-label">事实描述</span><textarea id="hseEditDesc">'+h.description+'</textarea></div><div class="form-item full"><span class="form-label">驳回原因</span><input value="'+(h.returnedReason||'-')+'" disabled></div></div>',{title:'集团监督检查 · 驳回修改',footer:'<button class="btn btn-outline" data-close>取消</button><button class="btn btn-primary" id="hseResubmit">基于原 OA 重新提交</button>'});document.getElementById('hseResubmit').onclick=function(){var title=document.getElementById('hseEditTitle').value.trim(),location=document.getElementById('hseEditLocation').value.trim(),desc=document.getElementById('hseEditDesc').value.trim();if(!title||!location||!desc){App.toast('标题、位置和事实描述均为必填','error');return;}h.title=title;h.location=location;h.description=desc;h.status='审批中';h.oaStatus='审批中';syncSupervisionToOa(h);h.actions.unshift({type:'重新提交 OA',at:now(),by:App.currentUser(),note:'沿用实例 '+h.oaInstanceId+'，状态链接保持不变'});if(App._emit)App._emit();document.querySelectorAll('.modal').forEach(function(n){n.remove();});App.toast('已基于原 OA 实例重新提交','success');route();};}
+function receiveOaHazardEvent(id,event,note,payload){var h=App.hazard.byId(id);if(!h||h.source!=='HSE_SUPERVISION')return {ok:false};var map={returned:'驳回起草人',approved:'已批准',rejected:'已拒绝',revoked:'已撤销',terminated:'已终止'},status=map[event];if(!status)return {ok:false};if(h.oaStatus===status)return {ok:true,status:status};payload=payload||{};note=(note||status).trim();h.oaStatus=status;h.actions.unshift({type:'OA 回调',at:now(),by:'OA回调',note:status+'：'+note});if(event==='returned'){h.status='驳回起草人';h.returnedReason=note;App.pushWeComTodo('hazards','OA 驳回起草人',h.code+' 请在安全管理平台修改后重提','hazards.html?tab=ledger');}else if(event==='approved'){h.status='待受理';h.assessmentResponsiblePersonId=payload.assessmentResponsiblePersonId||'P-001';h.assessmentResponsible=payload.assessmentResponsible||'张青';h.penaltyAmount=payload.penaltyAmount==null?1000:+payload.penaltyAmount;App.pushWeComTodo('hazards','集团监督检查待受理',h.code+' OA 已批准，考核信息已回传','hazards.html?tab=ledger');}else{h.status=status;h.finalReason=note;App.pushWeComTodo('hazards','集团监督检查 OA 最终结果',h.code+' '+status,'hazards.html?tab=ledger');}if(App._emit)App._emit();document.querySelectorAll('.mask,.drawer').forEach(function(n){n.remove();});if(document.getElementById('ledgerBody'))renderLedger();App.toast('已接收 OA 回调：'+status,event==='returned'?'warn':'success');openHazard(h.id);return {ok:true,status:status};}
+function mockPhoto(box){box.dataset.done='1';box.innerHTML='<span style="font-size:11px;color:#0B7A1C">✓ 已上传（模拟）</span>';box.style.borderColor='#00AA1C';box.style.background='#F0FFF2';}
+function dstr(){var d=new Date();return String(d.getFullYear())+pad(d.getMonth()+1)+pad(d.getDate());}
+function pad(n){return String(n).padStart(2,'0');}
+function seq(p){App._seq[p]=(App._seq[p]||0)+1;return String(App._seq[p]).padStart(2,'0');}
+function now(){var d=new Date();return d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate())+' '+pad(d.getHours())+':'+pad(d.getMinutes());}
+function uid(){return 'ID-'+Date.now().toString(36)+Math.random().toString(36).slice(2,6);}
+
+/* ================= 路由 ================= */
+function route(){
+  if(tab==='overview')viewOverview();
+  else if(tab==='ledger')viewLedger();
+  else if(tab==='mine-rect')viewMineRect();
+  else if(tab==='mine-review')viewMineReview();
+  else if(tab==='professional')viewProfessional();
+  else if(tab==='supervision')viewSupervision();
+  else if(tab==='stats')viewStats();
+  else viewOverview();
+}
+window.openHazard=openHazard;window.openAccept=openAccept;window.openRectify=openRectify;window.openReview=openReview;window.suggestSup=suggestSup;
+window.openSup=openSup;window.openRegister=openRegister;window.openProfessionalRegister=openProfessionalRegister;window.syncRegisterSource=syncRegisterSource;window.editSupervisionDraft=editSupervisionDraft;window.openOaApprovalForHazard=openOaApprovalForHazard;window.receiveOaHazardEvent=receiveOaHazardEvent;window.mockPhoto=mockPhoto;
+OABridge.bind(function(item){if(item.businessType!=='supervision')return false;return receiveOaHazardEvent(item.businessId,item.event,item.note,item.payload).ok;});
+window.renderLedger=renderLedger;window.doReview=doReview;window.doFeedback=doFeedback;window.doCloseSup=doCloseSup;
+window.closeDrawerOpenAccept=closeDrawerOpenAccept;
+window.closeDrawerOpenRectify=closeDrawerOpenRectify;window.closeDrawerOpenReview=closeDrawerOpenReview;
+window.applyAcceptancePhrase=applyAcceptancePhrase;window.manageAcceptancePhrases=manageAcceptancePhrases;window.rejectAcceptance=rejectAcceptance;
+window.drill=function(){};
+route();
+})();
+</script>
+</body>
+</html>

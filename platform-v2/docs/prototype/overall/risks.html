@@ -1,0 +1,970 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>风险管理 · 安全管理平台</title>
+<link rel="icon" href="assets/logo.svg">
+<link rel="stylesheet" href="assets/app.css">
+<style>
+.risk-flow{display:flex;align-items:center;gap:8px;margin:0 0 16px;padding:12px 16px;background:#F5F9FF;border:1px solid #D9E8F7;border-radius:8px;color:#52677D;font-size:13px;overflow-x:auto}
+.risk-flow .flow-node{display:flex;align-items:center;gap:7px;white-space:nowrap}
+.risk-flow .flow-no{width:24px;height:24px;display:inline-flex;align-items:center;justify-content:center;border-radius:50%;background:#DCEAF8;color:#0A5CA8;font-weight:700}
+.risk-flow .flow-node.active{color:#0A5CA8;font-weight:700}.risk-flow .flow-node.active .flow-no{background:#0A5CA8;color:#fff}
+.risk-flow .flow-arrow{color:#9AAFC4}
+.risk-context{display:flex;justify-content:space-between;align-items:center;gap:16px;margin-bottom:14px;padding:12px 16px;background:#fff;border:1px solid #E2E8F0;border-left:4px solid #0A5CA8;border-radius:8px}
+.risk-context .main{font-weight:700;color:#16324F}.risk-context .sub{margin-top:4px;font-size:12px;color:#64748B}
+.risk-section-title{display:flex;align-items:center;gap:10px;margin-bottom:14px;font-size:17px;font-weight:700;color:#16324F}
+.risk-section-title .no{width:28px;height:28px;display:inline-flex;align-items:center;justify-content:center;border-radius:6px;background:#0A5CA8;color:#fff;font-size:14px}
+.risk-form-actions{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-top:18px;padding-top:16px;border-top:1px solid #E5EAF0}
+.formula-panel{display:grid;grid-template-columns:1fr auto;gap:16px;align-items:center;margin-top:12px;padding:14px 16px;background:#F7FAFC;border:1px solid #D8E3EE;border-radius:8px}
+.formula-panel .formula{font-size:15px;font-weight:700;color:#16324F}.formula-panel .formula-note{margin-top:5px;font-size:12px;color:#64748B}
+.measure-grid{display:grid;grid-template-columns:130px minmax(280px,1fr) 110px 110px;gap:10px;align-items:center;margin-bottom:10px}
+.measure-grid-simple{grid-template-columns:130px minmax(280px,1fr)}
+.measure-grid .measure-type{font-weight:700;color:#334155}
+.tier-grid{display:grid;grid-template-columns:120px minmax(180px,1fr) minmax(140px,1fr) 150px;gap:10px;align-items:center;margin-bottom:10px}
+.tier-grid.head{font-size:12px;font-weight:700;color:#64748B}
+.accident-checks{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;padding:10px 12px;border:1px solid var(--gray-300);border-radius:6px;background:#fff}
+.accident-checks label{display:flex;align-items:center;gap:6px;font-size:12.5px;color:var(--gray-700);cursor:pointer}.accident-checks input{width:auto;margin:0}
+.approval-phrases{display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin:7px 0 8px}.approval-phrases .label{font-size:12px;color:var(--gray-500)}
+@media(max-width:1100px){.measure-grid{grid-template-columns:120px 1fr}.measure-grid .measure-options{grid-column:2}.tier-grid{grid-template-columns:110px 1fr 1fr}.tier-grid .tier-frequency{grid-column:2/4}}
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="topbar"></div>
+  <div class="body">
+    <aside class="sidebar"><div class="nav-tree"></div></aside>
+    <div class="content">
+      <div class="page-header"></div>
+      <div class="page-body" id="pageBody"></div>
+    </div>
+  </div>
+</div>
+<script src="assets/store.js"></script>
+<script src="assets/ui.js"></script>
+<script>
+(function(){
+"use strict";
+var params=new URLSearchParams(location.search);
+var tab=params.get("tab")||"overview";
+var mode=params.get("mode")||"";
+var risk=App.risk.byId(params.get("risk")||"R-001")||App.risks[0];
+var body=document.getElementById("pageBody");
+
+UI.renderShell("risks",tab);
+var TITLES={overview:["风险总览"],ledger:["风险台账"],map:["风险四色图"],notice:["风险告知"],changes:["变更复评"]};
+function statusTag(s){var c={草稿:'tag-gray',辨识中:'tag-blue',待完善:'tag-warn',已退回:'tag-error',待作业区负责人审核:'tag-warn',待二级单位安全管理审核:'tag-warn',待二级单位领导审批:'tag-warn',当前生效:'tag-green',已生效:'tag-green',已发布:'tag-green',已完成:'tag-green',审批中:'tag-warn',管控中:'tag-green'};return '<span class="tag '+(c[s]||'tag-gray')+'">'+(s||'-')+'</span>';}
+function assessmentTag(s){var c={待完善:'tag-warn',已完成:'tag-green'};return '<span class="tag '+(c[s]||'tag-gray')+'">'+(s||'待完善')+'</span>';}
+function isCurrentRisk(r){return !!(r&&r.currentVersion&&(r.hazards||[]).length);}
+var pageTitle=(TITLES[tab]||TITLES.overview)[0];
+UI.pageHeader(["风险管理",pageTitle],pageTitle,"");
+
+function esc(v){return String(v==null?'':v).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];});}
+var ORG_USERS=[
+  {name:'张青',org:'铸锻件分公司',dept:'造型作业区 / 自动线组',post:'班组长'},
+  {name:'王欣宇',org:'铸锻件分公司',dept:'造型作业区 / 自动线组',post:'兼职安全员'},
+  {name:'李天翔',org:'铸锻件分公司',dept:'造型作业区 / 自动线组',post:'班组成员'},
+  {name:'高远',org:'铸锻件分公司',dept:'造型作业区 / 自动线组',post:'班组成员'},
+  {name:'李建杰',org:'铸锻件分公司',dept:'造型作业区 / 制模组',post:'班组长'},
+  {name:'赵志宏',org:'铸锻件分公司',dept:'造型作业区 / 制模组',post:'兼职安全员'},
+  {name:'张明',org:'铸锻件分公司',dept:'造型作业区 / 制模组',post:'班组成员'},
+  {name:'常兴明',org:'铸锻件分公司',dept:'造型作业区 / 制模组',post:'班组成员'},
+  {name:'李刚',org:'铸锻件分公司',dept:'造型作业区 / 制模组',post:'班组成员'},
+  {name:'郭海涛',org:'铸锻件分公司',dept:'造型作业区 / 制模组',post:'班组成员'},
+  {name:'李涛',org:'铸锻件分公司',dept:'造型作业区 / 制模组',post:'班组成员'},
+  {name:'郭勇',org:'铸锻件分公司',dept:'造型作业区 / 制模组',post:'班组成员'},
+  {name:'刘化利',org:'铸锻件分公司',dept:'造型作业区 / 制模组',post:'班组成员'},
+  {name:'郝利强',org:'铸锻件分公司',dept:'造型作业区 / 制模组',post:'班组成员'},
+  {name:'梁博文',org:'铸锻件分公司',dept:'造型作业区 / 制模组',post:'班组成员'},
+  {name:'王宝胜',org:'铸锻件分公司',dept:'造型作业区 / 制模组',post:'班组成员'},
+  {name:'杨天财',org:'铸锻件分公司',dept:'造型作业区 / 制模组',post:'班组成员'},
+  {name:'郭刚明',org:'铸锻件分公司',dept:'造型作业区 / 制模组',post:'班组成员'},
+  {name:'路宁',org:'铸锻件分公司',dept:'造型作业区 / 制模组',post:'班组成员'},
+  {name:'范利君',org:'铸锻件分公司',dept:'造型作业区 / 制模组',post:'班组成员'},
+  {name:'詹志星',org:'铸锻件分公司',dept:'造型作业区 / 制模组',post:'班组成员'},
+  {name:'刘翔',org:'铸锻件分公司',dept:'造型作业区 / 制模组',post:'班组成员'},
+  {name:'张鹏伟',org:'铸锻件分公司',dept:'造型作业区 / 制模组',post:'班组成员'}
+];
+function ensureOrgUserOptions(){
+  if(document.getElementById('orgUserOptions'))return;
+  var dl=document.createElement('datalist');dl.id='orgUserOptions';
+  dl.innerHTML=ORG_USERS.map(function(u){return '<option value="'+esc(u.name)+'" label="'+esc(u.org+' / '+u.dept+' / '+u.post)+'"></option>';}).join('');
+  document.body.appendChild(dl);
+}
+function personInput(id,value,editable,extra){
+  ensureOrgUserOptions();
+  return '<input list="orgUserOptions" id="'+id+'" value="'+esc(value||'')+'" '+(editable?'':'disabled')+' placeholder="可搜索姓名、部门或岗位" '+(extra||'')+'>';
+}
+function applyOrgUserPickers(){
+  ensureOrgUserOptions();
+  document.querySelectorAll('#taskOwner,#rpOwner,#wbRiskOwner,#hazardOwner,#mDuty,#mExec,#rfOwner,#eRiskOwner,[id^="tierPerson"]').forEach(function(input){
+    input.setAttribute('list','orgUserOptions');
+    if(!input.getAttribute('placeholder'))input.setAttribute('placeholder','可搜索姓名、部门或岗位');
+  });
+}
+function orgUserOf(name){return ORG_USERS.filter(function(u){return u.name===String(name||'').trim();})[0]||null;}
+var orgUserPickerObserver=new MutationObserver(applyOrgUserPickers);
+orgUserPickerObserver.observe(document.body,{childList:true,subtree:true});
+function taskById(id){return App.riskTasks.filter(function(t){return t.id===id;})[0]||null;}
+function taskRiskIds(t){
+  if(!t)return [];
+  var ids=(t.riskIds||[]).slice();
+  if(t.riskId&&ids.indexOf(t.riskId)<0)ids.push(t.riskId);
+  if(!ids.length&&(t.code==='TASK-ZX-2026-001'||t.code==='TASK-ZX-2026-002'))ids.push('R-001');
+  return ids;
+}
+function risksForTask(t){var ids=taskRiskIds(t);return App.risks.filter(function(r){return ids.indexOf(r.id)>-1;});}
+function taskForRisk(riskId){var ts=App.riskTasks.filter(function(t){return taskRiskIds(t).indexOf(riskId)>-1;}),active=ts.filter(function(t){return ['已完成','已生效'].indexOf(t.status)<0;});return active[0]||ts[0]||null;}
+var RESPONSIBILITY_POSTS=['班组长','分公司负责人','总经理','公司领导'];
+function responsibilityPostOptions(selected){return RESPONSIBILITY_POSTS.map(function(x){return '<option '+(x===selected?'selected':'')+'>'+x+'</option>';}).join('');}
+function riskPointView(r){var d=r&&r.draftVersion||{};return {name:d.riskName!==undefined?d.riskName:r&&r.name,org:d.org!==undefined?d.org:r&&r.org,location:d.location!==undefined?d.location:r&&r.location,category:d.category!==undefined?d.category:r&&r.category,responsibilityPost:d.responsibilityPost!==undefined?d.responsibilityPost:(r&&r.responsibilityPost||'班组长'),boundaryDescription:d.boundaryDescription!==undefined?d.boundaryDescription:r&&r.boundaryDescription};}
+function riskFlow(active){var names=['风险点建档','危险源辨识','风险评价','管控措施','责任落实','风险点审批'];return '<div class="risk-flow">'+names.map(function(n,i){return '<div class="flow-node '+(active===i+1?'active':'')+'"><span class="flow-no">'+(i+1)+'</span><span>'+n+'</span></div>'+(i<names.length-1?'<span class="flow-arrow">›</span>':'');}).join('')+'</div>';}
+function setRiskHeader(title,crumbs,actions){UI.pageHeader(crumbs||['风险管理','风险台账',title],title,actions||'');}
+function taskQuery(modeName,taskId,riskId,hazardId){var s='risks.html?tab=ledger&mode='+modeName;if(riskId)s+='&risk='+encodeURIComponent(riskId);if(hazardId)s+='&hazard='+encodeURIComponent(hazardId);return s;}
+
+/* ================= 风险总览 ================= */
+function viewOverview(){
+  var current=App.risks.filter(isCurrentRisk);
+  var major=current.filter(function(r){return r.level==="major"||r.level==="big";}).length;
+  var measures=current.reduce(function(s,r){return s+(r.hazards||[]).reduce(function(a,h){return a+(h.measures||[]).length;},0);},0);
+  body.innerHTML=
+  '<div class="kpi-grid g3">'+
+    '<div class="kpi clickable" onclick="drill(\'风险点总数\')"><div class="k-label">风险点总数</div><div class="k-num blue">'+current.length+'</div><div class="k-sub">当前生效口径</div></div>'+ 
+    '<div class="kpi clickable" onclick="drill(\'重大/较大风险\')"><div class="k-label">重大/较大风险</div><div class="k-num danger">'+major+'</div><div class="k-sub">当前正式版本口径</div></div>'+ 
+    '<div class="kpi clickable" onclick="drill(\'管控措施总数\')"><div class="k-label">管控措施总数</div><div class="k-num green">'+measures+'</div><div class="k-sub">当前生效版本措施</div></div>'+ 
+  '</div>'+ 
+  '<div class="grid-2-1" style="margin-top:16px">'+
+    '<div class="card"><div class="card-title">风险点台账一览</div><div class="tbl-wrap"><table class="tbl"><thead><tr><th>风险点编号</th><th>风险点名称</th><th>作业区</th><th>危险源数</th><th>最高等级</th><th>当前版本</th><th>状态</th></tr></thead><tbody>'+ 
+    current.map(function(r){return '<tr style="cursor:pointer" onclick="location.href=\'risks.html?tab=ledger&risk='+r.id+'\'"><td class="mono">'+r.code+'</td><td>'+r.name+'</td><td>'+r.org+'</td><td>'+r.hazards.length+'</td><td>'+UI.tagOf(r.level)+'</td><td>'+r.version+'</td><td>'+statusTag('当前生效')+'</td></tr>';}).join('')+
+    '</tbody></table></div></div>'+ 
+    '<div class="card"><div class="card-title">风险管理入口</div><div style="display:flex;flex-direction:column;gap:10px">'+ 
+      '<button class="btn btn-primary" onclick="location.href=\'risks.html?tab=ledger\'">查看风险台账</button>'+ 
+      '<button class="btn btn-outline" onclick="location.href=\'risks.html?tab=map\'">🗺 查看风险四色图</button>'+ 
+      '<button class="btn btn-outline" onclick="location.href=\'risks.html?tab=notice\'">岗位风险告知卡</button>'+ 
+      '<button class="btn btn-outline" onclick="location.href=\'risks.html?tab=changes\'">风险变更/人工复评</button>'+ 
+    '</div></div>'+ 
+  '</div>';
+}
+
+/* ================= 风险台账 ================= */
+function viewLedger(){
+  var riskParam=params.get("risk");
+  body.innerHTML=
+  '<div class="filter-bar risk-filter-grid">'+
+    '<div class="f-item">编号 <input id="fCode" placeholder="风险点编号"></div>'+
+    '<div class="f-item">名称 <input id="fName" placeholder="风险点名称"></div>'+
+    '<div class="f-item">组织 <select id="fOrg"><option value="">全部</option><option value="造型作业区">造型作业区</option><option value="智能加工配送中心">智能加工配送中心</option></select></div>'+ 
+    '<div class="f-item">位置 <input id="fLocation" placeholder="区域/位置"></div>'+
+    '<div class="f-item">类别 <select id="fCategory"><option value="">全部</option><option>设备设施风险</option><option>作业活动风险</option><option>环境风险</option><option>管理风险</option></select></div>'+
+    '<div class="f-item">等级 <select id="fLevel"><option value="">全部</option><option value="major">重大</option><option value="big">较大</option><option value="common">一般</option><option value="low">低</option></select></div>'+
+    '<div class="f-item">状态 <select id="fStatus"><option value="">全部</option><option>草稿</option><option>已退回</option><option>待作业区负责人审核</option><option>待二级单位安全管理审核</option><option>待二级单位领导审批</option><option>管控中</option></select></div>'+
+    '<div class="f-item">版本 <input id="fVersion" placeholder="如 V1.0"></div>'+
+    '<button class="btn btn-outline btn-sm" onclick="applyFilter()">查询</button><button class="btn btn-text btn-sm" onclick="resetFilters()">重置</button>'+ 
+    '<button class="btn btn-primary btn-sm" style="margin-left:auto" onclick="openRiskForm()">+ 新建风险点</button>'+ 
+  '</div>'+
+  '<div class="tbl-wrap"><table class="tbl"><thead><tr><th>编号</th><th>名称</th><th>位置</th><th>危险源数量</th><th>风险最高等级</th><th>版本</th><th>状态</th><th>操作</th></tr></thead><tbody id="ledgerBody">'+
+  '</tbody></table></div>'+
+  '<div class="hint-line">点击「危险源」查看明细；支持跨模块下钻（驾驶舱重大风险 → 本页自动筛选重大）。</div>';
+  renderLedger(params.get("level"));
+  if(riskParam){var r=App.risk.byId(riskParam);if(r)openRiskDetail(r.id);}
+}
+function renderLedger(level){
+  var requested=level||params.get("level")||"";
+  if(document.getElementById("fLevel")&&requested&&requested!=="high"&&!document.getElementById("fLevel").value)document.getElementById("fLevel").value=requested;
+  var code=document.getElementById("fCode")?document.getElementById("fCode").value.trim().toLowerCase():"";
+  var name=document.getElementById("fName")?document.getElementById("fName").value.trim().toLowerCase():"";
+  var lv=document.getElementById("fLevel")?document.getElementById("fLevel").value:"";
+  var og=document.getElementById("fOrg")?document.getElementById("fOrg").value:"";
+  var loc=document.getElementById("fLocation")?document.getElementById("fLocation").value.trim().toLowerCase():"";
+  var cat=document.getElementById("fCategory")?document.getElementById("fCategory").value:"";
+  var st=document.getElementById("fStatus")?document.getElementById("fStatus").value:"";
+  var ver=document.getElementById("fVersion")?document.getElementById("fVersion").value.trim().toLowerCase():"";
+  var rows=App.risks.filter(function(r){var levelMatch=requested==="high"?["major","big"].indexOf(r.level)>-1:(!lv||r.level===lv);return (!App.inCurrentOrgScope||App.inCurrentOrgScope(r.org))&&(!code||r.code.toLowerCase().indexOf(code)>-1)&&(!name||r.name.toLowerCase().indexOf(name)>-1)&&levelMatch&&(!og||r.org===og)&&(!loc||String(r.location||"").toLowerCase().indexOf(loc)>-1)&&(!cat||r.category===cat)&&(!st||rsOf(r)===st)&&(!ver||String(r.version||"").toLowerCase().indexOf(ver)>-1);});
+  document.getElementById("ledgerBody").innerHTML=rows.map(function(r){
+    return '<tr><td class="mono">'+r.code+'</td><td>'+r.name+'</td><td>'+r.location+'</td>'+ 
+    '<td style="text-align:center"><button class="btn btn-text" onclick="openRiskDetail(\''+r.id+'\')">'+r.hazards.length+' 条 ▸</button></td>'+ 
+    '<td>'+UI.tagOf(r.level)+'</td><td>'+(r.draftVersion?r.draftVersion.version:r.version)+'</td>'+ 
+    '<td>'+riskStatusCell(r)+'</td>'+ 
+    '<td>'+opBtn(r)+'</td></tr>';
+  }).join('')||UI.empty('暂无符合条件风险点');
+}
+function rsOf(r){return r&&r.draftVersion?r.draftVersion.status:(r&&r.status==="已发布"?"管控中":r&&r.status||"草稿");}
+function draftEditable(r){return !!(r&&r.draftVersion&&["草稿","已退回"].indexOf(r.draftVersion.status)>-1);}
+function applyFilter(){renderLedger();App.toast('筛选条件已应用');}
+function resetFilters(){['fCode','fName','fLocation','fVersion'].forEach(function(id){var e=document.getElementById(id);if(e)e.value='';});['fOrg','fCategory','fLevel','fStatus'].forEach(function(id){var e=document.getElementById(id);if(e)e.value='';});renderLedger();App.toast('筛选条件已重置');}
+
+var MEASURE_TYPES=["管理措施","工程技术措施","培训教育措施","个体防护措施","应急处置措施"];
+var ACCIDENT_TYPES=["物体打击","车辆伤害","机械伤害","起重伤害","触电","淹溺","灼烫","火灾","高处坠落","坍塌","冒顶片帮","透水","放炮","火药爆炸","瓦斯爆炸","锅炉爆炸","容器爆炸","其他爆炸","中毒和窒息","其他伤害","粉尘爆炸","危险化学品泄漏","压力伤害","辐射伤害","冻伤","噪声伤害","环境污染"];
+function accidentOptions(selected){return '<option value="">请选择事故类型</option>'+ACCIDENT_TYPES.map(function(x){return '<option '+(x===selected?'selected':'')+'>'+x+'</option>';}).join('');}
+function accidentValues(value){
+  if(value&&value.accidentTypes)value=value.accidentTypes;
+  else if(value&&typeof value==='object')value=value.accidentType;
+  if(Array.isArray(value))return value.filter(function(x){return ACCIDENT_TYPES.indexOf(x)>-1;});
+  return String(value||'').split(/[、,，;；]/).map(function(x){return x.trim();}).filter(function(x,i,a){return ACCIDENT_TYPES.indexOf(x)>-1&&a.indexOf(x)===i;});
+}
+function accidentText(value){var values=accidentValues(value);return values.length?values.join('、'):'-';}
+function accidentChecklist(selected,disabled){var values=accidentValues(selected);return '<div class="accident-checks">'+ACCIDENT_TYPES.map(function(x){return '<label><input type="checkbox" data-accident value="'+esc(x)+'" '+(values.indexOf(x)>-1?'checked':'')+' '+(disabled?'disabled':'')+'> '+esc(x)+'</label>';}).join('')+'</div><span class="field-hint">可多选；同一评价条件共用一次评价，条件或措施明显不同应拆分危险源。</span>';}
+function selectedAccidents(container){return [].slice.call((container||document).querySelectorAll('[data-accident]:checked')).map(function(x){return x.value;});}
+var APPROVAL_PHRASES={pass:['资料完整，风险评价及管控措施符合要求，同意通过。','经审核无异议，同意进入下一审批环节。','风险辨识和评价符合要求，同意生效。'],back:['危险源辨识不完整，请补充后重新提交。','风险评价依据不充分，请核实评价参数。','管控措施不具体，请明确现场执行要求。','基础信息不完整，请补充后重新提交。']};
+function approvalPhraseButtons(targetId){var passLabels=['通过：资料完整','通过：无异议','通过：同意生效'],backLabels=['退回：辨识不完整','退回：评价依据不足','退回：措施不具体','退回：信息不完整'];return '<div class="approval-phrases"><span class="label">常用审批语：</span>'+APPROVAL_PHRASES.pass.map(function(text,i){return '<button type="button" class="btn btn-outline btn-sm" title="'+esc(text)+'" onclick="fillApprovalPhrase(\''+targetId+'\',\''+text+'\')">'+passLabels[i]+'</button>';}).join('')+APPROVAL_PHRASES.back.map(function(text,i){return '<button type="button" class="btn btn-outline btn-sm" title="'+esc(text)+'" onclick="fillApprovalPhrase(\''+targetId+'\',\''+text+'\')">'+backLabels[i]+'</button>';}).join('')+'</div>';}
+function fillApprovalPhrase(targetId,text){var input=document.getElementById(targetId);if(input){input.value=text;input.focus();}}
+function approvalPath(r){var source=r&&r.draftVersion||r,max=App.risk.maxLevel?App.risk.maxLevel(source&&source.hazards||[]):{key:r&&r.level||'low',name:'低'},path=[{status:'待作业区负责人审核',role:'section_manager',name:'作业区负责人审核'},{status:'待二级单位安全管理审核',role:'company_safety',name:'二级单位安全管理审核'}];if(max.key==='major'||max.key==='big')path.push({status:'待二级单位领导审批',role:'unit_leader',name:'二级单位领导审批'});return {level:max,steps:path};}
+function currentApprovalStep(r){var flow=approvalPath(r),status=r&&r.draftVersion&&r.draftVersion.status;return flow.steps.filter(function(x){return x.status===status;})[0]||null;}
+function approvalRule(r){var flow=approvalPath(r),step=currentApprovalStep(r)||flow.steps[0];return {level:flow.level,role:step.role,name:step.name,channel:'INTERNAL',channelName:'平台内置审批',path:flow.steps};}
+function riskStatusCell(r){return statusTag(rsOf(r));}
+function measuresTable(measures){
+  measures=measures||[];
+  return '<table style="width:100%;border-collapse:collapse;font-size:12.5px;margin-top:4px">'+MEASURE_TYPES.map(function(t){
+    var ms=measures.filter(function(m){return m.type===t||({工程措施:"工程技术措施",培训教育:"培训教育措施",个体防护:"个体防护措施",应急措施:"应急处置措施"}[m.type]||m.type)===t;});
+    var content=ms.length?ms.map(function(m){return '▪ '+esc(m.name||m.description||'');}).join('<br>'):'<span style="color:var(--gray-400)">暂无</span>';
+    return '<tr><td style="color:var(--tz-blue-700);font-weight:600;width:130px;background:var(--gray-50);white-space:nowrap;padding:6px 10px;border-bottom:1px solid var(--gray-200)">'+t+'</td><td style="padding:6px 10px;border-bottom:1px solid var(--gray-200)">'+content+'</td></tr>';
+  }).join('')+'</table>';
+}
+function openRiskDetail(riskId){
+  var r=App.risk.byId(riskId);
+  if(!r){App.toast('风险点不存在','error');return;}
+  if(App.inCurrentOrgScope&&!App.inCurrentOrgScope(r.org)){App.toast('当前组织范围无权查看该风险点','error');return;}
+  var displayVersion=r.draftVersion||{version:r.version,hazards:r.hazards},displayHazards=displayVersion.hazards||r.hazards||[];
+  UI.drawer(
+    '<div class="desc desc-2">'+
+      '<div class="d-item"><span class="d-label">编号</span><span class="d-value">'+esc(r.code)+'</span></div>'+ 
+      '<div class="d-item"><span class="d-label">名称</span><span class="d-value">'+esc(r.name)+'</span></div>'+ 
+      '<div class="d-item"><span class="d-label">位置</span><span class="d-value">'+esc(r.location||'-')+'</span></div>'+ 
+      '<div class="d-item"><span class="d-label">管控层级</span><span class="d-value">'+esc(r.controlLevel||'-')+'</span></div>'+ 
+      '<div class="d-item"><span class="d-label">责任岗位</span><span class="d-value">'+esc(riskPointView(r).responsibilityPost||'-')+'</span></div>'+ 
+      '<div class="d-item"><span class="d-label">检查频次</span><span class="d-value">班组（工部）'+esc((r.checkFreq||{}).group||'-')+'、分公司'+esc((r.checkFreq||{}).branch||'-')+'、公司'+esc((r.checkFreq||{}).company||'-')+'</span></div>'+ 
+      (currentApprovalStep(r)?'<div class="d-item"><span class="d-label">当前审批节点</span><span class="d-value">'+esc(currentApprovalStep(r).name)+'</span></div><div class="d-item"><span class="d-label">审批路径</span><span class="d-value">'+esc(approvalPath(r).steps.map(function(x){return x.name;}).join(' → '))+'</span></div><div class="d-item"><span class="d-label">最高风险等级</span><span class="d-value">'+UI.tagOf(approvalRule(r).level.key)+'</span></div><div class="d-item"><span class="d-label">待办推送</span><span class="d-value">已推送企业微信 · '+esc(currentApprovalStep(r).name)+'</span></div>':'')+
+      (rsOf(r)==='已退回'?'<div class="d-item full"><span class="d-label">退回原因</span><span class="d-value">'+esc((r.draftVersion||{}).returnedReason||'请班组长修改后重新提交')+'；重新提交后从作业区负责人审核开始</span></div>':'')+
+    '</div>'+ 
+    '<div class="section-head"><h3>危险源明细（'+displayHazards.length+' 条）</h3></div>'+ 
+    displayHazards.map(function(h,hi){
+      var lv=h.level||levelOf(h.D||0), L=lv.L!==undefined?lv.L:h.L, E=lv.E!==undefined?lv.E:h.E, C=lv.C!==undefined?lv.C:h.C, D=lv.D!==undefined?lv.D:h.D;
+      return '<div class="card" style="margin-bottom:12px"><div class="card-title">危险源 '+(hi+1)+'：'+esc(h.name||'-')+'</div>'+ 
+      '<div class="desc desc-2">'+
+        '<div class="d-item"><span class="d-label">危险源或潜在事件</span><span class="d-value">'+esc(h.name||'-')+'</span></div>'+ 
+        '<div class="d-item"><span class="d-label">风险等级</span><span class="d-value">'+UI.tagOf(lv.key)+'</span></div>'+ 
+        (lv.method==='direct'||lv.basis?'<div class="d-item" style="grid-column:1/-1"><span class="d-label">直接判定依据</span><span class="d-value">'+esc(lv.basis||h.directNote||'-')+'</span></div>':'<div class="d-item"><span class="d-label">LEC 评价</span><span class="d-value">L '+(L||'-')+' × E '+(E||'-')+' × C '+(C||'-')+' = D '+(D||'-')+'</span></div>')+ 
+        '<div class="d-item"><span class="d-label">可能发生的事故类型</span><span class="d-value">'+esc(accidentText(h))+'</span></div>'+ 
+      '</div>'+ 
+      '<div class="d-item" style="grid-column:1/-1;margin-top:8px"><span class="d-label">管控措施（五类）</span><span class="d-value">'+measuresTable(h.measures)+'</span></div>'+ 
+      '</div>';
+    }).join('')||UI.empty(),
+    {title:'风险点详情 · '+r.code,wide:true,footer:buildDetailFooter(r)}
+  );
+}
+function closeDrawerDOM(){document.querySelectorAll('.mask,.drawer').forEach(function(n){n.remove();});}
+function buildDetailFooter(r){
+  var st=rsOf(r),close='<button class="btn btn-outline" data-close>关闭</button>';
+  if(['草稿','已退回'].indexOf(st)>-1)return close+'<button class="btn btn-outline" onclick="openRiskForm(\''+r.id+'\')">继续编辑</button><button class="btn btn-primary" onclick="initiateApproval(\''+r.id+'\')">'+(st==='已退回'?'修改后重新提交':'提交审核')+'</button>';
+  if(currentApprovalStep(r))return close+'<button class="btn btn-primary" onclick="openRiskApprovalMaterial(\''+r.id+'\')">查看/处理审核</button>';
+  if(st==='管控中')return close+'<button class="btn btn-outline danger" onclick="deactivateRisk(\''+r.id+'\')">停用风险点</button><button class="btn btn-primary" onclick="closeDrawerDOM();openChangeForm(\''+r.id+'\')">发起变更/复评</button>';
+  return close+'<button class="btn btn-outline" onclick="App.toast(\'演示环境：编辑风险点\')">编辑</button><button class="btn btn-primary" onclick="App.toast(\'演示环境：进入工作台\')">进入工作台</button>';
+}
+function opBtn(r){
+  var st=rsOf(r);
+  if(['草稿','已退回'].indexOf(st)>-1)return '<button class="btn btn-text" onclick="editRisk(\''+r.id+'\')">继续编辑</button><button class="btn btn-text" onclick="initiateApproval(\''+r.id+'\')">'+(st==='已退回'?'重新提交':'提交审核')+'</button>';
+  if(currentApprovalStep(r))return '<button class="btn btn-text" onclick="openRiskApprovalMaterial(\''+r.id+'\')">审核详情</button>';
+  return '<button class="btn btn-text" onclick="openRiskDetail(\''+r.id+'\')">详情</button>';
+}
+function riskReadyForApproval(r){
+  var d=r&&r.draftVersion,source=d||r,hs=source&&source.hazards||[],issues=[];
+  var responsibilityPost=source&&source.responsibilityPost||r&&r.responsibilityPost;
+  if(RESPONSIBILITY_POSTS.indexOf(responsibilityPost)<0)issues.push('风险点责任岗位必须从受控岗位中选择');
+  if(!hs.length)issues.push('至少需要 1 条危险源');
+  hs.forEach(function(h,i){var label='危险源 '+(i+1)+(h.name?'「'+h.name+'」':'');if(!h.name)issues.push(label+'：未填写危险源描述');if(!accidentValues(h).length)issues.push(label+'：未填写事故类型');var assessed=!!(h.level&&((h.level.method==='direct'&&h.level.basis)||h.direct||+h.D>0));if(!assessed||h.assessmentStatus!=='已完成')issues.push(label+'：尚未完成风险评价');if(!(h.measures||[]).some(function(m){return m.type==='管理措施';}))issues.push(label+'：必须至少填写一条管理措施');});
+  return {ok:issues.length===0,issues:issues};
+}
+function pushWeComNotice(title,text,module,target){App.notifications.unshift({id:'MSG-'+Date.now(),title:title,text:text,module:module,target:target,channel:'企业微信',read:false,createdAt:now()});}
+function initiateApproval(riskId){
+  var r=App.risk.byId(riskId);if(!r)return;
+  if(App.currentRole!=='team_leader'){App.toast('风险点应由班组长填报并提交审核','error');return;}
+  var check=riskReadyForApproval(r);if(!check.ok){App.toast('不能发起审批：'+check.issues[0]+'。请点击“继续编辑”补充后保存草稿','error');return;}
+  var d=r.draftVersion||r,flow=approvalPath(r),first=flow.steps[0],wasReturned=d.status==='已退回';
+  d.status=first.status;d.submittedAt=now();d.currentApprovalNode=first.name;d.approvalRole=first.role;d.approvalChannel='INTERNAL';d.internalApprovalStatus='审批中';d.returnedReason='';
+  r.approvalRole=first.role;r.approvalRoleName=first.name;r.approvalChannel='INTERNAL';r.internalApprovalStatus='审批中';r.updatedAt=now();
+  ['oaInstanceId','oaStatusUrl','oaStatus','approvalPdfName'].forEach(function(k){delete d[k];delete r[k];});
+  r.approvalHistory=r.approvalHistory||[];r.approvalHistory.unshift({at:now(),by:App.currentUser(),node:'班组长填报',action:wasReturned?'修改后重新提交':'提交审核',channel:'INTERNAL',note:'进入'+first.name});
+  pushWeComNotice('风险点待审核',r.code+' '+(d.version||r.version)+' 等待'+first.name,'risks','risks.html?tab=ledger&risk='+encodeURIComponent(r.id));
+  if(App._emit)App._emit();closeDrawerDOM();if(document.getElementById('ledgerBody'))renderLedger();App.toast(wasReturned?'已重新提交，并从作业区负责人审核重新开始':'已提交作业区负责人审核，待办已推送企业微信','success');openRiskApprovalMaterial(r.id);
+}
+function publishRisk(r,note){
+  var d=r.draftVersion,flow=approvalPath(r),last=flow.steps[flow.steps.length-1];if(d){r.name=d.riskName||r.name;r.org=d.org||r.org;r.category=d.category||r.category;r.responsibilityPost=d.responsibilityPost||r.responsibilityPost;r.location=d.location||r.location;r.boundaryDescription=d.boundaryDescription||r.boundaryDescription;r.hazards=JSON.parse(JSON.stringify(d.hazards||r.hazards||[]));r.version=d.version||r.version;var max=App.risk.maxLevel?App.risk.maxLevel(r.hazards):{key:r.level||'low',name:'低'};r.level=max.key;r.versions=r.versions||[];r.versions.forEach(function(v){if(v.status==='当前生效')v.status='已归档';});var snapshot={id:d.id,code:r.code,version:r.version,status:'当前生效',riskName:r.name,hazardCount:r.hazards.length,measureCount:r.hazards.reduce(function(s,h){return s+(h.measures||[]).length;},0),maxLevel:max.name,operator:App.currentUser(),publishedAt:now(),note:note||'平台内置审批通过',approvalRole:last.name,approvalChannel:'INTERNAL',approvalPath:flow.steps.map(function(x){return x.name;}),approvalHistory:JSON.parse(JSON.stringify(r.approvalHistory||[])),snapshot:{riskName:r.name,org:r.org,category:r.category,responsibilityPost:r.responsibilityPost,location:r.location,boundaryDescription:r.boundaryDescription,hazards:JSON.parse(JSON.stringify(r.hazards))}};r.versions.unshift(snapshot);App.versions.unshift(snapshot);r.draftVersion=null;}
+  r.status='已发布';r.currentVersion=r.version;r.approvalResult='已批准';r.approvalChannel='INTERNAL';r.internalApprovalStatus='已批准';r.updatedAt=now();['oaInstanceId','oaStatusUrl','oaStatus','approvalPdfName'].forEach(function(k){delete r[k];});if(App._emit)App._emit();closeDrawerDOM();if(document.getElementById('ledgerBody'))renderLedger();App.toast('风险点整体审批完成，版本已批准生效','success');openRiskDetail(r.id);
+}
+function approveRisk(riskId){
+  var r=App.risk.byId(riskId),d=r&&r.draftVersion,step=r&&currentApprovalStep(r);if(!r||!d||!step)return;
+  var check=riskReadyForApproval(r);if(!check.ok){App.toast('不能通过：'+check.issues[0],'error');return;}
+  if(App.currentRole!==step.role){App.toast('请切换到'+step.name+'角色办理平台内审批','error');return;}
+  var flow=approvalPath(r),idx=flow.steps.findIndex(function(x){return x.status===d.status;}),next=flow.steps[idx+1],note=((document.getElementById('riskApprovalNote')||{}).value||'审核通过').trim();
+  r.approvalHistory=r.approvalHistory||[];r.approvalHistory.unshift({at:now(),by:App.currentUser(),node:step.name,action:next?'审核通过':'批准生效',channel:'INTERNAL',note:note});
+  if(next){d.status=next.status;d.currentApprovalNode=next.name;d.approvalRole=next.role;d.internalApprovalStatus='审批中';r.approvalRole=next.role;r.approvalRoleName=next.name;r.internalApprovalStatus='审批中';pushWeComNotice('风险点待审核',r.code+' '+(d.version||r.version)+' 等待'+next.name,'risks','risks.html?tab=ledger&risk='+encodeURIComponent(r.id));if(App._emit)App._emit();closeDrawerDOM();if(document.getElementById('ledgerBody'))renderLedger();App.toast('已通过「'+step.name+'」，进入「'+next.name+'」','success');openRiskApprovalMaterial(r.id);return;}
+  publishRisk(r,note);
+}
+function rejectInternalRisk(riskId){
+  var r=App.risk.byId(riskId),d=r&&r.draftVersion,step=r&&currentApprovalStep(r),note=((document.getElementById('riskApprovalNote')||{}).value||'').trim();if(!r||!d||!step)return;
+  if(App.currentRole!==step.role){App.toast('请切换到'+step.name+'角色办理平台内审批','error');return;}
+  if(!note){App.toast('退回必须填写意见','error');return;}
+  d.status='已退回';d.returnedReason=note;d.currentApprovalNode='班组长修改';d.approvalRole='team_leader';d.internalApprovalStatus='已退回';r.approvalRole='team_leader';r.approvalRoleName='班组长修改';r.internalApprovalStatus='已退回';r.approvalHistory=r.approvalHistory||[];r.approvalHistory.unshift({at:now(),by:App.currentUser(),node:step.name,action:'退回班组长',channel:'INTERNAL',note:note});pushWeComNotice('风险审批退回',r.code+' 已由'+step.name+'退回班组长，请修改后重新提交','risks','risks.html?tab=ledger&risk='+encodeURIComponent(r.id));if(App._emit)App._emit();closeDrawerDOM();if(document.getElementById('ledgerBody'))renderLedger();App.toast('已退回班组长；重新提交后从作业区负责人审核开始','warn');openRiskDetail(r.id);
+}
+function openRiskApprovalMaterial(riskId){
+  var r=App.risk.byId(riskId);if(!r)return;var w=r.draftVersion||r,flow=approvalPath(r),step=currentApprovalStep(r),hs=w.hazards||[],canApprove=step&&App.currentRole===step.role;
+  var rows=hs.map(function(h,i){return '<tr><td>'+(i+1)+'</td><td>'+esc(h.name)+'</td><td>'+esc(accidentText(h))+'</td><td>'+UI.tagOf((h.level||{}).key||'low')+'</td><td>'+esc((h.measures||[]).filter(function(m){return m.type==='管理措施';}).map(function(m){return m.name;}).join('；')||'-')+'</td><td>'+Math.max(0,(h.measures||[]).length-1)+' 条</td></tr>';}).join('');
+  var pathHtml=flow.steps.map(function(x,i){var passed=(r.approvalHistory||[]).some(function(h){return h.node===x.name&&(h.action==='审核通过'||h.action==='批准生效');}),active=step&&step.status===x.status;return '<span class="tag '+(active?'tag-blue':passed?'tag-green':'tag-gray')+'">'+(i+1)+'. '+esc(x.name)+(active?'（当前）':passed?'（已通过）':'')+'</span>';}).join(' <span class="muted">→</span> ');
+  var history=(r.approvalHistory||[]).map(function(h){return '<tr><td>'+esc(h.at||'-')+'</td><td>'+esc(h.node||'-')+'</td><td>'+esc(h.by||'-')+'</td><td>'+esc(h.action||'-')+'</td><td>'+esc(h.note||'-')+'</td></tr>';}).join('')||'<tr><td colspan="5" class="muted">暂无审核记录</td></tr>';
+  var finalNode=step&&flow.steps[flow.steps.length-1].status===step.status;
+  var channelInfo='<div class="alert info">风险新增、变更和复评均使用安全管理平台内置审批。任一节点退回后，由班组长修改；重新提交时从作业区负责人审核重新开始。各节点待办同步推送企业微信。</div><div class="desc desc-2"><div class="d-item"><span class="d-label">当前节点</span><span class="d-value">'+esc(step?step.name:w.status||'-')+'</span></div><div class="d-item"><span class="d-label">最高风险等级</span><span class="d-value">'+UI.tagOf(flow.level.key)+'</span></div><div class="d-item"><span class="d-label">审批方式</span><span class="d-value">安全管理平台内置审批</span></div><div class="d-item"><span class="d-label">待办推送</span><span class="d-value">企业微信 · 已送达</span></div></div><div class="section-head"><h3>审批路径</h3></div><div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:14px">'+pathHtml+'</div>';
+  UI.drawer(channelInfo+'<div class="section-head"><h3>风险点版本材料</h3><span class="muted">'+esc(r.code)+' · '+esc(w.version||r.version)+'</span></div><div class="tbl-wrap"><table class="tbl"><thead><tr><th>#</th><th>危险源</th><th>事故类型</th><th>评价</th><th>管理措施</th><th>其他措施</th></tr></thead><tbody>'+rows+'</tbody></table></div><div class="section-head" style="margin-top:16px"><h3>审核记录</h3></div><div class="tbl-wrap"><table class="tbl"><thead><tr><th>时间</th><th>节点</th><th>办理人</th><th>动作</th><th>意见</th></tr></thead><tbody>'+history+'</tbody></table></div>'+(step?'<div class="form-item" style="margin-top:14px"><span class="form-label">审核意见</span>'+approvalPhraseButtons('riskApprovalNote')+'<textarea id="riskApprovalNote" placeholder="通过可选填，退回必须填写"></textarea></div>':''),{title:'风险点审核 · '+r.code,wide:true,footer:'<button class="btn btn-outline" data-close>关闭</button>'+(step?(canApprove?'<button class="btn btn-danger" onclick="rejectInternalRisk(\''+r.id+'\')">退回班组长</button><button class="btn btn-green" onclick="approveRisk(\''+r.id+'\')">'+(finalNode?'批准生效':'审核通过')+'</button>':'<span class="hint-line">请切换到 '+esc(step.name)+' 角色办理当前审核</span>'):'')});
+}
+function deactivateRisk(riskId){var r=App.risk.byId(riskId);if(!r)return;UI.modal('<div class="form-grid"><label class="field span-2"><span>停用原因 *</span><textarea id="riskStopReason" rows="4" placeholder="请说明设备拆除、工艺取消等原因"></textarea></label></div>',{title:'停用风险点 · '+esc(r.code),footer:'<button class="btn btn-outline" data-close>取消</button><button class="btn btn-danger" onclick="confirmDeactivateRisk(\''+r.id+'\')">确认停用</button>'});}
+function confirmDeactivateRisk(riskId){var r=App.risk.byId(riskId),reason=(document.getElementById('riskStopReason')||{}).value||'';if(!r)return;if(!reason.trim()){App.toast('请填写停用原因','error');return;}r.status='已停用';r.deactivatedAt=now();r.deactivatedBy=App.currentUser();r.deactivatedReason=reason.trim();if(App._emit)App._emit();closeDrawerDOM();renderLedger();App.toast('风险点已停用，历史版本永久保留','success');}
+function closeDrawerAndWorkbench(riskId,hid){
+  document.querySelectorAll('.mask,.drawer').forEach(function(n){n.remove();});
+  var t=taskForRisk(riskId);location.href=taskQuery('evaluate',t&&t.id||'',riskId,hid);
+}
+
+/* ================= 辨识任务 ================= */
+var wb={step:1,riskId:risk&&risk.id||'R-001',hazardIdx:0};
+function viewTasks(){
+  var pending=[];
+  var versions=App.versionApprovals.filter(function(v){return ["待作业区负责人审核","待二级单位安全管理审核","待二级单位领导审批","已退回"].indexOf(v.status)>-1;});
+  setRiskHeader('辨识任务列表',['风险管理','辨识任务'],'<button class="btn btn-primary btn-sm" onclick="openNewTask()">+ 新建辨识任务</button>');
+  body.innerHTML=riskFlow(1)+
+  '<div class="alert info">这里是全部辨识工作的待办清单。任务可以先保存草稿再继续；进入辨识后，按任务维护地点风险点及其危险源。当前角色：<b>'+App.roleOf(App.currentRole).name+'（'+App.currentUser()+'）</b>。</div>'+ 
+  '<div class="section-head"><h3>辨识任务列表</h3><button class="btn btn-primary btn-sm" onclick="openNewTask()">+ 新建辨识任务</button></div>'+ 
+  '<div class="tbl-wrap"><table class="tbl"><thead><tr><th>任务编号</th><th>任务名称</th><th>部门/作业区</th><th>风险点</th><th>危险源</th><th>状态</th><th>当前处理人</th><th>操作</th></tr></thead><tbody>'+ 
+  App.riskTasks.map(function(x){var rs=risksForTask(x),hz=rs.reduce(function(s,r){var w=App.risk.workVersion(r.id)||r;return s+((w.hazards||[]).length);},0);return '<tr><td class="mono">'+esc(x.code)+'</td><td><b>'+esc(x.name||'未命名辨识任务')+'</b><br><span class="muted">'+esc(x.taskType||'首次辨识')+'</span></td><td>'+esc(x.org||'-')+'</td><td>'+rs.length+'</td><td>'+hz+'</td>'+ 
+    '<td>'+statusTag(x.status)+'</td><td>'+esc(x.currentHandler||x.owner||'-')+'</td>'+ 
+    '<td>'+taskActions(x,rs[0]||null)+'</td></tr>';}).join('')+ 
+  '</tbody></table></div>'+ 
+  '<div class="hint-line">任务状态：草稿 → 辨识中 → 危险源逐条完成评价和措施 → 风险点版本初审/安全审核/公司批准 → 已生效。</div>'+ 
+  '<div class="section-head" style="margin-top:22px"><h3>风险点版本审批待办</h3><span class="muted">全部危险源完成后，按整个风险点版本审核</span></div>'+ 
+  '<div class="grid-2col" style="margin-bottom:16px"><div class="card"><div class="card-title">风险点版本审批待办 <span class="tag tag-blue">'+versions.length+'</span></div>'+ 
+    (versions.length?'<div class="tbl-wrap"><table class="tbl"><thead><tr><th>风险点</th><th>版本</th><th>当前节点</th><th>危险源/最高等级</th><th>操作</th></tr></thead><tbody>'+versions.map(function(v){var r=App.risk.byId(v.riskId),d=r&&r.draftVersion||v.snapshot;return '<tr><td>'+esc((r&&r.code)||'-')+'</td><td>'+esc((d&&d.version)||v.version||'-')+'</td><td>'+statusTag(v.status)+'</td><td>'+((d&&d.hazards.length)||v.hazardCount||0)+' 条 / '+esc(d?App.risk.maxLevel(d.hazards).name:(v.maxLevel||'-'))+'</td><td><button class="btn btn-text" onclick="openVersionApproval(\''+v.riskId+'\')">详情/处理</button></td></tr>';}).join('')+'</tbody></table></div>':UI.empty('暂无版本审批待办'))+ 
+    '<div style="margin-top:10px"><button class="btn btn-outline btn-sm" onclick="openVersionQueue()">查看版本审批历史</button></div></div></div>';
+}
+
+function viewTaskForm(){
+  var t=taskById(params.get('task')),editable=!t||['草稿','已退回','辨识中'].indexOf(t.status)>-1;
+  setRiskHeader(t?'编辑辨识任务':'新建辨识任务',['风险管理','辨识任务',t?'编辑任务':'新建任务']);
+  body.innerHTML=riskFlow(2)+
+  '<div class="risk-context"><div><div class="main">② 新建/编辑辨识任务</div><div class="sub">保存草稿后可从任务列表继续；开始辨识后直接进入风险点信息页。</div></div><span>'+statusTag(t&&t.status||'草稿')+'</span></div>'+ 
+  '<div class="card"><div class="risk-section-title"><span class="no">②</span>任务基本信息</div>'+ 
+  '<div class="form-grid">'+
+    '<div class="form-item"><span class="form-label">任务编号</span><input value="'+esc(t&&t.code||'系统保存后自动生成')+'" disabled></div>'+ 
+    '<div class="form-item"><span class="form-label">任务类型 <span class="req">*</span></span><select id="taskType" '+(editable?'':'disabled')+'><option '+(t&&t.taskType==='首次辨识'?'selected':'')+'>首次辨识</option><option '+(t&&t.taskType==='人工定期复评'?'selected':'')+'>人工定期复评</option><option '+(t&&t.taskType==='变更辨识'?'selected':'')+'>变更辨识</option><option '+(t&&t.taskType==='事故后复评'?'selected':'')+'>事故后复评</option></select></div>'+ 
+    '<div class="form-item full"><span class="form-label">任务名称 <span class="req">*</span></span><input id="taskName" value="'+esc(t&&t.name||'')+'" '+(editable?'':'disabled')+' placeholder="如：自动线组首次风险辨识"></div>'+ 
+    '<div class="form-item"><span class="form-label">部门/作业区范围 <span class="req">*</span></span><select id="taskOrg" '+(editable?'':'disabled')+'><option selected>造型作业区</option></select></div>'+ 
+    '<div class="form-item"><span class="form-label">负责人 <span class="req">*</span></span>'+personInput('taskOwner',t&&t.owner||App.currentUser(),editable)+'</div>'+ 
+    '<div class="form-item full"><span class="form-label">辨识范围 <span class="req">*</span></span><textarea id="taskScope" '+(editable?'':'disabled')+' placeholder="填写本次涉及的地点、设备和作业活动范围">'+esc(t&&t.scope||'')+'</textarea></div>'+ 
+    '<div class="form-item"><span class="form-label">参与人员</span><input id="taskParticipants" value="'+esc(t&&(t.participants||[]).join('、')||'')+'" '+(editable?'':'disabled')+' placeholder="多个人员用顿号或逗号分隔"></div>'+ 
+    '<div class="form-item"><span class="form-label">计划开始</span><input id="taskStart" type="date" value="'+esc(t&&t.plannedStart||'')+'" '+(editable?'':'disabled')+'></div>'+ 
+    '<div class="form-item"><span class="form-label">计划完成 <span class="req">*</span></span><input id="taskDate" type="date" value="'+esc(t&&t.plannedEnd||'')+'" '+(editable?'':'disabled')+'></div>'+ 
+    '<div class="form-item full"><span class="form-label">触发原因 <span class="req">*</span></span><textarea id="taskReason" '+(editable?'':'disabled')+' placeholder="首次建设、设备改造、事故或人工复评原因">'+esc(t&&t.triggerReason||'')+'</textarea></div>'+ 
+  '</div><div class="risk-form-actions"><button class="btn btn-outline" onclick="location.href=\'risks.html?tab=tasks\'">← 返回任务列表</button><span>'+ 
+  (editable?'<button class="btn btn-outline" onclick="saveTaskPage(false)">保存草稿</button> <button class="btn btn-primary" onclick="saveTaskPage(true)">开始辨识 →</button>':'<button class="btn btn-primary" onclick="enterTaskIdentification(\''+(t&&t.id||'')+'\')">查看风险点</button>')+'</span></div></div>';
+}
+
+function saveTaskPage(startIdentification){
+  var id=params.get('task'),t=taskById(id),name=document.getElementById('taskName').value.trim(),org=document.getElementById('taskOrg').value;
+  if(!name||!org){App.toast('保存草稿至少需要任务名称和部门/作业区范围','error');return;}
+  var scope=document.getElementById('taskScope').value.trim(),owner=document.getElementById('taskOwner').value.trim(),end=document.getElementById('taskDate').value,reason=document.getElementById('taskReason').value.trim();
+  if(startIdentification&&(!scope||!owner||!end||!reason)){App.toast('开始辨识前请补全辨识范围、负责人、计划完成日期和触发原因','error');return;}
+  var patch={name:name,org:org,taskType:document.getElementById('taskType').value,scope:scope,owner:owner,participants:document.getElementById('taskParticipants').value.split(/[、,，]/).map(function(x){return x.trim();}).filter(Boolean),plannedStart:document.getElementById('taskStart').value,plannedEnd:end,triggerReason:reason};
+  if(!t){t={id:uid(),code:'TASK-ZX-'+new Date().getFullYear()+'-'+String(App.riskTasks.length+1).padStart(3,'0'),status:'草稿',version:'-',createdAt:now(),hazardCount:0,riskIds:[],actions:[]};App.riskTasks.unshift(t);}
+  Object.keys(patch).forEach(function(k){t[k]=patch[k];});
+  t.status=startIdentification?'辨识中':'草稿';t.currentHandler=App.currentUser();t.updatedAt=now();t.actions=t.actions||[];t.actions.unshift({at:now(),by:App.currentUser(),status:t.status,note:startIdentification?'任务信息完成，开始划分地点风险点':'保存任务草稿'});
+  App.log('风险管理','[任务'+(startIdentification?'开始':'草稿')+'] '+t.code+' '+t.name);App._emit();
+  if(startIdentification)enterTaskIdentification(t.id);else{App.toast('任务草稿已保存，可从列表继续填写');location.href='risks.html?tab=tasks';}
+}
+
+function enterTaskIdentification(taskId){
+  var t=taskById(taskId),rs=risksForTask(t),r=rs[0];
+  if(!t){App.toast('辨识任务不存在','error');return;}
+  location.href=taskQuery('risk-point',t.id,r&&r.id||'');
+}
+
+function viewRiskPointInfo(){
+  var t=taskById(params.get('task')),r=App.risk.byId(params.get('risk'));
+  if(!t&&r)t=taskForRisk(r.id);
+  if(!t){setRiskHeader('风险点信息');body.innerHTML='<div class="alert warn">未找到所属辨识任务，请从辨识任务列表重新进入。</div>';return;}
+  var rs=risksForTask(t),editable=!r||draftEditable(r),rm=riskPointView(r);
+  setRiskHeader(r?'风险点信息':'新增风险点',['风险管理','辨识任务',t.code,r?'风险点信息':'新增风险点']);
+  body.innerHTML=riskFlow(3)+
+  '<div class="risk-context"><div><div class="main">任务：'+esc(t.code)+' · '+esc(t.name)+'</div><div class="sub">部门/作业区：'+esc(t.org)+'　风险点按地点/区域边界划分，例如“自动线组造型工位”。</div></div>'+statusTag(t.status)+'</div>'+ 
+  '<div class="card"><div class="risk-section-title"><span class="no">③</span>风险点信息（一个地点 = 一个风险点）</div>'+ 
+  '<div class="form-grid">'+
+    '<div class="form-item"><span class="form-label">风险点编号</span><input value="'+esc(r&&r.code||'保存后自动生成')+'" disabled></div>'+ 
+    '<div class="form-item"><span class="form-label">所属部门/作业区</span><input id="rpOrg" value="'+esc(rm.org||t.org)+'" disabled></div>'+ 
+    '<div class="form-item full"><span class="form-label">风险点名称（地点） <span class="req">*</span></span><input id="rpName" value="'+esc(rm.name||'')+'" '+(editable?'':'disabled')+' placeholder="如：自动线组造型工位"></div>'+ 
+    '<div class="form-item"><span class="form-label">风险点类别 <span class="req">*</span></span><select id="rpCategory" '+(editable?'':'disabled')+'><option '+(!r||rm.category==='作业区域风险'?'selected':'')+'>作业区域风险</option><option '+(r&&rm.category==='设备设施风险'?'selected':'')+'>设备设施风险</option><option '+(r&&rm.category==='作业活动风险'?'selected':'')+'>作业活动风险</option><option '+(r&&rm.category==='环境风险'?'selected':'')+'>环境风险</option></select></div>'+ 
+    '<div class="form-item"><span class="form-label">具体位置 <span class="req">*</span></span><input id="rpLocation" value="'+esc(rm.location||'')+'" '+(editable?'':'disabled')+' placeholder="厂房、区域、工位或坐标"></div>'+ 
+    '<div class="form-item"><span class="form-label">风险点总责任人 <span class="req">*</span></span>'+personInput('rpOwner',rm.owner||t.owner||'',editable)+'</div>'+ 
+    '<div class="form-item full"><span class="form-label">地点边界/涉及设备与作业</span><textarea id="rpBoundary" '+(editable?'':'disabled')+' placeholder="说明该地点包含的设备、工序、岗位及物理边界">'+esc(rm.boundaryDescription||'')+'</textarea></div>'+ 
+  '</div><div class="risk-form-actions"><button class="btn btn-outline" onclick="location.href=\'risks.html?tab=tasks\'">← 返回任务列表</button><span>'+ 
+  (editable?'<button class="btn btn-outline" onclick="saveRiskPointPage(false)">保存风险点</button> <button class="btn btn-primary" onclick="saveRiskPointPage(true)">保存并维护危险源 →</button>':'<button class="btn btn-primary" onclick="location.href=taskQuery(\'hazards\',\''+t.id+'\',\''+(r&&r.id||'')+'\')">查看危险源 →</button>')+'</span></div></div>'+ 
+  '<div class="section-head" style="margin-top:20px"><h3>本任务已建风险点</h3><button class="btn btn-outline btn-sm" onclick="location.href=taskQuery(\'risk-point\',\''+t.id+'\')">+ 继续新增风险点</button></div>'+ 
+  (rs.length?'<div class="tbl-wrap"><table class="tbl"><thead><tr><th>风险点编号</th><th>地点/风险点名称</th><th>具体位置</th><th>危险源数</th><th>状态</th><th>操作</th></tr></thead><tbody>'+rs.map(function(x){var w=App.risk.workVersion(x.id)||x,xm=riskPointView(x);return '<tr><td class="mono">'+esc(x.code)+'</td><td>'+esc(xm.name)+'</td><td>'+esc(xm.location)+'</td><td>'+((w.hazards||[]).length)+'</td><td>'+statusTag(rsOf(x))+'</td><td><button class="btn btn-text" onclick="location.href=taskQuery(\'risk-point\',\''+t.id+'\',\''+x.id+'\')">编辑信息</button><button class="btn btn-text" onclick="location.href=taskQuery(\'hazards\',\''+t.id+'\',\''+x.id+'\')">维护危险源</button></td></tr>';}).join('')+'</tbody></table></div>':UI.empty('当前任务尚未建立风险点'));
+}
+
+function saveRiskPointPage(goHazards){
+  var t=taskById(params.get('task')),r=App.risk.byId(params.get('risk'));
+  if(!t){App.toast('辨识任务不存在','error');return;}
+  var name=document.getElementById('rpName').value.trim(),locationText=document.getElementById('rpLocation').value.trim(),owner=document.getElementById('rpOwner').value.trim();
+  if(!name||!locationText||!owner){App.toast('风险点名称、具体位置和总责任人不能为空','error');return;}
+  var isNew=!r,patch={name:name,org:t.org,category:document.getElementById('rpCategory').value,location:locationText,owner:owner,boundaryDescription:document.getElementById('rpBoundary').value.trim(),reason:t.triggerReason||'辨识任务建档'};
+  if(!r){
+    var rid=uid(),vid=uid();
+    r={id:rid,code:'RISK-ZX-'+String(App.risks.length+1).padStart(3,'0'),name:name,org:t.org,category:patch.category,owner:owner,reason:patch.reason,location:locationText,boundaryDescription:patch.boundaryDescription,status:'草稿',version:'-',level:'low',updatedAt:now(),hazards:[],versions:[],draftVersion:{id:vid,version:'V1.0',status:'草稿',riskId:rid,riskName:name,org:t.org,category:patch.category,owner:owner,location:locationText,boundaryDescription:patch.boundaryDescription,createdAt:now(),updatedAt:now(),operator:App.currentUser(),trigger:t.taskType||'首次辨识',reason:t.triggerReason||'',scope:t.scope||'',planDate:t.plannedEnd||'',hazards:[],returnedReason:''}};
+    App.risks.push(r);t.riskIds=taskRiskIds(t);if(t.riskIds.indexOf(r.id)<0)t.riskIds.push(r.id);if(!t.riskId)t.riskId=r.id;App.log('风险管理','[风险点新增] '+t.code+' / '+r.code+' '+r.name);
+  }else{
+    var result=App.risk.updateRisk(r.id,patch);if(!result||!result.ok)return;
+  }
+  t.status='辨识中';t.currentHandler=App.currentUser();t.updatedAt=now();App._emit();App.toast('风险点信息已保存');
+  location.href=goHazards?(isNew?taskQuery('hazard-form',t.id,r.id):taskQuery('hazards',t.id,r.id)):taskQuery('risk-point',t.id,r.id);
+}
+
+function viewHazardList(){
+  var r=App.risk.byId(params.get('risk'));
+  if(!r){setRiskHeader('危险源列表');body.innerHTML='<div class="alert warn">风险点不存在，请从风险台账重新进入。</div>';return;}
+  var w=App.risk.workVersion(r.id)||r,rm=riskPointView(r),hs=w.hazards||[],editable=draftEditable(r),check=r.draftVersion?riskReadyForApproval(r):{ok:false,issues:['当前为已生效版本']};
+  setRiskHeader('危险源列表',['风险管理','风险台账',r.code,'危险源列表'],editable?'<button class="btn btn-primary btn-sm" onclick="openHazardForm()">+ 新增危险源</button>':'');
+  body.innerHTML=riskFlow(2)+
+  '<div class="risk-context"><div><div class="main">'+esc(r.code)+' · '+esc(rm.name)+'</div><div class="sub">地点：'+esc(rm.location)+'　版本：'+esc(w.version||'-')+'</div></div>'+statusTag(rsOf(r))+'</div>'+ 
+  '<div class="alert info">一个风险点可以有多个危险源；每个危险源分别完成评价和管控措施，全部完成后统一提交整个风险点审核。</div>'+ 
+  '<div class="section-head"><h3>当前风险点危险源列表</h3>'+(editable?'<button class="btn btn-primary btn-sm" onclick="openHazardForm()">+ 新增危险源</button>':'')+'</div>'+ 
+  (hs.length?'<div class="tbl-wrap"><table class="tbl"><thead><tr><th>#</th><th>危险源描述</th><th>事故类型</th><th>完成状态</th><th>L/E/C/D</th><th>风险等级</th><th>措施数</th><th>操作</th></tr></thead><tbody>'+hs.map(function(h,i){var canEdit=editable;return '<tr><td>'+(i+1)+'</td><td><b>'+esc(h.name)+'</b><br><span class="muted">'+esc(h.category||'-')+'</span></td><td>'+esc(accidentText(h))+'</td><td>'+assessmentTag(h.assessmentStatus||'待完善')+'</td><td>'+(h.D?h.L+'/'+h.E+'/'+h.C+'/'+h.D:'-')+'</td><td>'+(h.level?UI.tagOf(h.level.key):'-')+'</td><td>'+((h.measures||[]).length)+'</td><td><button class="btn btn-primary btn-sm" onclick="openHazardEvaluation(\''+h.id+'\')">'+(h.assessmentStatus==='已完成'?'查看/修改':'完善评价和措施')+'</button> '+(canEdit?'<button class="btn btn-text" onclick="openHazardForm(\''+h.id+'\')">编辑危险源</button>':'')+'</td></tr>';}).join('')+'</tbody></table></div>':UI.empty('当前风险点还没有危险源，请点击“新增危险源”逐条建档'))+ 
+  '<div class="risk-form-actions"><button class="btn btn-outline" onclick="location.href=\'risks.html?tab=ledger\'">← 返回风险台账</button><span>'+ 
+  (r.draftVersion?'<button class="btn btn-green" onclick="initiateApproval(\''+r.id+'\')" '+(check.ok?'':'disabled title="'+esc((check.issues||[])[0]||'条件未完成')+'"')+'>提交风险点审核</button>':'<button class="btn btn-outline" onclick="openChangeForm(\''+r.id+'\')">发起变更/复评</button>')+'</span></div>'+ 
+  (r.draftVersion&&!check.ok?'<div class="hint-line">版本暂不可提交：'+esc((check.issues||[]).join('；'))+'</div>':'');
+}
+
+function openHazardForm(hazardId){location.href=taskQuery('hazard-form','',params.get('risk'),hazardId||'');}
+
+function viewHazardForm(){
+  var r=App.risk.byId(params.get('risk')),h=r&&App.risk.hazardById(r.id,params.get('hazard')),editable=r&&draftEditable(r);
+  if(!r){setRiskHeader('危险源建档');body.innerHTML='<div class="alert warn">未指定所属风险点，不能新增危险源。</div>';return;}
+  var rm=riskPointView(r);
+  setRiskHeader(h?'编辑危险源':'新增危险源',['风险管理','风险台账',r.code,'危险源列表',h?'编辑危险源':'新增危险源']);
+  body.innerHTML=riskFlow(2)+
+  '<div class="risk-context"><div><div class="main">所属风险点：'+esc(r.code)+' · '+esc(rm.name)+'</div><div class="sub">地点：'+esc(rm.location)+'。保存后将返回这个风险点自己的危险源列表。</div></div>'+assessmentTag(h&&h.assessmentStatus||'待完善')+'</div>'+ 
+  '<div class="card"><div class="risk-section-title"><span class="no">2</span>'+(h?'编辑':'新增')+'危险源</div>'+ 
+  '<div class="form-grid">'+
+    '<div class="form-item full"><span class="form-label">危险源描述 <span class="req">*</span></span><textarea id="hzName" '+(editable?'':'disabled')+' placeholder="对象 + 危险状态/行为 + 可能导致的事件">'+esc(h&&h.name||'')+'</textarea></div>'+ 
+    '<div class="form-item"><span class="form-label">危险源类别 <span class="req">*</span></span><select id="hzCategory" '+(editable?'':'disabled')+'><option '+(h&&h.category==='人的不安全行为'?'selected':'')+'>人的不安全行为</option><option '+(!h||h.category==='物的不安全状态'?'selected':'')+'>物的不安全状态</option><option '+(h&&h.category==='不良环境'?'selected':'')+'>不良环境</option><option '+(h&&h.category==='管理缺陷'?'selected':'')+'>管理缺陷</option></select></div>'+ 
+    '<div class="form-item"><span class="form-label">状态</span><select id="hzState" '+(editable?'':'disabled')+'><option '+(!h||h.stateType==='正常'?'selected':'')+'>正常</option><option '+(h&&h.stateType==='异常'?'selected':'')+'>异常</option></select></div>'+ 
+    '<div class="form-item full"><span class="form-label">事故类型（27类，可多选） <span class="req">*</span></span><div id="hzAccident">'+accidentChecklist(h||'',!editable)+'</div></div>'+ 
+    '<div class="form-item"><span class="form-label">影响范围</span><input id="hzScope" value="'+esc(h&&h.impactScope||'当前岗位/区域')+'" '+(editable?'':'disabled')+'></div>'+ 
+    '<div class="form-item full"><span class="form-label">潜在事件及后果 <span class="req">*</span></span><textarea id="hzConsequence" '+(editable?'':'disabled')+' placeholder="说明可能造成的人身伤害、设备损坏或环境影响">'+esc(h&&h.consequence||'')+'</textarea></div>'+ 
+    '<div class="form-item full"><span class="form-label">现有控制及现场依据</span><textarea id="hzExisting" '+(editable?'':'disabled')+' placeholder="已有防护、制度、培训、劳保和应急条件">'+esc(h&&h.existingControls||'')+'</textarea></div>'+ 
+  '</div><div class="risk-form-actions"><button class="btn btn-outline" onclick="location.href=taskQuery(\'hazards\',\'\',\''+r.id+'\')">← 返回当前风险点危险源列表</button>'+(editable?'<button class="btn btn-primary" onclick="saveHazardPage()">保存危险源</button>':'<span class="muted">当前风险点版本只读</span>')+'</div></div>';
+}
+
+function saveHazardPage(){
+  var r=App.risk.byId(params.get('risk')),h=r&&App.risk.hazardById(r.id,params.get('hazard'));
+  if(!r||!draftEditable(r)){App.toast('当前风险点版本不可编辑','error');return;}
+  var name=document.getElementById('hzName').value.trim(),accidents=selectedAccidents(document.getElementById('hzAccident')),consequence=document.getElementById('hzConsequence').value.trim();
+  if(!name||!accidents.length||!consequence){App.toast('危险源描述、事故类型和潜在后果不能为空','error');return;}
+  var patch={name:name,category:document.getElementById('hzCategory').value,stateType:document.getElementById('hzState').value,accidentTypes:accidents,accidentType:accidents.join('、'),consequence:consequence,impactScope:document.getElementById('hzScope').value.trim(),existingControls:document.getElementById('hzExisting').value.trim()};
+  if(h){var result=App.risk.updateHazard(r.id,h.id,patch);if(!result||!result.ok)return;}else{h=Object.assign({id:uid(),L:1,E:1,C:1,D:1,level:levelOf(1),assessmentStatus:'待完善',assessment:'',assessor:'',assessedAt:'',measures:[],direct:false,controlLevel:'班组级',controlResponsibilities:[]},patch);r.draftVersion.hazards.push(h);App.log('风险管理','[危险源新增] '+r.code+' / '+h.name);App._emit();}
+  App.toast('危险源已保存，返回当前风险点列表');location.href=taskQuery('hazards','',r.id);
+}
+
+function submitRiskVersionFromList(riskId,taskId){var result=App.risk.submitVersion(riskId);if(result&&result.ok)viewHazardList();}
+
+var CONTROL_TYPES=[{key:'管理措施',label:'管理措施 *'},{key:'工程措施',label:'工程技术措施'},{key:'培训教育',label:'培训教育措施'},{key:'个体防护',label:'个体防护措施'},{key:'应急措施',label:'应急处置措施'}];
+function measureForType(h,key){return (h.measures||[]).filter(function(m){return m.type===key;})[0]||null;}
+function openHazardEvaluation(hazardId){location.href=taskQuery('evaluate','',params.get('risk'),hazardId);}
+
+function viewHazardEvaluation(){
+  var r=App.risk.byId(params.get('risk')),h=r&&App.risk.hazardById(r.id,params.get('hazard'));
+  if(!r||!h){setRiskHeader('危险源评价');body.innerHTML='<div class="alert warn">危险源不存在，请从风险点危险源列表重新选择。</div>';return;}
+  var locked=!draftEditable(r),direct=!!h.direct,rm=riskPointView(r);
+  setRiskHeader('危险源评价与管控措施',['风险管理','风险台账',r.code,'危险源列表','评价与措施']);
+  body.innerHTML=riskFlow(3)+
+  '<div class="risk-context"><div><div class="main">危险源：'+esc(h.name)+'</div><div class="sub">所属风险点：'+esc(r.code)+' · '+esc(rm.name)+'　地点：'+esc(rm.location)+'</div></div>'+assessmentTag(h.assessmentStatus||'待完善')+'</div>'+ 
+  '<div class="card"><div class="risk-section-title"><span class="no">1</span>第一段 · LEC 风险评价</div>'+ 
+  '<div class="alert info">分别选择发生可能性 L、暴露频率 E、后果严重程度 C；系统自动计算 D = L × E × C 并按红/橙/黄/蓝显示风险等级。</div>'+ 
+  '<div class="form-grid">'+
+    '<div class="form-item"><span class="form-label">事故发生可能性 L</span><select id="evalL" '+(locked?'disabled':'')+'>'+[1,2,3,4,5].map(function(v){return '<option value="'+v+'" '+(h.L===v?'selected':'')+'>'+v+'</option>';}).join('')+'</select></div>'+ 
+    '<div class="form-item"><span class="form-label">人员暴露频率 E</span><select id="evalE" '+(locked?'disabled':'')+'>'+[1,2,3,6].map(function(v){return '<option value="'+v+'" '+(h.E===v?'selected':'')+'>'+v+'</option>';}).join('')+'</select></div>'+ 
+    '<div class="form-item"><span class="form-label">后果严重程度 C</span><select id="evalC" '+(locked?'disabled':'')+'>'+[1,3,7,15].map(function(v){return '<option value="'+v+'" '+(h.C===v?'selected':'')+'>'+v+'</option>';}).join('')+'</select></div>'+ 
+    '<div class="form-item"><span class="form-label">评价人</span><input value="'+esc(h.assessor||App.currentUser())+'" disabled></div>'+ 
+    '<div class="form-item full"><label style="display:flex;gap:8px;align-items:center"><input type="checkbox" id="evalDirect" '+(direct?'checked':'')+' '+(locked?'disabled':'')+' style="width:auto"> 直接判定重大风险（勾选后必须填写依据）</label></div>'+ 
+    '<div class="form-item full" id="evalDirectWrap" style="'+(direct?'':'display:none')+'"><span class="form-label">直接判定依据</span><textarea id="evalDirectNote" '+(locked?'disabled':'')+'>'+esc(h.directNote||'')+'</textarea></div>'+ 
+  '</div><div class="formula-panel"><div><div class="formula" id="evalFormula">D = '+h.L+' × '+h.E+' × '+h.C+' = '+h.D+'</div><div class="formula-note">D≥320 重大；160-319 较大；70-159 一般；D&lt;70 低风险</div></div><div id="evalLevel">'+UI.tagOf((h.level||levelOf(h.D)).key)+'</div></div></div>'+ 
+  '<div class="card" style="margin-top:16px"><div class="risk-section-title"><span class="no">2</span>第二段 · 管控措施</div>'+ 
+  '<div class="alert info">五类措施都归属于当前危险源；未适用类别可留空，其中管理措施必须填写。</div>'+ 
+    '<div class="measure-grid" style="font-size:12px;font-weight:700;color:#64748B"><span>措施类别</span><span>具体措施</span></div>'+ 
+    CONTROL_TYPES.map(function(x,i){var m=measureForType(h,x.key);return '<div class="measure-grid measure-grid-simple"><span class="measure-type">'+x.label+'</span><textarea id="ctrlText'+i+'" '+(locked?'disabled':'')+' placeholder="填写可执行的'+x.label+'">'+esc(m&&m.name||'')+'</textarea></div>';}).join('')+ 
+  '<div class="risk-form-actions"><button class="btn btn-outline" onclick="location.href=taskQuery(\'hazards\',\'\',\''+r.id+'\')">← 返回危险源列表</button><span>'+ 
+  (locked?'<span class="muted">当前风险点版本只读</span>':'<button class="btn btn-outline" onclick="saveRiskEvaluation(false)">保存草稿</button> <button class="btn btn-green" onclick="saveRiskEvaluation(true)">完成本危险源评价与措施</button>')+'</span></div></div>';
+}
+
+function recalcRiskEvaluation(){var L=+document.getElementById('evalL').value,E=+document.getElementById('evalE').value,C=+document.getElementById('evalC').value,D=L*E*C,l=levelOf(D);document.getElementById('evalFormula').textContent='D = '+L+' × '+E+' × '+C+' = '+D;document.getElementById('evalLevel').innerHTML=UI.tagOf(l.key);}
+
+function saveHazardControls(h,r){
+  var measures=[];
+  CONTROL_TYPES.forEach(function(x,i){var text=document.getElementById('ctrlText'+i).value.trim(),old=measureForType(h,x.key);if(!text)return;measures.push(Object.assign(old||{id:uid(),status:'待落实',checked:false,evidence:'检查记录、现场照片或台账'}, {name:text,type:x.key,generateInspection:false,generateSpecialWork:false}));});
+  if(!measures.some(function(m){return m.type==='管理措施';})){App.toast('当前危险源必须填写管理措施','error');return false;}
+  App.risk.saveMeasures(r.id,h.id,measures);return true;
+}
+
+function saveRiskEvaluation(submit){
+  var r=App.risk.byId(params.get('risk')),h=r&&App.risk.hazardById(r.id,params.get('hazard'));
+  if(!r||!h||!draftEditable(r)){App.toast('当前风险点版本不可编辑','error');return;}
+  var payload={L:+document.getElementById('evalL').value,E:+document.getElementById('evalE').value,C:+document.getElementById('evalC').value,direct:document.getElementById('evalDirect').checked,note:(document.getElementById('evalDirectNote')||{}).value||''};
+  if(payload.direct&&!payload.note.trim()){App.toast('直接判定重大风险必须填写判定依据','error');return;}
+  if(!saveHazardControls(h,r))return;
+  var saved=App.risk.saveAssessmentDraft(r.id,h.id,payload);if(!saved||!saved.ok)return;
+  if(submit){h.assessmentStatus='已完成';if(App._emit)App._emit();App.toast('当前危险源评价和管控措施已完成','success');location.href=taskQuery('hazards','',r.id);}else viewHazardEvaluation();
+}
+
+function openWorkbench(riskId){
+  openRiskForm(riskId);
+}
+function viewWorkbench(){
+  wb.riskId=params.get('risk')||wb.riskId||risk.id;
+  risk=App.risk.byId(wb.riskId)||risk;
+  var wv=App.risk.workVersion(wb.riskId)||risk;
+  var hid=params.get('hazard')||(wv.hazards[1]&&wv.hazards[1].id)||(wv.hazards[0]&&wv.hazards[0].id);
+  wb.hazardIdx=wv.hazards.findIndex(function(h){return h.id===hid;});
+  if(wb.hazardIdx<0)wb.hazardIdx=0;
+  renderWorkbench();
+}
+function renderWorkbench(){
+  var steps=['风险点信息','危险源辨识','危险源评价','管控措施','责任确认','提交预览'];
+  var wv=App.risk.workVersion(wb.riskId)||risk;
+  var h=wv.hazards[wb.hazardIdx]||wv.hazards[0];
+  if(!h){body.innerHTML='<div class="card"><div class="alert warn">当前风险点暂无危险源，请先新增危险源。</div><button class="btn btn-primary" onclick="addHazard()">+ 新增危险源</button></div>';return;}
+  body.innerHTML=
+  '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">'+
+    '<button class="btn btn-outline btn-sm" onclick="location.href=\'risks.html?tab=tasks\'">← 返回任务列表</button>'+
+    '<span style="font-size:13px;color:#64748B">风险点：<b>'+risk.code+' '+risk.name+'</b> · 版本 <b>'+wv.version+'</b> · 危险源 '+(wb.hazardIdx+1)+'/'+wv.hazards.length+'：<b>'+h.name+'</b></span></div>'+ 
+  '<div class="steps">'+steps.map(function(s,i){
+    var n=i+1;
+    var cls=n<wb.step?'done':(n===wb.step?'current':'');
+    return '<div class="step"><div class="dot '+cls+'">'+(n<wb.step?'✓':n)+'</div><div class="s-name '+(n===wb.step?'current':n<wb.step?'done':'')+'">'+s+'</div></div>'+(n<6?'<div class="step-line '+(n<wb.step?'done':'')+'"></div>':'');
+  }).join('')+'</div>'+
+  '<div class="card">'+stepContent(wb.step,h,wv)+'</div>';
+}
+function stepContent(step,h,wv){
+  if(step===1){
+    return '<div class="card-title">风险点信息</div><div class="form-grid">'+
+      '<div class="form-item full"><span class="form-label">风险点编号 <span class="req">*</span></span><input value="'+risk.code+'" disabled></div>'+ 
+      '<div class="form-item full"><span class="form-label">风险点名称 <span class="req">*</span></span><input id="wbRiskName" value="'+risk.name+'" '+(risk.status==='已发布'&&!risk.draftVersion?'disabled':'')+'></div>'+ 
+      '<div class="form-item"><span class="form-label">风险类别 <span class="req">*</span></span><select id="wbRiskCategory" '+(risk.status==='已发布'&&!risk.draftVersion?'disabled':'')+'><option '+(risk.category==='设备设施风险'?'selected':'')+'>设备设施风险</option><option '+(risk.category==='作业活动风险'?'selected':'')+'>作业活动风险</option><option '+(risk.category==='环境风险'?'selected':'')+'>环境风险</option><option '+(risk.category==='管理风险'?'selected':'')+'>管理风险</option></select></div>'+ 
+      '<div class="form-item"><span class="form-label">组织</span><input id="wbRiskOrg" value="'+risk.org+'" disabled></div>'+ 
+      '<div class="form-item"><span class="form-label">区域/位置 <span class="req">*</span></span><input id="wbRiskLocation" value="'+risk.location+'" '+(risk.status==='已发布'&&!risk.draftVersion?'disabled':'')+'></div>'+ 
+      '<div class="form-item"><span class="form-label">当前版本</span><input value="'+risk.version+'" disabled></div>'+ 
+      '<div class="form-item"><span class="form-label">风险点总责任人 <span class="req">*</span></span>'+personInput('wbRiskOwner',risk.owner||'',!(risk.status==='已发布'&&!risk.draftVersion))+'</div>'+ 
+      '<div class="form-item full"><span class="form-label">任务/版本信息</span><input value="'+(wv.version||'-')+' · '+(wv.status||'-')+'" disabled></div>'+ 
+    '</div><div class="hint-line">风险点信息确认无误后进入危险源辨识。</div>'+ 
+    '<div style="margin-top:16px;text-align:right">'+(risk.status==='已发布'&&!risk.draftVersion?'':'<button class="btn btn-outline" onclick="saveWorkbenchRisk()">保存风险点信息</button> ')+'<button class="btn btn-primary" onclick="wb.step=2;renderWorkbench()">下一步：危险源辨识 ▸</button></div>';
+  }
+  if(step===2){
+    return '<div class="card-title">危险源辨识（一个风险点可关联多条危险源）</div>'+
+    '<div class="tbl-wrap" style="margin-bottom:12px"><table class="tbl"><thead><tr><th style="width:40px">#</th><th>危险源描述</th><th style="width:110px">评价状态</th><th style="width:90px">操作</th></tr></thead><tbody>'+
+      wv.hazards.map(function(x,i){
+      return '<tr'+(i===wb.hazardIdx?' style="background:#EEF7FF"':'')+'><td>'+(i+1)+'</td><td>'+x.name+'</td>'+
+      '<td>'+assessmentTag(x.assessmentStatus)+'</td>'+ 
+      '<td><button class="btn btn-primary btn-sm" onclick="switchHazard('+i+')">选择并评价</button> <button class="btn btn-text" onclick="editHazard(\''+x.id+'\')">编辑</button></td></tr>';
+    }).join('')+'</tbody></table></div>'+
+    '<button class="btn btn-outline btn-sm" onclick="addHazard()">+ 新增危险源</button> '+
+    '<button class="btn btn-text" onclick="deleteHazard()">删除当前危险源</button>'+
+    '<div style="margin-top:16px;display:flex;justify-content:space-between"><button class="btn btn-outline" onclick="wb.step=1;renderWorkbench()">← 上一步</button><button class="btn btn-primary" onclick="wb.step=3;renderWorkbench()">下一步：危险源评价 ▸</button></div>';
+  }
+  if(step===3){
+    var locked=!draftEditable(App.risk.byId(wb.riskId));
+    return '<div class="card-title">危险源评价（LEC 法）</div>'+ 
+    '<div class="alert info">D = L（发生可能性 1-5）× E（暴露频率 1-6）× C（后果严重性 1-15）。D≥320 重大 / 160-319 较大 / 70-159 一般 / &lt;70 低。每个危险源分别评价，但不单独审批；全部完成后统一提交整个风险点审核。当前状态：'+assessmentTag(h.assessmentStatus)+'</div>'+ 
+    '<div class="form-grid">'+ 
+      '<div class="form-item"><span class="form-label">L 发生可能性</span><select id="fL" '+(locked?'disabled':'')+'>'+[1,2,3,4,5].map(function(v){return '<option value="'+v+'"'+(h.L===v?' selected':'')+'>'+v+'</option>';}).join('')+'</select></div>'+ 
+      '<div class="form-item"><span class="form-label">E 暴露频率</span><select id="fE" '+(locked?'disabled':'')+'>'+[1,2,3,6].map(function(v){return '<option value="'+v+'"'+(h.E===v?' selected':'')+'>'+v+'</option>';}).join('')+'</select></div>'+ 
+      '<div class="form-item"><span class="form-label">C 后果严重性</span><select id="fC" '+(locked?'disabled':'')+'>'+[1,3,7,15].map(function(v){return '<option value="'+v+'"'+(h.C===v?' selected':'')+'>'+v+'</option>';}).join('')+'</select></div>'+ 
+      '<div class="form-item"><span class="form-label">评价结果 D 值（实时计算）</span><input id="fD" value="'+h.D+'" disabled style="font-weight:600"></div>'+ 
+      '<div class="form-item"><span class="form-label">风险等级</span><span id="fLevel">'+UI.tagOf(h.level.key)+'</span></div>'+
+      '<div class="form-item"><span class="form-label">评价人</span><input value="'+App.currentUser()+'" disabled></div>'+
+      '<div class="form-item full"><span class="form-label">直接判定重大风险</span><label style="display:flex;gap:8px;align-items:center"><input type="checkbox" id="fDirect" '+(h.direct?'checked':'')+' '+(locked?'disabled':'')+' style="width:auto"> 勾选后需填写判定依据与说明</label></div>'+ 
+      '<div class="form-item full" id="directNoteWrap" style="'+(h.direct?'':'display:none')+'"><span class="form-label">直接判定依据</span><textarea id="fDirectNote" '+(locked?'disabled':'')+' placeholder="填写直接判定为重大风险的依据…">'+(h.directNote||'')+'</textarea></div>'+ 
+    '</div>'+ 
+    '<div style="margin-top:16px;display:flex;justify-content:space-between;align-items:center">'+ 
+      '<button class="btn btn-outline" onclick="wb.step=2;renderWorkbench()">← 上一步</button>'+ 
+      '<span>'+(locked?'':'<button class="btn btn-green" onclick="saveAssessmentDraft()">保存评价</button> ')+'<button class="btn btn-primary" onclick="wb.step=4;renderWorkbench()">下一步：管控措施 ▸</button></span>'+ 
+    '</div>'+ 
+    '<div class="hint-line">保存后记录评价人、评价时间和 L/E/C/D 结果；危险源不生成独立审批待办。</div>';
+  }
+  if(step===4){
+    return '<div class="card-title">管控措施（按危险源独立维护）</div>'+
+    '<div class="alert info">当前危险源：<b>'+h.name+'</b>。措施独立于其他危险源，切换危险源不串数据。</div>'+
+    '<div class="tbl-wrap" style="margin-bottom:12px"><table class="tbl"><thead><tr><th>措施内容</th><th>类型</th><th>状态</th><th>责任部门</th><th>责任人</th><th>监督部门</th><th>频次/证据要求</th><th>操作</th></tr></thead><tbody>'+ 
+    h.measures.map(function(m,i){
+      return '<tr><td>'+m.name+'</td><td><span class="tag tag-blue">'+m.type+'</span></td><td><span class="tag '+(m.status==="已落实"?"tag-green":"tag-warn")+'">'+m.status+'</span></td>'+ 
+      '<td>'+m.responsibility+'</td><td>'+m.duty+'</td><td>'+m.supervise+'</td><td>'+((m.frequency||'-')+' / '+(m.evidence||'-'))+'</td>'+ 
+      '<td><button class="btn btn-text" onclick="editMeasure(\''+m.id+'\')">编辑</button><button class="btn btn-text" onclick="removeMeasure(\''+m.id+'\')">移除</button></td></tr>';
+    }).join('')+'</tbody></table></div>'+
+    '<button class="btn btn-outline btn-sm" onclick="addMeasure()">+ 新增措施</button>'+
+    '<div style="margin-top:16px;display:flex;justify-content:space-between"><button class="btn btn-outline" onclick="wb.step=3;renderWorkbench()">← 上一步</button><button class="btn btn-primary" onclick="wb.step=5;renderWorkbench()">下一步：责任确认 ▸</button></div>'+
+    '<div class="hint-line">管控措施在本页面只维护内容、责任、频次和证据要求；检查标准请在巡检管理模块中统一维护。</div>';
+  }
+  if(step===5){
+    return '<div class="card-title">责任确认（逐条危险源）</div>'+ 
+    '<div class="alert warn" style="margin-top:14px">⚠ 每条危险源至少一条措施，且责任部门、责任人、监督部门、岗位执行人、频次、证据要求必须完整。缺失项可直接点击编辑定位。</div>'+ 
+    '<div class="tbl-wrap"><table class="tbl"><thead><tr><th>危险源</th><th>措施</th><th>责任完整度</th><th>缺失字段</th><th>操作</th></tr></thead><tbody>'+wv.hazards.map(function(x){var missing=[];(x.measures||[]).forEach(function(m){if(!m.responsibility)missing.push('责任部门');if(!m.duty)missing.push('责任人');if(!m.supervise)missing.push('监督部门');if(!m.executor)missing.push('岗位执行人');if(!m.frequency)missing.push('频次');if(!m.evidence)missing.push('证据要求');});var ok=App.risk.responsibilityComplete(x);return '<tr><td>'+x.name+'</td><td>'+((x.measures||[]).length)+' 条</td><td>'+(ok?'<span class="tag tag-green">完整</span>':'<span class="tag tag-error">缺失</span>')+'</td><td>'+([...new Set(missing)].join('、')||'-')+'</td><td><button class="btn btn-text" onclick="locateResponsibility(\''+x.id+'\')">定位措施</button></td></tr>';}).join('')+'</tbody></table></div>'+ 
+    '<div style="margin-top:16px;display:flex;justify-content:space-between"><button class="btn btn-outline" onclick="wb.step=4;renderWorkbench()">← 上一步</button><button class="btn btn-primary" onclick="wb.step=6;renderWorkbench()">下一步：提交预览 ▸</button></div>';
+  }
+  if(step===6){
+    var pending=wv.hazards.filter(function(x){return x.assessmentStatus!=="已完成";});
+    var incomplete=wv.hazards.filter(function(x){return !App.risk.responsibilityComplete(x);});
+    var max=App.risk.maxLevel(wv.hazards.filter(function(x){return x.assessmentStatus==="已完成";}));
+    return '<div class="card-title">提交预览（版本按整个风险点保存）</div>'+ 
+    '<div class="desc desc-2">'+ 
+      '<div class="d-item"><span class="d-label">风险点</span><span class="d-value">'+risk.code+' '+risk.name+'</span></div>'+ 
+      '<div class="d-item"><span class="d-label">危险源数量</span><span class="d-value">'+wv.hazards.length+'</span></div>'+ 
+      '<div class="d-item"><span class="d-label">措施数量</span><span class="d-value">'+wv.hazards.reduce(function(s,x){return s+(x.measures||[]).length;},0)+'</span></div>'+ 
+      '<div class="d-item"><span class="d-label">当前最高等级</span><span class="d-value">'+UI.tagOf(max.key)+'</span></div>'+ 
+    '</div>'+ 
+    '<div class="section-head"><h3>逐条校验结果</h3></div><div class="tbl-wrap"><table class="tbl"><thead><tr><th>危险源</th><th>辨识</th><th>评价状态</th><th>措施/责任</th><th>结果</th></tr></thead><tbody>'+wv.hazards.map(function(x){var ok=App.risk.responsibilityComplete(x)&&x.assessmentStatus==='已完成';return '<tr><td>'+x.name+'</td><td><span class="tag tag-green">已填写</span></td><td>'+assessmentTag(x.assessmentStatus)+'</td><td>'+((x.measures||[]).length)+' 条 / '+(App.risk.responsibilityComplete(x)?'<span class="tag tag-green">完整</span>':'<span class="tag tag-error">缺失</span>')+'</td><td>'+ (ok?'<span class="tag tag-green">可提交</span>':'<span class="tag tag-error">阻断</span>')+'</td></tr>';}).join('')+'</tbody></table></div>'+ 
+    ((pending.length||incomplete.length)>0? 
+      '<div class="block-panel" style="margin-top:16px"><div class="bp-title">提交校验未通过</div><table>'+(pending.length?'<tr><td>风险评价</td><td><b>'+pending.length+' 条危险源评价未完成</b>（'+pending.map(function(x){return x.name;}).join('；')+'）。</td></tr>':'')+(incomplete.length?'<tr><td>责任完整度</td><td><b>'+incomplete.length+' 条危险源责任未完成</b>（'+incomplete.map(function(x){return x.name;}).join('；')+'）。请返回责任确认定位。</td></tr>':'')+'</table></div>': 
+      '<div class="alert green" style="margin-top:16px">全部危险源评价完成且责任完整，可以统一提交整个风险点审核。</div>')+ 
+    '<div style="margin-top:20px;display:flex;justify-content:space-between">'+ 
+      '<button class="btn btn-outline" onclick="wb.step=5;renderWorkbench()">← 上一步</button>'+ 
+      '<span><button class="btn btn-outline" onclick="openVersionApproval(\''+wb.riskId+'\')">查看风险点审批</button> <button class="btn btn-green" onclick="submitVersionForReview()" '+((pending.length||incomplete.length)?'disabled title="评价和责任完整度未完成"':'')+'>提交风险点审核</button></span></div>'+ 
+    '<div class="hint-line">危险源不独立审批。班组长提交整个风险点；作业区负责人、二级单位安全管理人员依次审核，较大/重大风险再由二级单位领导审批。风险审批全程在平台内完成。</div>';
+  }
+  return '';
+}
+
+function assessmentTag(status){var map={草稿:'tag-gray','待评价':'tag-gray','待完善':'tag-warn','已完成':'tag-green'};return '<span class="tag '+(map[status]||'tag-gray')+'">'+(status||'待完善')+'</span>';}
+function switchHazard(i){var wv=App.risk.workVersion(wb.riskId)||risk,h=wv.hazards[i];if(!h)return;wb.hazardIdx=i;wb.step=3;history.replaceState(null,'','risks.html?tab=tasks&wb=1&risk='+encodeURIComponent(wb.riskId)+'&hazard='+encodeURIComponent(h.id));renderWorkbench();}
+function saveWorkbenchRisk(){var name=document.getElementById('wbRiskName')&&document.getElementById('wbRiskName').value.trim(),loc=document.getElementById('wbRiskLocation')&&document.getElementById('wbRiskLocation').value.trim(),owner=document.getElementById('wbRiskOwner')&&document.getElementById('wbRiskOwner').value.trim(),cat=document.getElementById('wbRiskCategory')&&document.getElementById('wbRiskCategory').value;if(!name||!loc||!owner){App.toast('风险点名称、位置和总责任人不能为空','error');return;}if(!orgUserOf(owner)){App.toast('风险点总责任人必须从企业微信组织人员中选择','error');return;}var result=App.risk.updateRisk(wb.riskId,{name:name,location:loc,owner:owner,category:cat});if(result&&result.ok)renderWorkbench();}
+function addHazard(){
+  if(!draftEditable(App.risk.byId(wb.riskId))){App.toast('当前版本已提交审批或已生效，只读，请先处理退回意见或发起变更复评','warn');return;}
+  var wv=App.risk.workVersion(wb.riskId)||risk;if(!App.risk.draftOf(wb.riskId)){App.toast('当前风险点已生效，请先发起变更/复评后再新增危险源','warn');return;}
+  var h={id:uid(),name:'新增危险源（请编辑描述）',L:1,E:1,C:1,D:1,level:levelOf(1),assessmentStatus:'草稿',
+    assessment:'',assessor:'',assessedAt:'',measures:[],direct:false};
+  wv.hazards.push(h);wb.hazardIdx=wv.hazards.length-1;App.log('风险管理','[危险源新增] '+risk.code+' 新增危险源');App._emit();renderWorkbench();
+}
+function editHazard(hid){
+  if(!draftEditable(App.risk.byId(wb.riskId))){App.toast('当前版本已提交审批或已生效，只读，请先处理退回意见或发起变更复评','warn');return;}
+  var h=App.risk.hazardById(wb.riskId,hid);if(!h)return;
+  UI.modal('<div class="form-grid"><div class="form-item full"><span class="form-label">危险源描述 <span class="req">*</span></span><textarea id="hazardNameEdit">'+(h.name||'')+'</textarea></div><div class="form-item"><span class="form-label">危险源类别</span><select id="hazardCategory"><option '+(h.category==='人的不安全行为'?'selected':'')+'>人的不安全行为</option><option '+(h.category==='物的不安全状态'?'selected':'')+'>物的不安全状态</option><option '+(h.category==='不良环境'?'selected':'')+'>不良环境</option><option '+(h.category==='管理缺陷'?'selected':'')+'>管理缺陷</option></select></div><div class="form-item full"><span class="form-label">事故类型（27类，可多选） <span class="req">*</span></span><div id="hazardAccident">'+accidentChecklist(h,false)+'</div></div><div class="form-item full"><span class="form-label">潜在后果</span><textarea id="hazardImpact">'+(h.consequence||'')+'</textarea></div><div class="form-item"><span class="form-label">影响范围</span><input id="hazardScope" value="'+(h.impactScope||'岗位/作业区')+'"></div><div class="form-item"><span class="form-label">总体责任人</span>'+personInput('hazardOwner',h.responsiblePerson||risk.owner||'',true)+'</div></div>',{title:'编辑危险源辨识信息',size:'lg',footer:'<button class="btn btn-outline" data-close>取消</button><button class="btn btn-primary" id="hazardEditOk">保存危险源</button>'});document.getElementById('hazardEditOk').onclick=function(){var n=document.getElementById('hazardNameEdit').value.trim(),accidents=selectedAccidents(document.getElementById('hazardAccident')),owner=document.getElementById('hazardOwner').value.trim();if(!n||!accidents.length){App.toast('危险源描述和事故类型不能为空','error');return;}if(!orgUserOf(owner)){App.toast('总体责任人必须从企业微信组织人员中选择','error');return;}var result=App.risk.updateHazard(wb.riskId,hid,{name:n,category:document.getElementById('hazardCategory').value,accidentTypes:accidents,accidentType:accidents.join('、'),consequence:document.getElementById('hazardImpact').value,impactScope:document.getElementById('hazardScope').value,responsiblePerson:owner});if(result&&result.ok){document.querySelectorAll('.modal.show').forEach(function(x){x.remove();});renderWorkbench();}};
+}
+function deleteHazard(){
+  if(!draftEditable(App.risk.byId(wb.riskId))){App.toast('当前版本已提交审批或已生效，只读，请先处理退回意见或发起变更复评','warn');return;}
+  var wv=App.risk.workVersion(wb.riskId)||risk;if(!App.risk.draftOf(wb.riskId)){App.toast('已生效版本不可删除危险源，请发起变更/复评','warn');return;}
+  if(wv.hazards.length<=1){App.toast('至少保留 1 条危险源','warn');return;}
+  var h=wv.hazards[wb.hazardIdx];
+  wv.hazards.splice(wb.hazardIdx,1);wb.hazardIdx=0;App.log('风险管理','[危险源删除] '+risk.code+' 删除草稿危险源');App._emit();renderWorkbench();
+}
+function recalc(){
+  var L=+document.getElementById('fL').value,E=+document.getElementById('fE').value,C=+document.getElementById('fC').value;
+  var D=L*E*C;
+  document.getElementById('fD').value=D;
+  document.getElementById('fLevel').innerHTML=UI.tagOf(levelOf(D).key);
+}
+function saveAssessment(){
+  saveAssessmentDraft();
+}
+function assessmentPayload(){
+  var wv=App.risk.workVersion(wb.riskId)||risk,h=wv.hazards[wb.hazardIdx];
+  if(!h)return null;
+  var L=+document.getElementById('fL').value,E=+document.getElementById('fE').value,C=+document.getElementById('fC').value;
+  var direct=document.getElementById('fDirect').checked;
+  var note=document.getElementById('fDirectNote')?document.getElementById('fDirectNote').value:'';
+  return {h:h,L:L,E:E,C:C,direct:direct,note:note};
+}
+function saveAssessmentDraft(){
+  var p=assessmentPayload();if(!p)return;var result=App.risk.saveAssessmentDraft(wb.riskId,p.h.id,p);if(result&&result.ok)renderWorkbench();
+}
+function submitVersionForReview(){var result=App.risk.submitVersion(wb.riskId);if(result&&result.ok){renderWorkbench();}}
+function openVersionApproval(riskId){
+  var r=App.risk.byId(riskId),d=r&&r.draftVersion,v=App.versionApprovals.filter(function(x){return x.riskId===riskId;})[0];if(!d&&v&&v.snapshot)d=v.snapshot;if(!r||!d){App.toast('当前风险点没有可查看的版本快照','warn');return;}if(!v&&r.draftVersion)v=App.risk.ensureVersionApproval(riskId);v=v||{history:[]};var can=["待作业区负责人审核","待二级单位安全管理审核","待二级单位领导审批"].indexOf(d.status)>-1;
+  var roleMap={"待作业区负责人审核":"section_manager","待二级单位安全管理审核":"company_safety","待二级单位领导审批":"unit_leader"},allowed=roleMap[d.status]===App.currentRole;
+  var footer=can&&allowed?'<button class="btn btn-outline" data-close>取消</button><button class="btn btn-warn" onclick="returnVersionAction(\''+riskId+'\')">退回</button><button class="btn btn-green" onclick="approveVersionAction(\''+riskId+'\')">通过当前节点</button>':'<button class="btn btn-outline" data-close>关闭</button>';
+  UI.modal('<div class="desc desc-2"><div class="d-item"><span class="d-label">风险点版本</span><span class="d-value">'+r.code+' · '+d.version+'</span></div><div class="d-item"><span class="d-label">当前节点</span><span class="d-value">'+statusTag(d.status)+'</span></div><div class="d-item"><span class="d-label">地点/风险点</span><span class="d-value">'+esc(d.riskName||r.name)+' / '+esc(d.location||r.location||'-')+'</span></div><div class="d-item"><span class="d-label">类别/责任岗位</span><span class="d-value">'+esc(d.category||r.category||'-')+' / '+esc(d.responsibilityPost||r.responsibilityPost||'-')+'</span></div><div class="d-item"><span class="d-label">快照范围</span><span class="d-value">'+d.hazards.length+' 条危险源 / '+d.hazards.reduce(function(s,h){return s+(h.measures||[]).length;},0)+' 条措施 / 最高 '+App.risk.maxLevel(d.hazards).name+'</span></div><div class="d-item"><span class="d-label">提交人</span><span class="d-value">'+(d.operator||'-')+' / '+(d.submittedAt||'-')+'</span></div></div><div class="form-item full" style="margin-top:14px"><span class="form-label">审批意见（退回必填）</span>'+approvalPhraseButtons('versionApprovalNote')+'<textarea id="versionApprovalNote" placeholder="填写当前节点审批意见"></textarea></div><div class="section-head"><h3>审批时间线</h3></div><ul class="timeline">'+(v.history||[]).map(function(x){return '<li><div class="t-date">'+x.at+'</div><div class="t-title">'+x.node+' · '+x.status+'</div><div class="t-note">'+(x.note||'')+'</div><div class="t-actor">操作人：'+x.by+'</div></li>';}).join('')+'</ul>',{title:'风险点版本审批 · '+r.code+' '+d.version,size:'lg',footer:footer});
+}
+function approveVersionAction(riskId){var note=document.getElementById('versionApprovalNote')?document.getElementById('versionApprovalNote').value:'';var result=App.risk.actVersion(riskId,true,note);if(result&&result.ok){document.querySelectorAll('.modal.show').forEach(function(n){n.remove();});openVersionQueue();}}
+function returnVersionAction(riskId){var note=document.getElementById('versionApprovalNote')?document.getElementById('versionApprovalNote').value:'';if(!note.trim()){App.toast('版本退回必须填写意见','error');return;}var result=App.risk.actVersion(riskId,false,note);if(result&&result.ok){document.querySelectorAll('.modal.show').forEach(function(n){n.remove();});openVersionQueue();}}
+function openVersionQueue(){
+  var rows=App.versionApprovals.slice().sort(function(a,b){return String(b.id).localeCompare(String(a.id));});
+  UI.modal('<div class="tbl-wrap"><table class="tbl"><thead><tr><th>风险点</th><th>版本</th><th>状态</th><th>当前节点</th><th>操作</th></tr></thead><tbody>'+rows.map(function(v){var r=App.risk.byId(v.riskId),d=r&&r.draftVersion||v.snapshot;return '<tr><td>'+((r&&r.code)||'-')+'</td><td>'+((d&&d.version)||v.version||'-')+'</td><td>'+statusTag(v.status)+'</td><td>'+((v.currentNode)||'-')+'</td><td><button class="btn btn-text" onclick="openVersionApproval(\''+v.riskId+'\')">查看详情</button></td></tr>';}).join('')+'</tbody></table></div>',{title:'风险点版本审批待办与历史',size:'lg',footer:'<button class="btn btn-outline" data-close>关闭</button>'});
+}
+function taskActions(t,r){var id=t.id,html='<button class="btn btn-text" onclick="showTaskDetail(\''+id+'\')">查看</button>';if(t.status==='草稿'||t.status==='已退回')html+='<button class="btn btn-primary btn-sm" onclick="editTask(\''+id+'\')">继续填写</button>';else html+='<button class="btn btn-primary btn-sm" onclick="enterTaskIdentification(\''+id+'\')">'+(t.status==='已完成'||t.status==='已生效'?'查看风险点':'进入辨识')+'</button>';return html;}
+function showTaskDetail(id){var t=App.riskTasks.filter(function(x){return x.id===id;})[0];if(t)UI.modal('<div class="desc desc-2"><div class="d-item"><span class="d-label">任务编号</span><span class="d-value">'+t.code+'</span></div><div class="d-item"><span class="d-label">任务类型/组织</span><span class="d-value">'+(t.taskType||'-')+' / '+t.org+'</span></div><div class="d-item"><span class="d-label">负责人/参与人</span><span class="d-value">'+(t.owner||'-')+' / '+((t.participants||[]).join('、')||'-')+'</span></div><div class="d-item"><span class="d-label">计划日期</span><span class="d-value">'+(t.plannedStart||'-')+' ~ '+(t.plannedEnd||'-')+'</span></div><div class="d-item full"><span class="d-label">范围/触发原因</span><span class="d-value">'+(t.scope||'-')+' / '+(t.triggerReason||'-')+'</span></div><div class="d-item"><span class="d-label">状态</span><span class="d-value">'+statusTag(t.status)+'</span></div></div><div class="section-head"><h3>状态动作历史</h3></div><ul class="timeline">'+(t.actions||[]).map(function(a){return '<li><div class="t-date">'+a.at+'</div><div class="t-title">'+a.status+'</div><div class="t-note">'+(a.note||'')+'</div><div class="t-actor">操作人：'+a.by+'</div></li>';}).join('')+'</ul>',{title:'辨识任务详情 · '+t.code,size:'lg',footer:'<button class="btn btn-outline" data-close>关闭</button>'});}
+function taskApprovalAllowed(t){
+  if(!t)return false;
+  if(t.status==='待公司批准')return App.currentRole==='group_safety';
+  if(t.status==='待部门初审'||t.status==='待安全审核')return ['company_safety','group_safety'].indexOf(App.currentRole)>-1;
+  return true;
+}
+function taskAction(id,status){var t=App.riskTasks.filter(function(x){return x.id===id;})[0];if(!taskApprovalAllowed(t)){App.toast('当前角色无该任务审批节点权限','error');return;}App.risk.updateTaskStatus(id,status);viewTasks();}
+function taskReturn(id){var task=App.riskTasks.filter(function(x){return x.id===id;})[0];if(!taskApprovalAllowed(task)){App.toast('当前角色无该任务退回权限','error');return;}UI.modal('<div class="form-item full"><span class="form-label">退回原因 <span class="req">*</span></span><textarea id="taskReturnReason" placeholder="填写定位到风险点/危险源的退回原因"></textarea></div>',{title:'退回辨识任务',footer:'<button class="btn btn-outline" data-close>取消</button><button class="btn btn-warn" id="taskReturnOk">退回</button>'});document.getElementById('taskReturnOk').onclick=function(){var n=document.getElementById('taskReturnReason').value.trim();if(!n){App.toast('退回必须填写原因','error');return;}App.risk.updateTaskStatus(id,'已退回',n);document.querySelectorAll('.modal.show').forEach(function(x){x.remove();});viewTasks();};}
+function editTask(id){if(taskById(id))location.href=taskQuery('task-form',id);}
+function openNewTask(){location.href=taskQuery('task-form');}
+function generateCheckItem(measureId){App.risk.toInspection(measureId);}
+function addMeasure(){
+  if(!draftEditable(App.risk.byId(wb.riskId))){App.toast('当前版本已提交审批或已生效，只读，请先处理退回意见或发起变更复评','warn');return;}
+  var wv=App.risk.workVersion(wb.riskId)||risk,h=wv.hazards[wb.hazardIdx];if(!h)return;
+  editMeasure(null,true);
+}
+function editMeasure(mid,isNew){
+  if(!draftEditable(App.risk.byId(wb.riskId))){App.toast('当前版本已提交审批或已生效，只读，请先处理退回意见或发起变更复评','warn');return;}
+  var wv=App.risk.workVersion(wb.riskId)||risk,h=wv.hazards[wb.hazardIdx],m=isNew?{id:uid(),name:'',type:'管理措施',status:'待落实',responsibility:'',duty:'',supervise:'',executor:'',frequency:'每班/每次作业',evidence:'现场记录、照片或台账',generateInspection:false,generateSpecialWork:false}:((h&&h.measures)||[]).filter(function(x){return x.id===mid;})[0];if(!m)return;
+  UI.modal('<div class="form-grid"><div class="form-item full"><span class="form-label">措施内容 <span class="req">*</span></span><textarea id="mName">'+(m.name||'')+'</textarea></div><div class="form-item"><span class="form-label">措施类别</span><select id="mType"><option '+(m.type==='工程措施'?'selected':'')+'>工程措施</option><option '+(m.type==='管理措施'?'selected':'')+'>管理措施</option><option '+(m.type==='培训教育'?'selected':'')+'>培训教育</option><option '+(m.type==='个体防护'?'selected':'')+'>个体防护</option><option '+(m.type==='应急措施'?'selected':'')+'>应急措施</option></select></div><div class="form-item"><span class="form-label">实施状态</span><select id="mStatus"><option '+(m.status==='待落实'?'selected':'')+'>待落实</option><option '+(m.status==='已落实'?'selected':'')+'>已落实</option><option '+(m.status==='整改中'?'selected':'')+'>整改中</option></select></div><div class="form-item"><span class="form-label">责任部门 <span class="req">*</span></span><input id="mDept" value="'+(m.responsibility||'')+'"></div><div class="form-item"><span class="form-label">责任人 <span class="req">*</span></span><input id="mDuty" value="'+(m.duty||'')+'"></div><div class="form-item"><span class="form-label">监督部门 <span class="req">*</span></span><input id="mSup" value="'+(m.supervise||'')+'"></div><div class="form-item"><span class="form-label">岗位执行人 <span class="req">*</span></span><input id="mExec" value="'+(m.executor||'')+'"></div><div class="form-item"><span class="form-label">频次 <span class="req">*</span></span><input id="mFreq" value="'+(m.frequency||'')+'"></div><div class="form-item full"><span class="form-label">证据要求 <span class="req">*</span></span><input id="mEvidence" value="'+(m.evidence||'')+'"></div></div>',{title:isNew?'新增管控措施':'编辑管控措施',size:'lg',footer:'<button class="btn btn-outline" data-close>取消</button><button class="btn btn-primary" id="measureOk">保存措施</button>'});document.getElementById('measureOk').onclick=function(){var p={name:document.getElementById('mName').value.trim(),type:document.getElementById('mType').value,status:document.getElementById('mStatus').value,responsibility:document.getElementById('mDept').value.trim(),duty:document.getElementById('mDuty').value.trim(),supervise:document.getElementById('mSup').value.trim(),executor:document.getElementById('mExec').value.trim(),frequency:document.getElementById('mFreq').value.trim(),evidence:document.getElementById('mEvidence').value.trim(),generateInspection:false,generateSpecialWork:false,checked:false};if(!p.name||!p.responsibility||!p.duty||!p.supervise||!p.executor||!p.frequency||!p.evidence){App.toast('措施内容和责任、频次、证据要求均为必填','error');return;}if(!orgUserOf(p.duty)){App.toast('措施责任人必须从企业微信组织人员中选择','error');return;}if(isNew){h.measures.push(Object.assign(m,p));App.log('风险管理','[措施新增] '+h.name+' 新增管控措施');App._emit();}else App.risk.updateMeasure(wb.riskId,h.id,mid,p);document.querySelectorAll('.modal.show').forEach(function(x){x.remove();});renderWorkbench();};
+}
+function removeMeasure(mid){
+  if(!draftEditable(App.risk.byId(wb.riskId))){App.toast('当前版本已提交审批或已生效，只读，请先处理退回意见或发起变更复评','warn');return;}
+  var wv=App.risk.workVersion(wb.riskId)||risk,h=wv.hazards[wb.hazardIdx];
+  if(!h)return;
+  h.measures=h.measures.filter(function(m){return m.id!==mid;});
+  App.log('风险管理','[措施删除] '+h.name+' 删除管控措施');App._emit();renderWorkbench();
+}
+function locateResponsibility(hid){var wv=App.risk.workVersion(wb.riskId)||risk;wb.hazardIdx=wv.hazards.findIndex(function(h){return h.id===hid;});if(wb.hazardIdx<0)wb.hazardIdx=0;wb.step=4;renderWorkbench();}
+
+/* ================= 风险四色图 ================= */
+function riskLevelKey(r){
+  var order={low:1,common:2,big:3,major:4},max='low';
+  (r&&r.hazards||[]).forEach(function(h){var key=h.level&&h.level.key||levelOf(h.D||0).key;if(order[key]>order[max])max=key;});
+  if((r&&r.hazards||[]).length===0&&r&&order[r.level])max=r.level;
+  return max;
+}
+function riskLevelColor(key){return ({major:'#E5484D',big:'#F5A623',common:'#E4B23C',low:'#2388D9'}[key]||'#CBD5E1');}
+function mapOrgColor(org,risks){var rs=risks.filter(function(r){return r.org===org;});return rs.length?riskLevelColor(rs.reduce(function(max,r){var order={low:1,common:2,big:3,major:4};return order[riskLevelKey(r)]>order[max]?riskLevelKey(r):max;},'low')):'#CBD5E1';}
+function viewMap(){
+  var org=params.get('mapOrg')||'',lv=params.get('mapLevel')||'';
+  var current=App.risks.filter(function(r){return isCurrentRisk(r)&&(!org||r.org===org)&&(!lv||riskLevelKey(r)===lv);});
+  var svgMarks=current.map(function(r,i){var p=r.mapPosition;if(!p)return '';var color=riskLevelColor(riskLevelKey(r)),x=Number(p.x),y=Number(p.y);if(!isFinite(x))x=120+i*70;if(!isFinite(y))y=100+i*70;x=Math.max(40,Math.min(840,x));y=Math.max(60,Math.min(470,y));return mark(x,y,r.code,r.name,color,r.hazards.length);}).join('');
+  var noPos=current.filter(function(r){return !r.mapPosition;});
+  var allCurrent=App.risks.filter(isCurrentRisk);
+  body.innerHTML='<div class="filter-bar"><div class="f-item">组织 <select id="mapOrg"><option value="">全部</option><option value="造型作业区">造型作业区</option></select></div><div class="f-item">等级 <select id="mapLevel"><option value="">全部</option><option value="major">重大</option><option value="big">较大</option><option value="common">一般</option><option value="low">低</option></select></div><button class="btn btn-outline btn-sm" onclick="applyMapFilter()">筛选</button><button class="btn btn-text btn-sm" onclick="resetMapFilter()">重置</button></div>'+ 
+  '<div class="card"><div class="card-title">铸锻件分公司 · 造型作业区风险四色图（仅当前生效版本）</div><svg viewBox="0 0 900 520" xmlns="http://www.w3.org/2000/svg" style="width:100%;border:1px solid #E2E8F0;border-radius:8px;background:#FAFBFC"><rect x="0" y="0" width="900" height="520" fill="#FAFBFC"/><rect x="20" y="20" width="860" height="480" rx="8" fill="none" stroke="#CBD5E1" stroke-width="1.5" stroke-dasharray="8 5"/><text x="50" y="48" font-size="13" fill="#475569">造型作业区平面示意</text>'+roadH(120,380,300,12)+roadV(420,80,400,12)+roadH(520,120,360,12)+roadV(300,300,180,12)+bld(60,80,260,160,'自动线组','',mapOrgColor('造型作业区',allCurrent))+bld(430,80,260,160,'制模组','',mapOrgColor('造型作业区',allCurrent))+svgMarks+'<text x="450" y="505" text-anchor="middle" font-size="12" fill="#64748B">图例：红色=重大 · 橙色=较大 · 黄色=一般 · 蓝色=低（点击标记查看详情）</text></svg></div>'+ 
+  '<div class="grid-2col" style="margin-top:16px"><div class="card"><div class="card-title">授权定位维护</div><p class="hint-line">仅授权安全角色可维护区域、楼层和 X/Y 坐标；保存后标记位置可见变化。</p>'+current.map(function(r){return '<div class="mobile-row"><span>'+r.code+' · '+r.name+'</span><button class="btn btn-text" onclick="openMapPosition(\''+r.id+'\')">维护定位</button></div>';}).join('')+'</div><div class="card"><div class="card-title">待维护定位 <span class="tag tag-warn">'+noPos.length+'</span></div>'+(noPos.length?noPos.map(function(r){return '<div class="mobile-row"><span>'+r.code+' · '+r.name+'</span><button class="btn btn-text" onclick="openMapPosition(\''+r.id+'\')">去维护</button></div>';}).join(''):UI.empty('当前生效风险点均已定位'))+'</div></div>'+ 
+  '<div class="hint-line">四色图颜色由当前生效版本最高等级自动映射，草稿/审批中版本不会进入地图。</div>';
+  if(document.getElementById('mapOrg'))document.getElementById('mapOrg').value=org;if(document.getElementById('mapLevel'))document.getElementById('mapLevel').value=lv;
+}
+function applyMapFilter(){var o=document.getElementById('mapOrg').value,l=document.getElementById('mapLevel').value;location.href='risks.html?tab=map'+(o?'&mapOrg='+encodeURIComponent(o):'')+(l?'&mapLevel='+encodeURIComponent(l):'');}
+function resetMapFilter(){location.href='risks.html?tab=map';}
+function roadH(y,x1,x2,w){return '<rect x="'+x1+'" y="'+(y-w/2)+'" width="'+(x2-x1)+'" height="'+w+'" rx="3" fill="#E8EDF3"/>';}
+function roadV(x,y1,y2,w){return '<rect x="'+(x-w/2)+'" y="'+y1+'" width="'+w+'" height="'+(y2-y1)+'" rx="3" fill="#E8EDF3"/>';}
+function bld(x,y,w,h,name,sub,color){
+  return '<rect x="'+x+'" y="'+y+'" width="'+w+'" height="'+h+'" rx="8" fill="#fff" stroke="'+color+'" stroke-width="1.5"/>'+
+  '<rect x="'+x+'" y="'+y+'" width="'+w+'" height="6" rx="3" fill="'+color+'"/>'+
+  '<text x="'+(x+w/2)+'" y="'+(y+h/2-8)+'" text-anchor="middle" font-size="14" font-weight="600" fill="#334155">'+name+'</text>'+
+  '<text x="'+(x+w/2)+'" y="'+(y+h/2+14)+'" text-anchor="middle" font-size="11" fill="#94A3B8">'+sub+'</text>';
+}
+function mark(x,y,code,name,color,count){
+  return '<g style="cursor:pointer" onclick="openMapRisk(\''+code+'\')">'+
+  '<circle cx="'+x+'" cy="'+y+'" r="16" fill="'+color+'" fill-opacity="0.15" stroke="'+color+'" stroke-width="1.5"/>'+
+  '<circle cx="'+x+'" cy="'+y+'" r="7" fill="'+color+'"/>'+
+  '<text x="'+x+'" y="'+(y+4)+'" text-anchor="middle" font-size="10" fill="#fff" font-weight="600">'+count+'</text>'+
+  '<rect x="'+(x+24)+'" y="'+(y-20)+'" width="170" height="40" rx="6" fill="#fff" stroke="'+color+'" stroke-width="1" opacity="0.95"/>'+
+  '<text x="'+(x+34)+'" y="'+(y-7)+'" font-size="12" font-weight="600" fill="#334155">'+esc(name)+'</text>'+ 
+  '<text x="'+(x+34)+'" y="'+(y+9)+'" font-size="10" fill="#94A3B8">'+esc(code)+'</text></g>';
+}
+function openMapRisk(code){
+  var r=App.risks.filter(function(x){return x.code===code;})[0];
+  if(r)openRiskDetail(r.id);
+}
+function openMapPosition(riskId){var r=App.risk.byId(riskId);if(!r)return;if(['company_safety','group_safety'].indexOf(App.currentRole)<0){App.toast('当前角色无定位维护权限，只能查看','warn');return;}var p=r.mapPosition||{area:r.location||'',floor:'1F',x:120,y:120};UI.modal('<div class="form-grid"><div class="form-item full"><span class="form-label">区域</span><input id="mapArea" value="'+(p.area||r.location||'')+'"></div><div class="form-item"><span class="form-label">楼层</span><input id="mapFloor" value="'+(p.floor||'1F')+'"></div><div class="form-item"><span class="form-label">X 坐标（0-900）</span><input id="mapX" type="number" min="0" max="900" value="'+(p.x||120)+'"></div><div class="form-item"><span class="form-label">Y 坐标（0-520）</span><input id="mapY" type="number" min="0" max="520" value="'+(p.y||120)+'"></div></div>',{title:'维护风险点定位 · '+r.code,footer:'<button class="btn btn-outline" data-close>取消</button><button class="btn btn-primary" id="mapPosOk">保存定位</button>'});document.getElementById('mapPosOk').onclick=function(){var x=+document.getElementById('mapX').value,y=+document.getElementById('mapY').value;if(x<0||x>900||y<0||y>520){App.toast('坐标范围不合法','error');return;}App.risk.updatePosition(riskId,{area:document.getElementById('mapArea').value.trim(),floor:document.getElementById('mapFloor').value.trim(),x:x,y:y});document.querySelectorAll('.modal.show').forEach(function(n){n.remove();});viewMap();};}
+
+/* ================= 风险告知 ================= */
+function noticeLevel(h){return h&&h.level&&h.level.key?h.level:levelOf(h&&h.D||0);}
+function noticeAssessment(h){var lv=noticeLevel(h),L=lv.L!==undefined?lv.L:h&&h.L,E=lv.E!==undefined?lv.E:h&&h.E,C=lv.C!==undefined?lv.C:h&&h.C,D=lv.D!==undefined?lv.D:h&&h.D;if(lv.method==='direct'||lv.basis)return '直接判定：'+(lv.basis||h.directNote||'-');return 'LEC：'+(L||'-')+' × '+(E||'-')+' × '+(C||'-')+' = D '+(D||'-');}
+function noticeMeasureSummary(measures){return (measures||[]).map(function(m){return m.name||m.description||'';}).filter(Boolean).join('；')||'-';}
+function noticeMeasureRows(measures){var by={};(measures||[]).forEach(function(m){var type=({工程措施:'工程技术措施',培训教育:'培训教育措施',个体防护:'个体防护措施',应急措施:'应急处置措施'}[m.type]||m.type||'管理措施');(by[type]||(by[type]=[])).push(m);});return MEASURE_TYPES.map(function(type){var items=by[type]||[];return '<tr><td>'+type+'</td><td>'+ (items.length?items.map(function(m){return esc(m.name||m.description||'-');}).join('<br>'):'<span class="muted">暂无</span>')+'</td></tr>';}).join('');}
+function viewNotice(){
+  var org=params.get('noticeOrg')||'',role=params.get('noticeRole')||'',rid=params.get('noticeRisk')||'';
+  var effective=App.risks.filter(isCurrentRisk),current=effective.filter(function(r){return (!org||r.org===org)&&(!rid||r.id===rid);}),chosen=current[0]||null;
+  var riskOptions=effective.map(function(r){return '<option value="'+esc(r.id)+'">'+esc(r.code)+' '+esc(r.name)+'</option>';}).join('');
+  var noticeRows=current.map(function(r){return (r.hazards||[]).map(function(h){var lv=noticeLevel(h);return '<tr><td>'+esc(r.code)+' '+esc(r.name)+'</td><td>'+esc(h.name||'-')+'</td><td>'+UI.tagOf(lv.key)+'</td><td>'+esc(noticeMeasureSummary(h.measures))+'</td><td>'+esc(r.responsibilityPost||'-')+'</td><td>'+esc(r.version||r.currentVersion||'-')+'</td></tr>';}).join('');}).join('');
+  var card=chosen?'<div class="card" style="margin-top:16px"><div class="card-title">岗位风险告知卡 · '+esc(chosen.name)+' <span class="tag tag-blue">仅在线查看</span></div><div class="desc desc-2"><div class="d-item"><span class="d-label">风险点编号/位置</span><span class="d-value">'+esc(chosen.code)+' / '+esc(chosen.location||'-')+'</span></div><div class="d-item"><span class="d-label">岗位/组织</span><span class="d-value">'+esc(role||'班组长岗')+' / '+esc(chosen.org||'-')+'</span></div><div class="d-item"><span class="d-label">风险等级/版本</span><span class="d-value">'+UI.tagOf(riskLevelKey(chosen))+' / '+esc(chosen.version||chosen.currentVersion||'-')+'</span></div><div class="d-item"><span class="d-label">责任岗位</span><span class="d-value">'+esc(chosen.responsibilityPost||'-')+'</span></div></div><div class="section-head"><h3>全部危险源与主要措施</h3></div>'+((chosen.hazards||[]).map(function(x,i){var lv=noticeLevel(x);return '<div class="card" style="margin-bottom:12px"><div class="card-title">危险源 '+(i+1)+'：'+esc(x.name||'-')+'</div><div class="desc desc-2"><div class="d-item"><span class="d-label">风险等级</span><span class="d-value">'+UI.tagOf(lv.key)+'</span></div><div class="d-item"><span class="d-label">评价依据</span><span class="d-value">'+esc(noticeAssessment(x))+'</span></div><div class="d-item"><span class="d-label">事故类型</span><span class="d-value">'+esc(accidentText(x))+'</span></div></div><div class="tbl-wrap" style="margin-top:10px"><table class="tbl"><thead><tr><th>措施类型</th><th>管控措施</th></tr></thead><tbody>'+noticeMeasureRows(x.measures)+'</tbody></table></div></div>';}).join('')||UI.empty('暂无危险源'))+'<div style="text-align:right;margin-top:12px"><button class="btn btn-primary" onclick="recordNoticeView(\''+chosen.id+'\')">记录本次在线查看</button></div></div>':'<div class="card" style="margin-top:16px">'+UI.empty('请选择一个当前生效风险点查看告知卡')+'</div>';
+  body.innerHTML='<div class="filter-bar"><div class="f-item">组织 <select id="noticeOrg"><option value="">全部</option><option value="造型作业区">造型作业区</option><option value="智能加工配送中心">智能加工配送中心</option></select></div><div class="f-item">岗位 <select id="noticeRole"><option value="">全部岗位</option><option value="班组长岗">班组长岗</option><option value="设备维护岗">设备维护岗</option><option value="安环管理岗">安环管理岗</option></select></div><div class="f-item">风险点 <select id="noticeRisk"><option value="">全部风险点</option>'+riskOptions+'</select></div><button class="btn btn-outline btn-sm" onclick="applyNoticeFilter()">筛选</button><button class="btn btn-text btn-sm" onclick="resetNoticeFilter()">重置</button></div><div class="alert info">公告栏和岗位风险告知卡只读取当前生效版本；不提供打印、PDF或二维码，在线查看会记录查看人、时间和版本。</div>'+(chosen?'<div class="card"><div class="card-title">安全风险公告栏 · '+esc(chosen.org||'-')+'</div><div class="tbl-wrap"><table class="tbl"><thead><tr><th>风险点</th><th>危险源</th><th>等级</th><th>主要措施</th><th>责任岗位</th><th>生效版本</th></tr></thead><tbody>'+noticeRows+'</tbody></table></div></div>':'<div class="card">'+UI.empty('请选择组织或风险点查看风险公告栏')+'</div>')+card;
+  if(document.getElementById('noticeOrg'))document.getElementById('noticeOrg').value=org;if(document.getElementById('noticeRole'))document.getElementById('noticeRole').value=role;if(document.getElementById('noticeRisk'))document.getElementById('noticeRisk').value=rid;
+}
+function viewNoticeLegacy(){
+  var org=params.get('noticeOrg')||'',role=params.get('noticeRole')||'',rid=params.get('noticeRisk')||'';var current=App.risks.filter(function(r){return isCurrentRisk(r)&&(!org||r.org===org)&&(!rid||r.id===rid);});var chosen=current[0]||null;
+  body.innerHTML='<div class="filter-bar"><div class="f-item">组织 <select id="noticeOrg"><option value="">全部</option><option value="造型作业区">造型作业区</option><option value="智能加工配送中心">智能加工配送中心</option></select></div><div class="f-item">岗位 <select id="noticeRole"><option value="">全部岗位</option><option value="班组长岗">班组长岗</option><option value="设备维护岗">设备维护岗</option><option value="安环管理岗">安环管理岗</option></select></div><div class="f-item">风险点 <select id="noticeRisk"><option value="">全部风险点</option>'+App.risks.filter(isCurrentRisk).map(function(r){return '<option value="'+r.id+'">'+r.code+' '+r.name+'</option>';}).join('')+'</select></div><button class="btn btn-outline btn-sm" onclick="applyNoticeFilter()">筛选</button><button class="btn btn-text btn-sm" onclick="resetNoticeFilter()">重置</button></div>'+ 
+  '<div class="alert info">公告栏和岗位风险告知卡只读取<b>当前生效版本</b>；在线查看会记录查看人、时间和版本，内容随生效版本实时更新。</div>'+ 
+  (chosen?'<div class="card"><div class="card-title">安全风险公告栏 · '+chosen.org+'</div><div class="tbl-wrap"><table class="tbl"><thead><tr><th>风险点</th><th>危险源</th><th>等级</th><th>主要措施</th><th>责任人</th><th>生效版本</th></tr></thead><tbody>'+current.map(function(r){return (r.hazards||[]).map(function(h){return '<tr><td>'+r.code+' '+r.name+'</td><td>'+h.name+'</td><td>'+UI.tagOf(h.level.key)+'</td><td>'+((h.measures||[]).slice(0,2).map(function(m){return m.name;}).join('；')||'-')+'</td><td>'+((h.measures||[])[0]&&((h.measures||[])[0].duty||'-')||r.owner||'-')+'</td><td>'+r.version+'</td></tr>';}).join('');}).join('')+'</tbody></table></div></div>':'<div class="card">'+UI.empty('暂无当前生效风险点')+'</div>')+ 
+  (chosen?'<div class="card" style="margin-top:16px"><div class="card-title">岗位风险告知卡 · '+chosen.name+' <span class="tag tag-blue">仅在线查看</span></div><div class="desc desc-2"><div class="d-item"><span class="d-label">风险点编号/位置</span><span class="d-value">'+chosen.code+' / '+chosen.location+'</span></div><div class="d-item"><span class="d-label">岗位/组织</span><span class="d-value">'+(role||'班组长岗')+' / '+chosen.org+'</span></div><div class="d-item"><span class="d-label">风险等级/版本</span><span class="d-value">'+UI.tagOf(chosen.level)+' / '+chosen.version+'</span></div><div class="d-item"><span class="d-label">责任人</span><span class="d-value">'+(chosen.owner||'-')+'</span></div></div><div class="section-head"><h3>全部危险源与主要措施</h3></div>'+chosen.hazards.map(function(x,i){return '<div class="card" style="margin-bottom:12px"><div class="card-title">危险源 '+(i+1)+'：'+x.name+'</div><div class="desc desc-2"><div class="d-item"><span class="d-label">等级</span><span class="d-value">'+UI.tagOf(x.level.key)+'（D='+x.D+'）</span></div><div class="d-item"><span class="d-label">措施数</span><span class="d-value">'+x.measures.length+' 条</span></div></div><div class="tbl-wrap" style="margin-top:10px"><table class="tbl"><thead><tr><th>管控措施</th><th>类型/频次</th><th>责任人</th><th>证据要求</th></tr></thead><tbody>'+x.measures.map(function(m){return '<tr><td>'+m.name+'</td><td><span class="tag tag-blue">'+m.type+'</span> / '+(m.frequency||'-')+'</td><td>'+m.duty+'</td><td>'+((m.evidence)||'-')+'</td></tr>';}).join('')+'</tbody></table></div></div>';}).join('')+'<div style="text-align:right;margin-top:12px"><button class="btn btn-primary" onclick="recordNoticeView(\''+chosen.id+'\')">记录本次在线查看</button></div></div>':'');
+  if(document.getElementById('noticeOrg'))document.getElementById('noticeOrg').value=org;if(document.getElementById('noticeRole'))document.getElementById('noticeRole').value=role;if(document.getElementById('noticeRisk'))document.getElementById('noticeRisk').value=rid;
+}
+function applyNoticeFilter(){var o=document.getElementById('noticeOrg').value,ro=document.getElementById('noticeRole').value,r=document.getElementById('noticeRisk').value;location.href='risks.html?tab=notice'+(o?'&noticeOrg='+encodeURIComponent(o):'')+(ro?'&noticeRole='+encodeURIComponent(ro):'')+(r?'&noticeRisk='+encodeURIComponent(r):'');}
+function resetNoticeFilter(){location.href='risks.html?tab=notice';}
+function recordNoticeView(riskId){var r=App.risk.byId(riskId);if(!r)return;App.risk.noticeView(riskId,r.version);App.toast('已记录本次在线查看：'+r.code+' '+r.version,'success');}
+
+/* ================= 变更复评 ================= */
+function viewChanges(){
+  var drafts=App.risks.filter(function(r){return r.draftVersion;});
+  body.innerHTML='<div class="alert info">风险版本按<b>整个风险点</b>复制快照，包含全部危险源、评价、措施和责任；新版本未生效前正式台账仍使用旧版本。</div><div class="section-head"><h3>变更与人工复评</h3><button class="btn btn-primary btn-sm" onclick="openChangeForm()">+ 发起风险变更/人工复评</button></div><div class="grid-1-2"><div class="card"><div class="card-title">待处理版本</div>'+(drafts.length?'<div class="tbl-wrap"><table class="tbl"><thead><tr><th>风险点</th><th>版本</th><th>触发类型</th><th>状态</th><th>操作</th></tr></thead><tbody>'+drafts.map(function(r){var d=r.draftVersion;return '<tr><td>'+r.code+' '+r.name+'</td><td>'+d.version+'</td><td>'+d.trigger+'</td><td>'+statusTag(d.status)+'</td><td><button class="btn btn-primary btn-sm" onclick="openRiskForm(\''+r.id+'\')">继续编辑</button><button class="btn btn-text" onclick="showDraftDetail(\''+r.id+'\')">查看快照</button></td></tr>';}).join('')+'</tbody></table></div>':UI.empty('暂无草稿或审批中版本'))+'</div><div class="card"><div class="card-title">版本时间线</div><ul class="timeline">'+App.versions.map(function(v,i){return '<li'+(v.status==='当前生效'?' class="green"':'')+'><div class="t-date">'+(v.publishedAt||v.createdAt||'-')+'</div><div class="t-title">'+v.code+' '+v.version+' · '+statusTag(v.status)+'</div><div class="t-note">'+(v.note||'')+' · '+v.hazardCount+' 危险源 / '+v.measureCount+' 措施 / 最高 '+v.maxLevel+'</div><div class="t-actor">操作人：'+(v.operator||'-')+' <button class="btn btn-text" onclick="showVersionDiff(\''+v.id+'\')">查看差异</button></div></li>';}).join('')+'</ul></div></div><div class="section-head"><h3>历史版本列表</h3></div><div class="tbl-wrap"><table class="tbl"><thead><tr><th>风险点</th><th>版本</th><th>危险源</th><th>措施</th><th>状态</th><th>操作</th></tr></thead><tbody>'+App.versions.map(function(v){return '<tr><td>'+v.riskName+'</td><td>'+v.version+'</td><td>'+v.hazardCount+'</td><td>'+v.measureCount+'</td><td>'+statusTag(v.status)+'</td><td><button class="btn btn-text" onclick="showVersionDiff(\''+v.id+'\')">只读详情/差异</button></td></tr>';}).join('')+'</tbody></table></div>';
+}
+function showVersionDiff(id){
+  var v=App.versions.filter(function(x){return x.id===id;})[0]||App.versions[0],r=App.risks.filter(function(x){return x.code===v.code;})[0],snap=v.snapshot||null,meta=snap||r||{};var old=v.previousVersion?((r&&r.versions||[]).filter(function(x){return x.version===v.previousVersion;})[0]||null):null;var oldHaz=(old&&old.snapshot&&old.snapshot.hazards)||[],newHaz=(snap&&snap.hazards)||(r&&r.hazards)||[];var oldIds=oldHaz.map(function(h){return h.id;}),newIds=newHaz.map(function(h){return h.id;});var added=newHaz.filter(function(h){return oldIds.indexOf(h.id)<0;}),removed=oldHaz.filter(function(h){return newIds.indexOf(h.id)<0;});
+  UI.modal('<div class="desc desc-2"><div class="d-item"><span class="d-label">版本/状态</span><span class="d-value">'+v.version+' / '+statusTag(v.status)+'</span></div><div class="d-item"><span class="d-label">风险点字段</span><span class="d-value">'+esc(meta.riskName||meta.name||'-')+' · '+esc(meta.location||'-')+' · '+esc(meta.category||'-')+'</span></div><div class="d-item"><span class="d-label">组织/责任岗位</span><span class="d-value">'+esc(meta.org||'-')+' · '+esc(meta.responsibilityPost||'-')+'</span></div><div class="d-item"><span class="d-label">危险源变化</span><span class="d-value">新增 '+added.length+' 条，删除 '+removed.length+' 条</span></div><div class="d-item"><span class="d-label">评价/措施</span><span class="d-value">快照含 L/E/C/D、风险等级与五类管控措施</span></div></div><div class="section-head"><h3>危险源差异</h3></div><div class="tbl-wrap"><table class="tbl"><thead><tr><th>危险源</th><th>L/E/C/D</th><th>等级</th><th>措施</th><th>变化</th></tr></thead><tbody>'+newHaz.map(function(h){var before=oldHaz.filter(function(x){return x.id===h.id;})[0];var changed=before&&(before.L!==h.L||before.E!==h.E||before.C!==h.C||before.D!==h.D||before.name!==h.name);return '<tr><td>'+h.name+'</td><td>'+h.L+'/'+h.E+'/'+h.C+'/'+h.D+'</td><td>'+((h.level&&h.level.name)||'-')+'</td><td>'+((h.measures||[]).length)+'</td><td>'+(changed?'<span class="tag tag-warn">字段有变化</span>':(added.some(function(x){return x.id===h.id;})?'<span class="tag tag-green">新增</span>':'无变化'))+'</td></tr>';}).join('')+(removed.map(function(h){return '<tr><td>'+h.name+'</td><td colspan="3">历史版本有，当前版本已删除</td><td><span class="tag tag-error">删除</span></td></tr>';}).join('')||'')+'</tbody></table></div><div class="hint-line">历史版本为只读快照；台账、四色图、告知卡仅引用当前生效版本。</div>',{title:'历史差异 · '+v.code+' '+v.version,size:'lg',footer:'<button class="btn btn-outline" data-close>关闭</button>'});
+}
+function showDraftDetail(riskId){var r=App.risk.byId(riskId),d=r&&r.draftVersion;if(!d)return;UI.modal('<div class="desc desc-2"><div class="d-item"><span class="d-label">版本/状态</span><span class="d-value">'+d.version+' / '+statusTag(d.status)+'</span></div><div class="d-item"><span class="d-label">地点/风险点</span><span class="d-value">'+esc(d.riskName||r.name)+' / '+esc(d.location||r.location||'-')+'</span></div><div class="d-item"><span class="d-label">组织/类别/责任岗位</span><span class="d-value">'+esc(d.org||r.org||'-')+' / '+esc(d.category||r.category||'-')+' / '+esc(d.responsibilityPost||r.responsibilityPost||'-')+'</span></div><div class="d-item"><span class="d-label">触发类型/原因</span><span class="d-value">'+d.trigger+' / '+(d.reason||'-')+'</span></div><div class="d-item"><span class="d-label">影响范围/计划完成</span><span class="d-value">'+(d.scope||'-')+' / '+(d.planDate||'-')+'</span></div><div class="d-item"><span class="d-label">快照内容</span><span class="d-value">'+d.hazards.length+' 条危险源、'+d.hazards.reduce(function(s,h){return s+(h.measures||[]).length;},0)+' 条措施及逐条评价</span></div></div>',{title:'版本草稿快照 · '+r.code+' '+d.version,footer:'<button class="btn btn-outline" data-close>关闭</button><button class="btn btn-primary" onclick="openRiskForm(\''+r.id+'\')">继续编辑</button>'});}
+function openChangeForm(riskId){if(App.currentRole!=='team_leader'){App.toast('风险变更和复评由班组长发起并填报','error');return;}if(riskId&&App.risk.draftOf(riskId)){App.toast('该风险点已有草稿或审批中的版本，请先完成当前版本','warn');return;}var choices=App.risks.filter(function(r){return r.status==='已发布'&&!r.draftVersion;});if(!riskId)riskId=(choices[0]&&choices[0].id)||'';if(!choices.length){App.toast('暂无可发起复评的当前生效风险点','warn');return;}UI.modal('<div class="form-grid"><div class="form-item full"><span class="form-label">风险点 <span class="req">*</span></span><select id="changeRisk">'+choices.map(function(r){return '<option value="'+r.id+'" '+(r.id===riskId?'selected':'')+'>'+r.code+' '+r.name+'</option>';}).join('')+'</select></div><div class="form-item"><span class="form-label">触发类型 <span class="req">*</span></span><select id="changeType"><option>设备改造</option><option>工艺变更</option><option>事故后复评</option><option>人工定期复评</option></select></div><div class="form-item"><span class="form-label">计划完成时间 <span class="req">*</span></span><input id="changeDate" type="date"></div><div class="form-item full"><span class="form-label">变更原因 <span class="req">*</span></span><textarea id="changeReason" placeholder="说明变更或复评原因"></textarea></div><div class="form-item full"><span class="form-label">影响范围 <span class="req">*</span></span><textarea id="changeScope" placeholder="设备、区域、岗位、措施范围"></textarea></div></div>',{title:'发起风险变更/人工复评',size:'lg',footer:'<button class="btn btn-outline" data-close>取消</button><button class="btn btn-primary" id="changeOk">生成风险点版本草稿</button>'});document.getElementById('changeOk').onclick=function(){var rid=document.getElementById('changeRisk').value,type=document.getElementById('changeType').value,date=document.getElementById('changeDate').value,reason=document.getElementById('changeReason').value.trim(),scope=document.getElementById('changeScope').value.trim();if(!rid||!date||!reason||!scope){App.toast('风险点、计划完成时间、变更原因和影响范围均为必填','error');return;}var d=App.risk.createVersion(rid,type,reason,scope,date);if(d){document.querySelectorAll('.modal.show').forEach(function(x){x.remove();});App.toast('已生成整个风险点版本草稿，请重新评价相关危险源','success');location.href=taskQuery('hazards','',rid,d.hazards[0]&&d.hazards[0].id||'');}};}
+
+/* ================= 路由 ================= */
+function route(){
+  if(tab==='tasks'){location.replace('risks.html?tab=ledger');return;}
+  if(['task-form','risk-point','hazards','hazard-form','evaluate'].indexOf(mode)>-1){openRiskForm(params.get('risk'));return;}
+  if(params.get('wb')==='1'){location.replace(taskQuery('hazards','',params.get('risk')||'',params.get('hazard')||''));return;}
+  if(tab==='overview')viewOverview();
+  else if(tab==='ledger')viewLedger();
+  else if(tab==='tasks')viewTasks();
+  else if(tab==='map')viewMap();
+  else if(tab==='notice')viewNotice();
+  else if(tab==='changes')viewChanges();
+  else viewOverview();
+}
+
+document.addEventListener('change',function(e){
+  if(e.target.id==='fL'||e.target.id==='fE'||e.target.id==='fC')recalc();
+  if(e.target.id==='evalL'||e.target.id==='evalE'||e.target.id==='evalC')recalcRiskEvaluation();
+  if(e.target.id==='fDirect'){
+    var w=document.getElementById('directNoteWrap');
+    if(w)w.style.display=e.target.checked?'':'none';
+  }
+  if(e.target.id==='evalDirect'){
+    var ew=document.getElementById('evalDirectWrap');
+    if(ew)ew.style.display=e.target.checked?'':'none';
+  }
+});
+
+var LEVEL_MAP={low:{key:'low',name:'低'},common:{key:'common',name:'一般'},big:{key:'big',name:'较大'},major:{key:'major',name:'重大'}};
+var LEVEL_ORDER={low:1,common:2,big:3,major:4};
+var CONTROL_LEVELS=['公司','分公司','班组（工部）'];
+var ORG_OPTIONS=['造型作业区','智能加工配送中心'];
+var HZ_UID=0;
+function hazardBlockHTML(uid){return '<div class="rf-hz" data-hz><div class="rf-hz-head"><span class="rf-hz-title"><span class="rf-hz-no">1</span>危险源 1</span><button type="button" class="rf-remove" onclick="removeHazard(this)">移除</button></div><div class="rf-grid"><div class="rf-field full"><label class="rf-label">危险源或潜在事件<span class="req">*</span></label><input class="rf-input" data-f="name" placeholder="如：操作人员接触旋转部件，可能造成机械伤害"></div><div class="rf-field full"><label class="rf-label">风险评价（评定风险等级）</label><div style="display:flex;gap:18px;margin-bottom:8px"><label style="font-size:13px;color:var(--gray-700)"><input type="radio" name="m'+uid+'" value="lec" checked onchange="switchMethod(this)"> LEC 评价法</label><label style="font-size:13px;color:var(--gray-700)"><input type="radio" name="m'+uid+'" value="direct" onchange="switchMethod(this)"> 直接判定法</label></div><div class="rf-lec"><div class="rf-grid rf-lec-grid"><div class="rf-field"><label class="rf-label">L 可能性</label><select class="rf-input" data-lec="L" onchange="calcLEC(this)"><option value="1">1 极不可能</option><option value="2">2 很少</option><option value="3">3 可能</option><option value="6">6 相当可能</option><option value="10">10 完全可能</option></select></div><div class="rf-field"><label class="rf-label">E 暴露频率</label><select class="rf-input" data-lec="E" onchange="calcLEC(this)"><option value="1">1 每年几次</option><option value="2">2 每月几次</option><option value="3">3 每周</option><option value="6">6 每天</option><option value="10">10 持续</option></select></div><div class="rf-field"><label class="rf-label">C 后果严重性</label><select class="rf-input" data-lec="C" onchange="calcLEC(this)"><option value="1">1 轻微</option><option value="2">2 较轻</option><option value="5">5 较重</option><option value="15">15 严重</option><option value="40">40 特别严重</option></select></div></div><div style="margin-top:8px;font-size:12.5px;color:var(--gray-600)">D = L × E × C = <b data-d>-</b>，风险等级：<span data-lv>—</span></div></div><div class="rf-direct" style="display:none"><div class="rf-grid rf-direct-grid"><div class="rf-field"><label class="rf-label">风险等级<span class="req">*</span></label><select class="rf-input" data-f="directLevel"><option value="low">低</option><option value="common">一般</option><option value="big">较大</option><option value="major">重大</option></select></div><div class="rf-field"><label class="rf-label">直接判定依据<span class="req">*</span></label><input class="rf-input" data-f="directBasis" placeholder="填写直接判定的依据（必填）"></div></div></div></div><div class="rf-field full"><label class="rf-label">可能发生的事故类型（27类，可多选）<span class="req">*</span></label>'+accidentChecklist('',false)+'</div>'+MEASURE_TYPES.map(function(t){return '<div class="rf-field full"><label class="rf-label">'+t+(t==='管理措施'?'<span class="req">*</span>':'')+'</label><textarea class="rf-input" data-m="'+t+'" placeholder="填写'+t+'"></textarea></div>';}).join('')+'</div></div>';}
+function addHazard(){var box=document.getElementById('hzBox');if(box){box.insertAdjacentHTML('beforeend',hazardBlockHTML(HZ_UID++));renumberHZ();}}
+function removeHazard(btn){var box=document.getElementById('hzBox');if(!box)return;if(box.querySelectorAll('[data-hz]').length<=1){App.toast('至少保留 1 条危险源','warn');return;}btn.closest('[data-hz]').remove();renumberHZ();}
+function calcLEC(sel){var block=sel.closest('[data-hz]'),L=+block.querySelector('[data-lec="L"]').value,E=+block.querySelector('[data-lec="E"]').value,C=+block.querySelector('[data-lec="C"]').value,D=L*E*C,lv=levelOf(D);block.querySelector('[data-d]').textContent=D;block.querySelector('[data-lv]').innerHTML=UI.tagOf(lv.key);}
+function switchMethod(radio){var block=radio.closest('[data-hz]'),lec=radio.value==='lec';block.querySelector('.rf-lec').style.display=lec?'':'none';block.querySelector('.rf-direct').style.display=lec?'none':'';}
+function renumberHZ(){var box=document.getElementById('hzBox');if(!box)return;box.querySelectorAll('[data-hz]').forEach(function(el,i){el.querySelector('.rf-hz-no').textContent=i+1;el.querySelector('.rf-hz-title').innerHTML='<span class="rf-hz-no">'+(i+1)+'</span>危险源 '+(i+1);});}
+function openRiskForm(){var code='RISK-ZX-'+pad(App.risks.length+1),html='<div class="rf-form"><div class="rf-section">基础信息</div><div class="rf-grid"><div class="rf-field"><label class="rf-label">风险点编号</label><input class="rf-input" id="rfCode" value="'+code+'" readonly></div><div class="rf-field"><label class="rf-label">风险点名称<span class="req">*</span></label><input class="rf-input" id="rfName" placeholder="如：自动线造型作业风险"></div><div class="rf-field"><label class="rf-label">位置<span class="req">*</span></label><input class="rf-input" id="rfLocation" placeholder="如：自动线组造型工位"></div><div class="rf-field"><label class="rf-label">所属作业区（选填）</label><select class="rf-input" id="rfOrg">'+ORG_OPTIONS.map(function(o){return '<option>'+o+'</option>';}).join('')+'</select></div><div class="rf-field"><label class="rf-label">管控层级<span class="req">*</span></label><select class="rf-input" id="rfLevel">'+CONTROL_LEVELS.map(function(o){return '<option>'+o+'</option>';}).join('')+'</select></div><div class="rf-field"><label class="rf-label">责任人<span class="req">*</span></label><input class="rf-input" id="rfOwner" placeholder="填写责任人姓名"></div><div class="rf-field full"><label class="rf-label">检查频次（三级分别设置）</label><div class="rf-grid rf-frequency-grid"><div class="rf-field"><label class="rf-label">班组（工部）</label><select class="rf-input" id="rfGroup"><option selected>1次/班</option><option>1次/周</option><option>1次/月</option><option>无需检查</option></select></div><div class="rf-field"><label class="rf-label">分公司</label><select class="rf-input" id="rfBranch"><option>1次/班</option><option selected>1次/周</option><option>1次/月</option><option>无需检查</option></select></div><div class="rf-field"><label class="rf-label">公司</label><select class="rf-input" id="rfCompany"><option>1次/班</option><option>1次/周</option><option>1次/月</option><option selected>1次/月</option><option>无需检查</option></select></div></div></div></div><div class="rf-section">危险源与管控措施<span style="font-weight:400;color:var(--gray-400);font-size:12px;margin-left:6px">（可添加多条）</span></div><div id="hzBox">'+hazardBlockHTML(HZ_UID++)+'</div><button type="button" class="rf-add" onclick="addHazard()">＋ 添加危险源</button></div>';UI.drawer(html,{title:'新建风险点',wide:true,footer:'<button class="btn btn-outline" data-close>取消</button><button class="btn btn-primary" onclick="submitRiskForm()">保存风险点</button>'});renumberHZ();var box=document.getElementById('hzBox');if(box)box.querySelectorAll('[data-hz]').forEach(function(b){calcLEC(b.querySelector('[data-lec="L"]'));});}
+function submitRiskForm(){
+  var name=document.getElementById('rfName').value.trim(),locationText=document.getElementById('rfLocation').value.trim(),owner=document.getElementById('rfOwner').value.trim();
+  if(!name||!locationText||!owner){App.toast('请填写名称、位置、责任人','warn');return;}
+  if(!orgUserOf(owner)){App.toast('责任人必须从组织架构人员中选择','error');return;}
+  var hazards=[],invalid=false;
+  document.querySelectorAll('#hzBox [data-hz]').forEach(function(b,i){
+    var hname=b.querySelector('[data-f="name"]').value.trim(),accidents=selectedAccidents(b);
+    if(!hname||!accidents.length){App.toast('危险源 '+(i+1)+' 的描述和事故类型不能为空','error');invalid=true;return;}
+    var method=b.querySelector('input[type="radio"]:checked').value,levelObj;
+    if(method==='lec'){var L=+b.querySelector('[data-lec="L"]').value,E=+b.querySelector('[data-lec="E"]').value,C=+b.querySelector('[data-lec="C"]').value,D=L*E*C,lv=levelOf(D);levelObj={key:lv.key,name:lv.name,method:'lec',L:L,E:E,C:C,D:D};}
+    else{var dv=b.querySelector('[data-f="directLevel"]').value,db=b.querySelector('[data-f="directBasis"]').value.trim();if(!db){App.toast('请填写危险源 '+(i+1)+' 的直接判定依据','warn');invalid=true;return;}levelObj=Object.assign({method:'direct',basis:db,D:320},LEVEL_MAP[dv]);}
+    var measures=[];MEASURE_TYPES.forEach(function(t){var ta=b.querySelector('[data-m="'+t+'"]'),v=ta?ta.value.trim():'';if(v)measures.push({id:'M-'+(App._seq.sup++),type:t,name:v});});
+    if(!measures.some(function(m){return m.type==='管理措施';})){App.toast('危险源 '+(i+1)+' 必须至少填写一条管理措施','error');invalid=true;return;}
+    hazards.push({id:'HZ-'+(App._seq.hz++),name:hname,accidentTypes:accidents,accidentType:accidents.join('、'),level:levelObj,L:levelObj.L,E:levelObj.E,C:levelObj.C,D:levelObj.D,assessmentStatus:'已完成',measures:measures});
+  });
+  if(invalid||!hazards.length){if(!hazards.length&&!invalid)App.toast('请至少填写 1 条危险源','warn');return;}
+  var maxLv='low';hazards.forEach(function(h){if(LEVEL_ORDER[h.level.key]>LEVEL_ORDER[maxLv])maxLv=h.level.key;});
+  var rid='R-'+pad(App._seq.risk++),code=document.getElementById('rfCode').value,org=document.getElementById('rfOrg').value,versionId=uid(),created=now();
+  var r={id:rid,code:code,name:name,org:org,location:locationText,status:'草稿',version:'V1.0',level:maxLv,updatedAt:created,controlLevel:document.getElementById('rfLevel').value,owner:owner,checkFreq:{group:document.getElementById('rfGroup').value,branch:document.getElementById('rfBranch').value,company:document.getElementById('rfCompany').value},category:'作业活动风险',hazards:JSON.parse(JSON.stringify(hazards)),draftVersion:{id:versionId,version:'V1.0',status:'草稿',riskId:rid,riskName:name,org:org,location:locationText,owner:owner,category:'作业活动风险',createdAt:created,updatedAt:created,operator:App.currentUser(),trigger:'风险点建档',reason:'首次建档',scope:locationText,hazards:JSON.parse(JSON.stringify(hazards)),returnedReason:''}};
+  App.risks.unshift(r);if(App._emit)App._emit();closeDrawerDOM();App.toast('风险点「'+name+'」已新建（草稿）','success');viewLedger();openRiskDetail(r.id);
+}
+/* 统一编辑器：新增与继续编辑使用同一风险点详情表单，不再拆分建档、危险源、评价和措施页面。 */
+var riskFormRiskId=null;
+function riskFormHazardBlock(h){
+  h=h||{};
+  var id=HZ_UID++,direct=!!h.direct,L=+h.L||1,E=+h.E||1,C=+h.C||1,D=direct?320:(+h.D||L*E*C),lv=h.level||levelOf(D);
+  function options(values,current){return values.map(function(v){return '<option value="'+v+'" '+(+current===+v?'selected':'')+'>'+v+'</option>';}).join('');}
+  function measureValue(type){var m=(h.measures||[]).filter(function(x){return x.type===type;})[0];return m&&m.name||'';}
+  return '<div class="rf-hz" data-hz data-hazard-id="'+esc(h.id||'')+'"><div class="rf-hz-head"><span class="rf-hz-title"><span class="rf-hz-no">1</span>危险源 1</span><button type="button" class="rf-remove" onclick="removeHazard(this)">移除</button></div><div class="rf-grid">'+
+    '<div class="rf-field full"><label class="rf-label">危险源或潜在事件<span class="req">*</span></label><input class="rf-input" data-f="name" value="'+esc(h.name||'')+'" placeholder="如：砂箱吊运过程中人员进入吊物下方，可能造成起重伤害"></div>'+ 
+    '<div class="rf-field full"><label class="rf-label">风险评价（评定风险等级）</label><div style="display:flex;gap:18px;margin-bottom:8px"><label style="font-size:13px;color:var(--gray-700)"><input type="radio" name="m'+id+'" value="lec" '+(!direct?'checked':'')+' onchange="switchMethod(this)"> LEC 评价法</label><label style="font-size:13px;color:var(--gray-700)"><input type="radio" name="m'+id+'" value="direct" '+(direct?'checked':'')+' onchange="switchMethod(this)"> 直接判定法</label></div>'+ 
+    '<div class="rf-lec" style="'+(direct?'display:none':'')+'"><div class="rf-grid rf-lec-grid"><div class="rf-field"><label class="rf-label">L 可能性</label><select class="rf-input" data-lec="L" onchange="calcLEC(this)">'+options([1,2,3,6,10],L)+'</select></div><div class="rf-field"><label class="rf-label">E 暴露频率</label><select class="rf-input" data-lec="E" onchange="calcLEC(this)">'+options([1,2,3,6,10],E)+'</select></div><div class="rf-field"><label class="rf-label">C 后果严重性</label><select class="rf-input" data-lec="C" onchange="calcLEC(this)">'+options([1,2,5,15,40],C)+'</select></div></div><div style="margin-top:8px;font-size:12.5px;color:var(--gray-600)">D = L × E × C = <b data-d>'+D+'</b>，风险等级：<span data-lv>'+UI.tagOf(lv.key)+'</span></div></div>'+ 
+    '<div class="rf-direct" style="'+(direct?'':'display:none')+'"><div class="rf-grid rf-direct-grid"><div class="rf-field"><label class="rf-label">风险等级<span class="req">*</span></label><select class="rf-input" data-f="directLevel"><option value="low" '+(lv.key==='low'?'selected':'')+'>低</option><option value="common" '+(lv.key==='common'?'selected':'')+'>一般</option><option value="big" '+(lv.key==='big'?'selected':'')+'>较大</option><option value="major" '+(lv.key==='major'?'selected':'')+'>重大</option></select></div><div class="rf-field"><label class="rf-label">直接判定依据<span class="req">*</span></label><input class="rf-input" data-f="directBasis" value="'+esc(h.directNote||h.level&&h.level.basis||'')+'" placeholder="填写直接判定的依据（必填）"></div></div></div></div>'+ 
+    '<div class="rf-field full"><label class="rf-label">可能发生的事故类型（27类，可多选）<span class="req">*</span></label>'+accidentChecklist(h,false)+'</div>'+ 
+    MEASURE_TYPES.map(function(type){return '<div class="rf-field full"><label class="rf-label">'+type+(type==='管理措施'?'<span class="req">*</span>':'')+'</label><textarea class="rf-input" data-m="'+type+'" placeholder="填写'+type+'">'+esc(measureValue(type))+'</textarea></div>';}).join('')+'</div></div>';
+}
+function addHazard(){var box=document.getElementById('hzBox');if(box){box.insertAdjacentHTML('beforeend',riskFormHazardBlock());renumberHZ();}}
+function openRiskForm(riskId){
+  var r=riskId&&App.risk.byId(riskId),d=r&&(r.draftVersion||r);
+  if(App.currentRole!=='team_leader'){App.toast('风险点新增、退回修改和变更复评均由班组长填报','error');return;}
+  if(r&&!App.risk.draftEditable(r.id)){App.toast('当前风险点已提交审批或已生效，请发起变更/复评后编辑','warn');return;}
+  riskFormRiskId=r&&r.id||null;
+  var responsibilityPost=d&&d.responsibilityPost||r&&r.responsibilityPost||'班组长',freq=r&&r.checkFreq||{},code=r&&r.code||'RISK-ZX-'+pad(App.risks.length+1),hazards=d&&d.hazards||[];
+  var html='<div class="rf-form"><div class="rf-section">基础信息</div><div class="rf-grid"><div class="rf-field"><label class="rf-label">风险点编号</label><input class="rf-input" id="rfCode" value="'+esc(code)+'" readonly></div><div class="rf-field"><label class="rf-label">风险点名称<span class="req">*</span></label><input class="rf-input" id="rfName" value="'+esc(d&&d.riskName||r&&r.name||'')+'" placeholder="如：自动线造型作业风险"></div><div class="rf-field"><label class="rf-label">位置<span class="req">*</span></label><input class="rf-input" id="rfLocation" value="'+esc(d&&d.location||r&&r.location||'')+'" placeholder="如：自动线组造型工位"></div><div class="rf-field"><label class="rf-label">所属作业区</label><select class="rf-input" id="rfOrg">'+ORG_OPTIONS.map(function(o){return '<option '+((d&&d.org||r&&r.org)===o?'selected':'')+'>'+o+'</option>';}).join('')+'</select></div><div class="rf-field"><label class="rf-label">管控层级<span class="req">*</span></label><select class="rf-input" id="rfLevel">'+CONTROL_LEVELS.map(function(o){return '<option '+((r&&r.controlLevel)===o?'selected':'')+'>'+o+'</option>';}).join('')+'</select></div><div class="rf-field"><label class="rf-label">责任岗位<span class="req">*</span></label><select class="rf-input" id="rfResponsibilityPost">'+responsibilityPostOptions(responsibilityPost)+'</select></div><div class="rf-field full"><label class="rf-label">检查频次（三级分别设置）</label><div class="rf-grid rf-frequency-grid"><div class="rf-field"><label class="rf-label">班组（工部）</label><select class="rf-input" id="rfGroup"><option '+((freq.group||'1次/班')==='1次/班'?'selected':'')+'>1次/班</option><option '+(freq.group==='1次/周'?'selected':'')+'>1次/周</option><option '+(freq.group==='1次/月'?'selected':'')+'>1次/月</option><option '+(freq.group==='无需检查'?'selected':'')+'>无需检查</option></select></div><div class="rf-field"><label class="rf-label">分公司</label><select class="rf-input" id="rfBranch"><option '+(freq.branch==='1次/班'?'selected':'')+'>1次/班</option><option '+((freq.branch||'1次/周')==='1次/周'?'selected':'')+'>1次/周</option><option '+(freq.branch==='1次/月'?'selected':'')+'>1次/月</option><option '+(freq.branch==='无需检查'?'selected':'')+'>无需检查</option></select></div><div class="rf-field"><label class="rf-label">公司</label><select class="rf-input" id="rfCompany"><option '+(freq.company==='1次/班'?'selected':'')+'>1次/班</option><option '+(freq.company==='1次/周'?'selected':'')+'>1次/周</option><option '+((freq.company||'1次/月')==='1次/月'?'selected':'')+'>1次/月</option><option '+(freq.company==='无需检查'?'selected':'')+'>无需检查</option></select></div></div></div></div><div class="rf-section">危险源、风险评价与管控措施<span style="font-weight:400;color:var(--gray-400);font-size:12px;margin-left:6px">（一个风险点可维护多条）</span></div><div id="hzBox">'+(hazards.length?hazards.map(riskFormHazardBlock).join(''):riskFormHazardBlock())+'</div><button type="button" class="rf-add" onclick="addHazard()">＋ 添加危险源</button></div>';
+  closeDrawerDOM();
+  UI.drawer(html,{title:r?'继续编辑风险点 · '+r.code:'新建风险点',wide:true,footer:'<button class="btn btn-outline" data-close>取消</button><button class="btn btn-primary" onclick="submitRiskForm()">保存草稿</button>'});
+  renumberHZ();
+  var riskNameInput=document.getElementById('rfName'),riskLocationInput=document.getElementById('rfLocation');
+  if(riskNameInput)riskNameInput.placeholder='如：自动线造型作业风险';
+  if(riskLocationInput)riskLocationInput.placeholder='如：自动线组造型工位';
+  document.querySelectorAll('#hzBox [data-f="name"]').forEach(function(input){input.placeholder='如：砂箱吊运过程中人员进入吊物下方，可能造成起重伤害';});
+}
+function submitRiskForm(){
+  if(App.currentRole!=='team_leader'){App.toast('当前角色不能保存风险点草稿，请切换到班组长','error');return;}
+  var name=document.getElementById('rfName').value.trim(),locationText=document.getElementById('rfLocation').value.trim(),responsibilityPost=document.getElementById('rfResponsibilityPost').value;
+  if(!name||!locationText||RESPONSIBILITY_POSTS.indexOf(responsibilityPost)<0){App.toast('请填写名称、位置并选择责任岗位','warn');return;}
+  var hazards=[],invalid=false;
+  document.querySelectorAll('#hzBox [data-hz]').forEach(function(b,i){
+    var hname=b.querySelector('[data-f="name"]').value.trim(),accidents=selectedAccidents(b);
+    if(!hname||!accidents.length){App.toast('危险源 '+(i+1)+' 的描述和事故类型不能为空','error');invalid=true;return;}
+    var method=b.querySelector('input[type="radio"]:checked').value,levelObj;
+    if(method==='lec'){var L=+b.querySelector('[data-lec="L"]').value,E=+b.querySelector('[data-lec="E"]').value,C=+b.querySelector('[data-lec="C"]').value,D=L*E*C,lv=levelOf(D);levelObj={key:lv.key,name:lv.name,method:'lec',L:L,E:E,C:C,D:D};}
+    else{var dv=b.querySelector('[data-f="directLevel"]').value,db=b.querySelector('[data-f="directBasis"]').value.trim();if(!db){App.toast('请填写危险源 '+(i+1)+' 的直接判定依据','warn');invalid=true;return;}levelObj=Object.assign({method:'direct',basis:db,D:320},LEVEL_MAP[dv]);}
+    var oldHazard=b.dataset.hazardId&&App.risk.hazardById(riskFormRiskId,b.dataset.hazardId),oldMeasures=oldHazard&&oldHazard.measures||[];
+    var measures=[];MEASURE_TYPES.forEach(function(type){var v=b.querySelector('[data-m="'+type+'"]').value.trim(),old=oldMeasures.filter(function(x){return x.type===type;})[0];if(v)measures.push({id:old&&old.id||'M-'+(App._seq.sup++),type:type,name:v,status:old&&old.status||'待落实',checked:old&&old.checked||false});});
+    if(!measures.some(function(m){return m.type==='管理措施';})){App.toast('危险源 '+(i+1)+' 必须至少填写一条管理措施','error');invalid=true;return;}
+    hazards.push({id:b.dataset.hazardId||'HZ-'+(App._seq.hz++),name:hname,accidentTypes:accidents,accidentType:accidents.join('、'),level:levelObj,L:levelObj.L,E:levelObj.E,C:levelObj.C,D:levelObj.D,direct:method==='direct',directNote:method==='direct'?levelObj.basis:'',assessmentStatus:'已完成',measures:measures});
+  });
+  if(invalid||!hazards.length)return;
+  var maxLv='low';hazards.forEach(function(h){if(LEVEL_ORDER[h.level.key]>LEVEL_ORDER[maxLv])maxLv=h.level.key;});
+  var org=document.getElementById('rfOrg').value,created=now(),r=riskFormRiskId&&App.risk.byId(riskFormRiskId),d=r&&r.draftVersion;
+  if(r&&d){Object.assign(d,{riskName:name,org:org,location:locationText,responsibilityPost:responsibilityPost,hazards:hazards,updatedAt:created,level:maxLv});if(!r.currentVersion)Object.assign(r,{name:name,org:org,location:locationText,responsibilityPost:responsibilityPost,hazards:JSON.parse(JSON.stringify(hazards)),level:maxLv});r.controlLevel=document.getElementById('rfLevel').value;r.checkFreq={group:document.getElementById('rfGroup').value,branch:document.getElementById('rfBranch').value,company:document.getElementById('rfCompany').value};r.updatedAt=created;}
+  else{var rid='R-'+pad(App._seq.risk++),versionId=uid();r={id:rid,code:document.getElementById('rfCode').value,name:name,org:org,location:locationText,status:'草稿',version:'V1.0',level:maxLv,updatedAt:created,controlLevel:document.getElementById('rfLevel').value,responsibilityPost:responsibilityPost,checkFreq:{group:document.getElementById('rfGroup').value,branch:document.getElementById('rfBranch').value,company:document.getElementById('rfCompany').value},category:'作业活动风险',hazards:JSON.parse(JSON.stringify(hazards)),versions:[],draftVersion:{id:versionId,version:'V1.0',status:'草稿',riskId:rid,riskName:name,org:org,location:locationText,responsibilityPost:responsibilityPost,category:'作业活动风险',createdAt:created,updatedAt:created,operator:App.currentUser(),trigger:'风险点建档',reason:'首次建档',scope:locationText,hazards:JSON.parse(JSON.stringify(hazards)),returnedReason:''}};App.risks.unshift(r);}
+  if(App._emit)App._emit();closeDrawerDOM();App.toast(riskFormRiskId?'风险点草稿已保存，可继续编辑':'风险点已新建（草稿）','success');viewLedger();openRiskDetail(r.id);
+}
+function openNewRisk(){openRiskForm();}
+function editRisk(riskId){
+  var r=App.risk.byId(riskId);
+  if(!r)return;
+  if(!App.risk.draftEditable(riskId)){
+    App.toast('当前版本已提交审批或已生效，请发起变更/复评后编辑','warn');
+    return;
+  }
+  var d=r.draftVersion||r;
+  var ownerName=d.owner||r.owner;
+  if(!orgUserOf(ownerName))ownerName='张青';
+  UI.modal('<div class="form-grid"><div class="form-item full"><span class="form-label">风险点名称</span><input id="eRiskName" value="'+esc(d.riskName||r.name)+'"></div><div class="form-item"><span class="form-label">风险类别</span><select id="eRiskCategory"><option '+((d.category||r.category)==='设备设施风险'?'selected':'')+'>设备设施风险</option><option '+((d.category||r.category)==='作业活动风险'?'selected':'')+'>作业活动风险</option><option '+((d.category||r.category)==='环境风险'?'selected':'')+'>环境风险</option><option '+((d.category||r.category)==='管理风险'?'selected':'')+'>管理风险</option></select></div><div class="form-item"><span class="form-label">组织</span><input value="'+esc(r.org)+'" disabled></div><div class="form-item"><span class="form-label">位置</span><input id="eRiskLoc" value="'+esc(d.location||r.location)+'"></div><div class="form-item"><span class="form-label">总责任人</span>'+personInput('eRiskOwner',ownerName,true)+'</div></div>',{title:'编辑风险点草稿',footer:'<button class="btn btn-outline" data-close>取消</button><button class="btn btn-primary" id="eRiskOk">保存</button>'});
+  document.getElementById('eRiskOk').onclick=function(){
+    var p={name:document.getElementById('eRiskName').value.trim(),category:document.getElementById('eRiskCategory').value,location:document.getElementById('eRiskLoc').value.trim(),owner:document.getElementById('eRiskOwner').value.trim()};
+    if(!p.name||!p.location||!p.owner){App.toast('风险点名称、位置、总责任人不能为空','error');return;}
+    if(!orgUserOf(p.owner)){App.toast('请从组织人员中选择总责任人','error');return;}
+    var result=App.risk.updateRisk(riskId,p);
+    if(result&&result.ok){
+      document.querySelectorAll('.modal.show').forEach(function(x){x.remove();});
+      viewLedger();
+      openRiskDetail(riskId);
+      App.toast('草稿已保存，可继续维护危险源','success');
+    }
+  };
+}
+function deleteRisk(riskId){var r=App.risk.byId(riskId);if(!r)return;if(rsOf(r)==='当前生效'){App.toast('已生效风险点不可物理删除，请发起变更/复评或停用','error');return;}if(confirm('确认删除草稿风险点 '+r.code+'？危险源、评价和措施将一并删除。')){App.risk.deleteRisk(riskId);viewLedger();}}
+function editRisk(riskId){openRiskForm(riskId);}
+function pad(n){return String(n).padStart(2,'0');}
+function uid(){return 'ID-'+Date.now().toString(36)+Math.random().toString(36).slice(2,6);}
+function now(){var d=new Date();return d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate())+' '+pad(d.getHours())+':'+pad(d.getMinutes());}
+function levelOf(D){return App._levelOf?App._levelOf(D):{key:D>=320?'major':D>=160?'big':D>=70?'common':'low',name:D>=320?'重大':D>=160?'较大':D>=70?'一般':'低'};}
+
+window.openRiskDetail=openRiskDetail;window.openMapRisk=openMapRisk;window.closeDrawerDOM=closeDrawerDOM;
+window.fillApprovalPhrase=fillApprovalPhrase;
+window.closeDrawerAndWorkbench=closeDrawerAndWorkbench;
+window.applyFilter=applyFilter;window.resetFilters=resetFilters;window.openRiskForm=openRiskForm;window.submitRiskForm=submitRiskForm;window.addHazard=addHazard;window.removeHazard=removeHazard;window.switchMethod=switchMethod;window.calcLEC=calcLEC;window.renumberHZ=renumberHZ;window.initiateApproval=initiateApproval;window.approveRisk=approveRisk;window.rejectInternalRisk=rejectInternalRisk;window.openRiskApprovalMaterial=openRiskApprovalMaterial;window.deactivateRisk=deactivateRisk;window.confirmDeactivateRisk=confirmDeactivateRisk;window.openNewRisk=openNewRisk;window.editRisk=editRisk;window.deleteRisk=deleteRisk;
+window.showVersionDiff=showVersionDiff;window.showDraftDetail=showDraftDetail;window.openChangeForm=openChangeForm;window.applyMapFilter=applyMapFilter;window.resetMapFilter=resetMapFilter;window.openMapPosition=openMapPosition;window.applyNoticeFilter=applyNoticeFilter;window.resetNoticeFilter=resetNoticeFilter;window.recordNoticeView=recordNoticeView;
+window.addMeasure=addMeasure;window.approveVersionAction=approveVersionAction;window.deleteHazard=deleteHazard;window.editHazard=editHazard;window.editMeasure=editMeasure;window.editTask=editTask;window.enterTaskIdentification=enterTaskIdentification;window.locateResponsibility=locateResponsibility;window.openHazardEvaluation=openHazardEvaluation;window.openHazardForm=openHazardForm;window.openNewTask=openNewTask;window.openVersionApproval=openVersionApproval;window.openVersionQueue=openVersionQueue;window.removeMeasure=removeMeasure;window.returnVersionAction=returnVersionAction;window.saveAssessmentDraft=saveAssessmentDraft;window.saveHazardPage=saveHazardPage;window.saveRiskEvaluation=saveRiskEvaluation;window.saveRiskPointPage=saveRiskPointPage;window.saveTaskPage=saveTaskPage;window.saveWorkbenchRisk=saveWorkbenchRisk;window.showTaskDetail=showTaskDetail;window.submitVersionForReview=submitVersionForReview;window.switchHazard=switchHazard;
+window.drill=function(label){
+  var map={'风险点总数':['ledger',''],'重大/较大风险':['ledger','major'],'管控措施总数':['ledger','']};
+  var t=map[label];if(t)location.href='risks.html?tab='+t[0]+(t[1]?'&level='+t[1]:'');
+};
+route();
+})();
+</script>
+</body>
+</html>
