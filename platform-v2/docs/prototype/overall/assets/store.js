@@ -285,6 +285,17 @@ var App={
     {id:"C-006",user:"赵志宏",org:"造型作业区 / 制模组",role:"兼职安全员",cert:"电工作业证",code:"T1501***112",issuer:"太原市应急管理部门",issueDate:"2024-05-20",expire:"2027-05-20",source:"平台维护",status:"有效",attachment:true,updatedAt:"2026-07-20 09:50"}
   ],
 
+  /* ================= 相关方管理 ================= */
+  partners:[
+    {id:"RP-001",code:"PARTY-2026-001",name:"太原华虎机械设备检修有限公司",maintainingOrg:"铸锻件分公司",serviceScope:"自动线设备检修与保养",contact:"刘志强",phone:"13800001201",status:"合作中",updatedAt:"2026-08-25 14:10",people:[{id:"RPP-001",name:"赵海峰",job:"检修钳工",phone:"13800001211",status:"在场",certificates:[{id:"RPC-001",name:"特种设备作业人员证",number:"TS6A142026001",expire:"2028-04-30",attachmentName:"赵海峰-特种设备作业人员证.pdf",attachmentType:"PDF"}]},{id:"RPP-002",name:"陈磊",job:"检修电工",phone:"13800001212",status:"在场",certificates:[{id:"RPC-002",name:"低压电工作业证",number:"T1420260088",expire:"2027-12-31",attachmentName:"陈磊-低压电工作业证.jpg",attachmentType:"图片"}]}]},
+    {id:"RP-002",code:"PARTY-2026-002",name:"山西安泰工业服务有限公司",maintainingOrg:"智能加工配送中心",serviceScope:"物流装卸与现场辅助服务",contact:"孙建国",phone:"13800001221",status:"合作中",updatedAt:"2026-08-26 09:40",people:[{id:"RPP-003",name:"周建军",job:"装卸作业人员",phone:"13800001231",status:"黑名单",certificates:[{id:"RPC-003",name:"叉车司机证",number:"TS6A142025097",expire:"2027-06-30",attachmentName:"周建军-叉车司机证.pdf",attachmentType:"PDF"}]},{id:"RPP-004",name:"马强",job:"现场辅助人员",phone:"13800001232",status:"在场",certificates:[]}]}
+  ],
+  partyViolations:[
+    {id:"RPV-001",code:"RPV-2026-001",partnerId:"RP-002",personId:"RPP-003",date:"2026-06-12",location:"智能加工配送中心配送通道",content:"叉车行驶过程中未按规定系安全带",level:"一般违章",evidenceName:"违章现场照片-0612.jpg",handling:"现场教育并记录",recordedBy:"智能加工配送中心安全管理"},
+    {id:"RPV-002",code:"RPV-2026-002",partnerId:"RP-002",personId:"RPP-003",date:"2026-07-04",location:"智能加工配送中心装卸区",content:"装卸作业时未按规定佩戴安全帽",level:"一般违章",evidenceName:"违章现场照片-0704.jpg",handling:"书面警示",recordedBy:"智能加工配送中心安全管理"},
+    {id:"RPV-003",code:"RPV-2026-003",partnerId:"RP-002",personId:"RPP-003",date:"2026-08-18",location:"智能加工配送中心配送通道",content:"叉车作业区域内违规使用手机",level:"一般违章",evidenceName:"违章现场照片-0818.jpg",handling:"第三次违章，自动标记黑名单",recordedBy:"智能加工配送中心安全管理"}
+  ],
+
   /* ================= 安全知识库与应急管理 ================= */
   knowledgeDocs:[
     {id:"KD-001",code:"LAW-001",category:"法律法规",title:"中华人民共和国安全生产法",level:"国家法律",issuer:"全国人民代表大会常务委员会",publishDate:"2021-06-10",effectiveDate:"2021-09-01",version:"2021修订",status:"现行有效",fileName:"中华人民共和国安全生产法.pdf",pages:42,scope:"全公司",updatedAt:"2026-08-23 09:00",clauses:[{no:"第二十一条",text:"生产经营单位的主要负责人对本单位安全生产工作负有建立健全全员安全生产责任制等职责。"},{no:"第四十一条",text:"生产经营单位应当建立安全风险分级管控制度，按照安全风险分级采取相应的管控措施。"}]},
@@ -498,10 +509,11 @@ var App={
 };
 
 /* 演示数据只保留在当前浏览器标签页；关闭后重新打开原型即恢复初始数据。 */
-  App._stateKey="tz_anquan_overall_state_v9";
+  /* 相关方管理纳入统一演示数据后，使用新会话键避免旧版页签缓存覆盖初始数据。 */
+  App._stateKey="tz_anquan_overall_state_v10";
 App.persist=function(){
   try{
-    var data={};["_seq","currentRole","currentOrg","riskTasks","risks","versions","versionApprovals","changeRequests","riskNoticeViews","inspectionItems","inspectionPlans","inspectionTasks","inspectionSpecVersion","drafts","plans","tasks","hazardPhrases","hazards","supervisions","workPermits","trainingRecords","trainingSyncAt","trainingSyncBatches","certs","knowledgeDocs","emergencyPlans","organizationProfiles","directoryMembers","platformUsers","safetyRoles","roleScopes","scopeExceptions","businessPostMappings","responsibilityItems","todos","logs","notifications","checkIns","mobileDrafts","teams","permitApprovalRules"].forEach(function(k){data[k]=App[k];});
+    var data={};["_seq","currentRole","currentOrg","riskTasks","risks","versions","versionApprovals","changeRequests","riskNoticeViews","inspectionItems","inspectionPlans","inspectionTasks","inspectionSpecVersion","drafts","plans","tasks","hazardPhrases","hazards","supervisions","workPermits","trainingRecords","trainingSyncAt","trainingSyncBatches","certs","knowledgeDocs","emergencyPlans","organizationProfiles","directoryMembers","platformUsers","safetyRoles","roleScopes","scopeExceptions","businessPostMappings","responsibilityItems","todos","logs","notifications","checkIns","mobileDrafts","teams","permitApprovalRules","partners","partyViolations"].forEach(function(k){data[k]=App[k];});
     sessionStorage.setItem(App._stateKey,JSON.stringify(data));
   }catch(e){}
 };
@@ -755,6 +767,36 @@ App.certificate={
 App.certificate.refresh();
 
 /* ---------- 目标职责动作 ---------- */
+/* ---------- 相关方管理动作 ---------- */
+App.partner={
+  byId:function(id){return (App.partners||[]).filter(function(x){return x.id===id;})[0]||null;},
+  allPeople:function(){var rows=[];(App.partners||[]).forEach(function(p){(p.people||[]).forEach(function(person){rows.push({partner:p,person:person});});});return rows;},
+  personById:function(id){return App.partner.allPeople().filter(function(x){return x.person.id===id;})[0]||null;},
+  violationsOf:function(personId){return (App.partyViolations||[]).filter(function(x){return x.personId===personId;});},
+  violationCount:function(personId){return App.partner.violationsOf(personId).length;},
+  isBlacklisted:function(personId){return App.partner.violationCount(personId)>=3;},
+  refreshBlacklist:function(){App.partner.allPeople().forEach(function(row){if(App.partner.isBlacklisted(row.person.id))row.person.status="黑名单";});},
+  savePartner:function(data,id){
+    if(!data.name||!data.maintainingOrg||!data.serviceScope){App.toast("相关方公司、维护单位和服务内容为必填项","error");return {ok:false};}
+    var item=id?App.partner.byId(id):null;if(!item){item={id:"RP-"+Date.now().toString(36),code:"PARTY-"+dstr()+"-"+String((App.partners||[]).length+1).padStart(3,"0"),people:[]};App.partners.unshift(item);}
+    Object.keys(data).forEach(function(k){item[k]=data[k];});item.updatedAt=now();item.status=item.status||"合作中";App.log("相关方管理","[相关方台账"+(id?"维护":"新增")+"] "+item.name);App._emit();return {ok:true,item:item};
+  },
+  savePerson:function(partnerId,data,id){
+    var partner=App.partner.byId(partnerId);if(!partner||!data.name||!data.job){App.toast("人员姓名和岗位为必填项","error");return {ok:false};}
+    var person=id?(partner.people||[]).filter(function(x){return x.id===id;})[0]:null;if(!person){person={id:"RPP-"+Date.now().toString(36),certificates:[],status:"在场"};partner.people.unshift(person);}
+    Object.keys(data).forEach(function(k){person[k]=data[k];});if(App.partner.isBlacklisted(person.id))person.status="黑名单";partner.updatedAt=now();App.log("相关方管理","[相关方人员"+(id?"维护":"新增")+"] "+partner.name+" · "+person.name);App._emit();return {ok:true,person:person};
+  },
+  saveCertificate:function(personId,data){
+    var row=App.partner.personById(personId);if(!row||!data.name||!data.number||!data.expire||!data.attachmentName){App.toast("证书名称、编号、有效期和证书附件均为必填项","error");return {ok:false};}
+    row.person.certificates=row.person.certificates||[];row.person.certificates.unshift({id:"RPC-"+Date.now().toString(36),name:data.name,number:data.number,expire:data.expire,attachmentName:data.attachmentName,attachmentType:data.attachmentType||"附件"});row.partner.updatedAt=now();App.log("相关方管理","[人员证书新增] "+row.person.name+" · "+data.name);App._emit();return {ok:true};
+  },
+  addViolation:function(data){
+    var row=App.partner.personById(data.personId);if(!row||!data.date||!data.location||!data.content){App.toast("违章时间、地点和内容均为必填项","error");return {ok:false};}
+    var item={id:"RPV-"+Date.now().toString(36),code:"RPV-"+dstr()+"-"+String((App.partyViolations||[]).length+1).padStart(3,"0"),partnerId:row.partner.id,personId:row.person.id,date:data.date,location:data.location,content:data.content,level:data.level||"一般违章",evidenceName:data.evidenceName,handling:data.handling||"待处理",recordedBy:App.currentUser()};App.partyViolations.unshift(item);var count=App.partner.violationCount(row.person.id);if(count>=3){row.person.status="黑名单";item.handling="累计第 "+count+" 次违章，自动标记黑名单";App.toast(row.person.name+" 已累计 "+count+" 次违章，已标记黑名单","warn");}else App.toast("违章记录已保存，当前累计 "+count+" 次","success");row.partner.updatedAt=now();App.log("相关方管理","[违章登记] "+row.person.name+" · 累计 "+count+" 次");App._emit();return {ok:true,item:item,blacklisted:count>=3};
+  }
+};
+App.partner.refreshBlacklist();
+
 App.canPermissionAdmin=function(){return App.currentRole==="platform_admin"||App.currentRole==="position_mapping_admin";};
 App.canMaintainDuties=function(){return App.currentRole==="company_safety"||App.currentRole==="platform_admin";};
 App.organization={

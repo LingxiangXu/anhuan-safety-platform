@@ -29,6 +29,10 @@ var NAV=[
     {key:"ledger",name:"作业票台账"},{key:"review",name:"待我审核"},{key:"approve",name:"待我审批"},
     {key:"execute",name:"现场执行",badge:1},{key:"archived",name:"已归档"}
   ]},
+  {key:"partners",name:"相关方管理",icon:"partner",href:"parties.html",subs:[
+    {key:"ledger",name:"相关方台账"},{key:"people",name:"人员与证书"},
+    {key:"violations",name:"违章记录"},{key:"blacklist",name:"黑名单"}
+  ]},
   {key:"emergency",name:"应急管理",icon:"emergency",href:"emergency.html",subs:[
     {key:"plans",name:"应急预案台账"},{key:"search",name:"预案内容检索"}
   ]},
@@ -41,6 +45,7 @@ var NAV=[
 ];
 
 function iconSvg(name){
+  if(name==="partner")return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="8" cy="9" r="3"/><circle cx="16" cy="10" r="2.5"/><path d="M3.5 20c.3-3 2-5 4.5-5s4.2 2 4.5 5M13 16c.7-.8 1.7-1.3 3-1.3 2.4 0 4.1 1.9 4.4 4.3"/></svg>';
   var paths={workbench:'<path d="M4 5h16v15H4z"/><path d="M8 5V3h8v2M8 10h8M8 14h5"/>',dashboard:'<rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/>',risk:'<path d="M4 20h16V8l-8-5-8 5v12Z"/><path d="M9 20v-6h6v6"/>',inspection:'<circle cx="12" cy="12" r="9"/><path d="m8 12 2.5 2.5L16 9"/>',hazard:'<path d="M12 3 2.8 20h18.4L12 3Z"/><path d="M12 9v5M12 17h.01"/>',permit:'<path d="M7 3h10l3 5-3 13H7L4 8l3-5Z"/><path d="M9 9h6M9 13h6M9 17h4"/>',goal:'<circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><path d="m12 12 7-7M15 5h4v4"/>',training:'<path d="M4 5h16v12H4z"/><path d="M8 21h8M12 17v4M7 9h6M7 13h10M16 5v4l2-1 2 1V5"/>',knowledge:'<path d="M4 4h6a3 3 0 0 1 3 3v13a3 3 0 0 0-3-3H4Z"/><path d="M20 4h-6a3 3 0 0 0-3 3v13a3 3 0 0 1 3-3h6Z"/>',emergency:'<path d="M12 3 4 7v5c0 5 3.4 8 8 9 4.6-1 8-4 8-9V7l-8-4Z"/><path d="M12 8v8M8 12h8"/>',mobile:'<rect x="6" y="2" width="12" height="20" rx="2"/><path d="M10 5h4M11 19h2"/>'};
   return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">'+(paths[name]||paths.dashboard)+'</svg>';
 }
@@ -125,7 +130,7 @@ var UI={
       if(hasSubs){
         subHtml='<div class="nav-sub'+(isActive?" open":"")+'">'+m.subs.map(function(s){
           if(s.group)return '<div class="nav-sub-label">'+s.group+'</div>';
-          var href=m.href+"?tab="+s.key;
+          var href=m.key==="partners"?m.href+"#"+s.key:m.href+"?tab="+s.key;
           var active=s.key===activeSub&&isActive;
           return '<div class="nav-sub-item'+(active?" active":"")+'" data-href="'+href+'">'+s.name+
             (s.badge?'<span class="badge">'+s.badge+"</span>":"")+"</div>";
