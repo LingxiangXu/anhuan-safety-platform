@@ -7,6 +7,16 @@
 "use strict";
 
 /* ---------- 工具 ---------- */
+function inspectionRiskItems(risk){
+  return ((risk&&risk.hazards)||[]).map(function(h){
+    var measures=h.measures||[];
+    var engineering=measures.filter(function(m){return m.type==="工程技术措施"||m.type==="工程措施";});
+    var management=measures.filter(function(m){return m.type==="管理措施";});
+    var selected=engineering.concat(management).filter(function(m){return String(m.name||"").trim();});
+    var contents=selected.map(function(m){return String(m.name).trim();});
+    return {id:"STD-"+risk.id+"-"+h.id,sourceMeasureIds:selected.map(function(m){return m.id;}),hazardId:h.id,hazardName:h.name,measureType:"工程技术措施＋管理措施",measureName:contents.join("\n"),contents:contents.length?contents:[""],contentPhotoRequired:(contents.length?contents:[""]).map(function(){return false;}),manual:false};
+  });
+}
 function pad(n){return String(n).padStart(2,"0");}
 function dstr(d){d=d||new Date();return d.getFullYear()+pad(d.getMonth()+1)+pad(d.getDate());}
 function now(){var d=new Date();return d.getFullYear()+"-"+pad(d.getMonth()+1)+"-"+pad(d.getDate())+" "+pad(d.getHours())+":"+pad(d.getMinutes());}
@@ -585,15 +595,7 @@ App.resetDemo=function(){try{sessionStorage.removeItem(App._stateKey);sessionSto
   if(App.inspectionSpecVersion!==10){
     var area=(App.currentOrg||"").split(" / ").pop()||"造型作业区";
     var sourceRisk=App.risks.filter(function(r){return r.org===area&&(r.status==="已发布"||r.status==="管控中");})[0]||App.risks[0];
-    var typeMap={"工程措施":"工程技术措施","培训教育":"培训教育措施","个体防护":"个体防护措施","应急措施":"应急处置措施"};
-    var measures=[];
-    (sourceRisk&&sourceRisk.hazards||[]).forEach(function(h){(h.measures||[]).forEach(function(m){
-      var type=typeMap[m.type]||m.type;
-      if(type==="管理措施")measures.push({id:m.id,hazardId:h.id,hazardName:h.name,measureType:type,measureName:m.name,contents:[m.name],contentPhotoRequired:[false],manual:false});
-    });});
-    if(!measures.length&&(sourceRisk&&sourceRisk.hazards||[]).length){
-      var fallback=sourceRisk.hazards[0];measures.push({id:"MANUAL-001",hazardId:fallback.id,hazardName:fallback.name,measureType:"管理措施",measureName:"按现场管理要求核查风险管控措施落实情况",contents:["按现场管理要求核查风险管控措施落实情况"],contentPhotoRequired:[false],manual:true});
-    }
+    var measures=inspectionRiskItems(sourceRisk);
     var draft=sourceRisk?{riskId:sourceRisk.id,riskCode:sourceRisk.code,riskName:sourceRisk.name,status:"已发布",version:1,updatedAt:now(),items:measures}:null;
     var planItems=[];(draft?draft.items:[]).forEach(function(it){(it.contents||[]).forEach(function(content,index){content=String(content||"").trim();if(!content)return;planItems.push({id:it.id+"-C"+(index+1),sourceStandardItemId:it.id,riskCode:sourceRisk.code,riskName:sourceRisk.name,riskLocation:sourceRisk.location,hazardId:it.hazardId,hazardName:it.hazardName,measureName:it.measureName,content:content,checkFreq:((sourceRisk.checkFreq||{}).group||"1次/班")+" / "+((sourceRisk.checkFreq||{}).branch||"1次/周")+" / "+((sourceRisk.checkFreq||{}).company||"1次/月"),requiredPhoto:!!((it.contentPhotoRequired||[])[index])});});});
     App.drafts={};if(draft)App.drafts[sourceRisk.id]=draft;
@@ -602,7 +604,7 @@ App.resetDemo=function(){try{sessionStorage.removeItem(App._stateKey);sessionSto
     if(App.tasks.length)App.tasks[0].org=area;
     var deliveryRisk=App.risks.filter(function(r){return r.org==="智能加工配送中心";})[0];
     if(deliveryRisk){
-      var deliveryItems=[];(deliveryRisk.hazards||[]).forEach(function(h){(h.measures||[]).forEach(function(m){if(m.type==="管理措施")deliveryItems.push({id:m.id,hazardId:h.id,hazardName:h.name,measureType:"管理措施",measureName:m.name,contents:[m.name],contentPhotoRequired:[false],manual:false});});});
+      var deliveryItems=inspectionRiskItems(deliveryRisk);
       var deliveryDraft={riskId:deliveryRisk.id,riskCode:deliveryRisk.code,riskName:deliveryRisk.name,status:"已发布",version:1,updatedAt:now(),items:deliveryItems};
       App.drafts[deliveryRisk.id]=deliveryDraft;
       var deliveryPlanItems=[];deliveryItems.forEach(function(it){(it.contents||[]).forEach(function(content,index){deliveryPlanItems.push({id:it.id+"-C"+(index+1),sourceStandardItemId:it.id,riskCode:deliveryRisk.code,riskName:deliveryRisk.name,riskLocation:deliveryRisk.location,hazardId:it.hazardId,hazardName:it.hazardName,measureName:it.measureName,content:content,checkFreq:"1次/班 / 1次/周 / 1次/月",requiredPhoto:!!((it.contentPhotoRequired||[])[index])});});});
@@ -1431,5 +1433,6 @@ App.dashboard=function(role){
   return {riskCount:riskCount,majorCount:majorCount,pendingHazards:pendingHazards,overdueHazards:overdueHazards,activePermits:activePermits,supOpen:supOpen,expiringCerts:expiringCerts,waitingInspections:waitingInspections,activeDuties:activeDuties,teamParticipation:Math.min(100,participation)};
 };
 
+App.inspectionRiskItems=inspectionRiskItems;
 window.App=App;
 })();
