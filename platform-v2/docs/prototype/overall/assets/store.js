@@ -213,27 +213,29 @@ var App={
     {id:"H-001",code:"HZ-20260730-001",title:"自动线砂箱吊具固定螺栓松动",org:"造型作业区",location:"造型车间自动线组砂箱吊运位",
      source:"INSPECTION",sourceLabel:"巡检发现",sourceRef:"INSP-T-20260730-001",severity:"一般",riskCode:"RISK-ZX-001",rewardEligible:false,rewardStatus:"不参与奖励",
      responsibleDept:"造型作业区 / 自动线组",responsibleUser:"张青",responsiblePersonId:"P-001",deadline:"2026-08-02 18:00",
-     status:"待复查",reporter:"张青",createdAt:"2026-07-30 10:20",closedAt:null,
+     status:"待复核",reporter:"张青",createdAt:"2026-07-30 10:20",closedAt:null,
+     firstAcceptor:"造型作业区负责人（待配置）",finalAssigner:"造型作业区负责人（待配置）",finalAssignerRole:"section_manager",
      description:"巡检发现自动线砂箱吊具固定螺栓松动，存在吊具失稳风险。",
-     rectification:{plan:"更换 M8×30 高强度螺栓并涂防松胶，紧固力矩按设备手册执行。",completed:"已完成螺栓更换与紧固，力矩 25N·m，防护罩晃动检查通过。",evidenceBefore:true,evidenceAfter:true,submittedAt:"2026-07-31 15:30",reviewStatus:"待复查"},
+     rectification:{plan:"更换 M8×30 高强度螺栓并涂防松胶，紧固力矩按设备手册执行。",completed:"已完成螺栓更换与紧固，力矩 25N·m，防护罩晃动检查通过。",evidenceBefore:true,evidenceAfter:true,submittedAt:"2026-07-31 15:30",reviewStatus:"待复核"},
      actions:[
        {type:"登记",at:"2026-07-30 10:20",by:"张青",note:"巡检不合格一键转隐患"},
-       {type:"受理",at:"2026-07-30 10:45",by:"王欣宇",note:"定级：一般隐患"},
-       {type:"分派",at:"2026-07-30 10:50",by:"王欣宇",note:"指定责任人张青，期限 08-02"},
-       {type:"整改提交",at:"2026-07-31 15:30",by:"张青",note:"已提交整改反馈，待复查"}
+       {type:"受理",at:"2026-07-30 10:45",by:"造型作业区负责人（待配置）",note:"定级：一般隐患"},
+       {type:"定级分配",at:"2026-07-30 10:50",by:"造型作业区负责人（待配置）",note:"指定整改人张青，期限 08-02；分配人负责复核"},
+       {type:"整改提交",at:"2026-07-31 15:30",by:"张青",note:"已提交整改反馈，待复核"}
      ]},
     {id:"H-002",code:"HZ-20260728-002",title:"车间通道堆放杂物影响疏散",org:"造型作业区",location:"造型车间东侧通道",
       source:"MOBILE_REPORT",sourceLabel:"随手拍",sourceRef:null,severity:"一般",riskCode:null,rewardEligible:true,rewardStatus:"待奖励评定",
      responsibleDept:"造型作业区 / 自动线组",responsibleUser:"张青",responsiblePersonId:"P-001",deadline:"2026-07-30 18:00",
      status:"已闭环",reporter:"李天翔",createdAt:"2026-07-28 09:10",closedAt:"2026-07-30 14:30",
+     firstAcceptor:"铸锻件分公司安全管理人员（待配置）",finalAssigner:"铸锻件分公司安全管理人员（待配置）",finalAssignerRole:"company_safety",
      description:"东侧疏散通道堆放半成品料架，影响紧急疏散。",
      rectification:{plan:"清理通道料架，划定定置线。",completed:"已完成清理并划制定置线。",evidenceBefore:true,evidenceAfter:true,submittedAt:"2026-07-29 16:00",reviewStatus:"通过"},
      actions:[
        {type:"登记",at:"2026-07-28 09:10",by:"李天翔",note:"移动随手拍"},
-       {type:"受理",at:"2026-07-28 09:30",by:"王欣宇",note:"定级：一般"},
-       {type:"分派",at:"2026-07-28 09:35",by:"王欣宇",note:"责任人张青"},
+       {type:"受理",at:"2026-07-28 09:30",by:"铸锻件分公司安全管理人员（待配置）",note:"定级：一般"},
+       {type:"定级分配",at:"2026-07-28 09:35",by:"铸锻件分公司安全管理人员（待配置）",note:"整改人张青；分配人负责复核"},
        {type:"整改提交",at:"2026-07-29 16:00",by:"张青",note:"清理完成"},
-       {type:"复查通过",at:"2026-07-30 14:30",by:"王欣宇",note:"现场复查合格，闭环"}
+       {type:"复核通过",at:"2026-07-30 14:30",by:"铸锻件分公司安全管理人员（待配置）",note:"现场复核合格，闭环"}
      ]},
     {id:"H-003",code:"HZ-20260801-001",title:"砂箱自动线防护门联锁异常",org:"造型作业区",location:"造型车间自动线组浇注段",
       source:"INSPECTION",sourceLabel:"巡检发现",sourceRef:null,severity:null,riskCode:"RISK-ZX-001",rewardEligible:false,rewardStatus:"不参与奖励",
@@ -486,7 +488,7 @@ var App={
     {id:"TD-01",module:"risks",title:"砂箱自动线风险点复评待处理",key:"riskTask",target:"风险台账",pushChannel:"企业微信",pushStatus:"已送达"},
     {id:"TD-02",module:"inspection",title:"今日巡检任务待执行",key:"inspection",target:"巡检任务",pushChannel:"企业微信",pushStatus:"已送达"},
     {id:"TD-03",module:"hazards",title:"隐患 HZ-20260801-001 待受理",key:"hazardAccept",target:"隐患台账",pushChannel:"企业微信",pushStatus:"已送达"},
-    {id:"TD-04",module:"hazards",title:"隐患 HZ-20260730-001 待复查",key:"hazardReview",target:"待我复查",pushChannel:"企业微信",pushStatus:"已送达"},
+    {id:"TD-04",module:"hazards",title:"隐患 HZ-20260730-001 待复核",key:"hazardReview",target:"待我复核",pushChannel:"企业微信",pushStatus:"已送达"},
     {id:"TD-05",module:"permits",title:"作业票 WP-20260801-001 资格阻断待处理",key:"permitBlock",target:"作业票台账",pushChannel:"企业微信",pushStatus:"已送达"}
   ],
   logs:[
@@ -1150,16 +1152,40 @@ App.inspection={
 App.hazard={
   byId:function(id){return App.hazards.filter(function(h){return h.id===id;})[0];},
   acceptRole:function(h){if(!h)return "company_safety";if(h.source==="INSPECTION")return "section_manager";if(h.source==="MOBILE_REPORT"||h.source==="HSE_SUPERVISION")return "company_safety";if(h.source==="PROFESSIONAL_DEPT_CHECK")return null;return "company_safety";},
-  canAccept:function(h){var role=App.hazard.acceptRole(h);return !!role&&App.currentRole===role;},
+  acceptanceOwner:function(h){
+    if(h.status==="待上级受理"&&h.reportRequest)return {role:h.reportRequest.role,user:h.reportRequest.user};
+    return h.acceptanceOwner||{role:App.hazard.acceptRole(h),user:(App.roleOf(App.hazard.acceptRole(h))||{}).user};
+  },
+  canAccept:function(h){if(!h||["待受理","待上级受理"].indexOf(h.status)<0||h.source==="PROFESSIONAL_DEPT_CHECK"||!App.inCurrentOrgScope(h.org))return false;var owner=App.hazard.acceptanceOwner(h);return owner.role===App.currentRole&&owner.user===App.currentUser();},
+  reportTarget:function(h){
+    if(!App.hazard.canAccept(h)||h.status!=="待受理"||h.upperOpinion)return null;
+    return App.currentRole==="section_manager"?"company_safety":App.currentRole==="company_safety"?"unit_leader":null;
+  },
+  report:function(id,reason,needs,targetUser){
+    var h=App.hazard.byId(id),role=App.hazard.reportTarget(h),target=App.roleOf(role);
+    if(!role||!target||target.user!==targetUser||!String(reason||"").trim()||!String(needs||"").trim())return {ok:false,msg:"请填写上报原因、需解决事项并选择上级受理人"};
+    h.firstAcceptor=h.firstAcceptor||App.currentUser();
+    h.reportRequest={role:role,user:target.user,fromRole:App.currentRole,fromUser:App.currentUser(),reason:reason,needs:needs,at:now()};
+    h.status="待上级受理";h.actions.push({type:"受理上报",at:now(),by:App.currentUser(),note:reason+"；需解决："+needs+"；交给："+target.user});App._emit();return {ok:true};
+  },
+  returnWithOpinion:function(id,note){
+    var h=App.hazard.byId(id);if(!App.hazard.canAccept(h)||h.status!=="待上级受理"||!String(note||"").trim())return {ok:false,msg:"无办理权限或未填写上级处理意见"};
+    var r=h.reportRequest;h.upperOpinion={by:App.currentUser(),note:note,at:now()};h.acceptanceOwner={role:r.fromRole,user:r.fromUser};h.reportRequest=null;h.status="待受理";
+    h.actions.push({type:"提出意见并交回",at:now(),by:App.currentUser(),note:"交回 "+r.fromUser+" 定级分配："+note});App._emit();return {ok:true};
+  },
+  canRectify:function(h){return !!(h&&["待整改","整改中"].indexOf(h.status)>-1&&h.responsibleUser===App.currentUser()&&App.inCurrentOrgScope(h.org));},
+  canReview:function(h){return !!(h&&h.status==="待复核"&&h.finalAssigner===App.currentUser()&&h.finalAssignerRole===App.currentRole&&App.inCurrentOrgScope(h.org));},
   accept:function(id,severity,dept,user,deadline,requirement,opinion,personId){
-    var h=App.hazard.byId(id);if(!App.hazard.canAccept(h)){App.toast('当前角色不是该来源隐患的受理岗位','error');return {ok:false,msg:'无受理权限'};}
-    if(!h||h.status!=='待受理'){return {ok:false,msg:'隐患不在待受理状态'};}var person=App.directoryMemberById(personId);if(!person||person.status!=="在职"||person.name!==user){App.toast("整改责任人必须从企业微信在职人员中选择","error");return {ok:false,msg:"责任人无效"};}h.severity=severity;h.responsibleDept=dept;h.responsibleUser=user;h.responsiblePersonId=person.id;h.deadline=deadline;
-    h.rectificationRequirement=requirement||"";
-    h.acceptedBy=App.currentUser();h.acceptedAt=now();h.acceptanceOpinion=opinion||'';
-    h.status="待整改";h.actions.push({type:"受理",at:h.acceptedAt,by:h.acceptedBy,note:"定级："+severity+"，分派责任人 "+user+(opinion?"；受理意见："+opinion:" ")});
-    App.log("隐患治理","[受理] "+h.code+" 已受理并分派");
-    App._emit();
-    return {ok:true,hazard:h};
+    var h=App.hazard.byId(id);if(!App.hazard.canAccept(h))return {ok:false,msg:"仅当前受理人可以定级分配"};
+    var person=App.directoryMemberById(personId);
+    if(!person||person.status!=="在职"||person.name!==user)return {ok:false,msg:"整改人须从 OA 同步的在职人员中选择"};
+    if(["一般","重大"].indexOf(severity)<0||!String(dept||"").trim()||!/^\d{4}-\d{2}-\d{2}$/.test(deadline)||!Number.isFinite(Date.parse(deadline))||!String(requirement||"").trim())return {ok:false,msg:"请完整填写等级、责任部门、整改人、有效期限和整改要求"};
+    if(h.status==="待上级受理"&&!String(opinion||"").trim())return {ok:false,msg:"请填写上级处理意见"};
+    h.firstAcceptor=h.firstAcceptor||App.currentUser();h.finalAssigner=App.currentUser();h.finalAssignerRole=App.currentRole;
+    h.severity=severity;h.responsibleDept=dept;h.responsibleUser=user;h.responsiblePersonId=person.id;h.deadline=deadline;h.rectificationRequirement=requirement;
+    h.acceptedBy=App.currentUser();h.acceptedAt=now();h.acceptanceOpinion=opinion||"";h.reportRequest=null;
+    h.status="待整改";h.actions.push({type:"定级分配",at:now(),by:App.currentUser(),note:"等级："+severity+"；整改人："+user+"；期限："+deadline+"；复核人："+h.finalAssigner+(opinion?"；"+opinion:"")});
+    App.log("隐患治理","[定级分配] "+h.code);App._emit();return {ok:true,hazard:h};
   },
   reject:function(id,reason){
     var h=App.hazard.byId(id);if(!App.hazard.canAccept(h))return {ok:false,msg:"无受理权限"};if(!h||h.status!=="待受理"||!reason)return {ok:false,msg:"状态或原因不符合"};
@@ -1168,13 +1194,17 @@ App.hazard={
   },
   rectify:function(id,summary,evidenceAfter){
     var h=App.hazard.byId(id);
-    h.rectification={summary:summary,completed:summary,evidenceBefore:!!(h.sourceEvidence&&h.sourceEvidence.photo),evidenceAfter:!!evidenceAfter,submittedAt:now(),reviewStatus:"待复查"};
-    h.status="待复查";h.actions.push({type:"整改提交",at:now(),by:App.currentUser(),note:"已提交整改反馈，待复查"});
+    if(!App.hazard.canRectify(h)||!String(summary||'').trim()||!evidenceAfter)return {ok:false,msg:"仅实际整改人可以提交完整整改说明和整改后照片"};
+    h.rectificationHistory=h.rectificationHistory||[];if(h.rectification)h.rectificationHistory.push(JSON.parse(JSON.stringify(h.rectification)));
+    h.rectification={summary:summary,completed:summary,evidenceBefore:!!(h.sourceEvidence&&h.sourceEvidence.photo),evidenceAfter:!!evidenceAfter,submittedAt:now(),reviewStatus:"待复核"};
+    h.status="待复核";h.actions.push({type:"整改提交",at:now(),by:App.currentUser(),note:"已提交整改反馈，待复核"});
     App.log("隐患治理","[整改] "+h.code+" 提交整改反馈");
     App._emit();
   },
   review:function(id,pass,note){
     var h=App.hazard.byId(id);
+    if(!App.hazard.canReview(h)||!String(note||'').trim()||!h.rectification)return {ok:false,msg:"仅最终定级分配人可复核，且必须填写意见"};
+    h.rectification.reviewedBy=App.currentUser();h.rectification.reviewedAt=now();h.rectification.reviewNote=note;
     if(pass){h.status="已闭环";h.closedAt=now();h.rectification.reviewStatus="通过";if(h.source==="MOBILE_REPORT"&&h.rewardEligible)h.rewardStatus="待奖励评定";h.actions.push({type:"复查通过",at:now(),by:App.currentUser(),note:(note||"复查合格，闭环")+(h.source==="MOBILE_REPORT"&&h.rewardEligible?"；已进入奖励评定":"")});}
     else{h.status="整改中";h.rectification.reviewStatus="退回";h.actions.push({type:"复查退回",at:now(),by:App.currentUser(),note:note||"整改不达标，退回重新整改"});}
     App.log("隐患治理","[复查] "+h.code+(pass?" 复查通过关闭":" 复查退回"));
@@ -1386,9 +1416,9 @@ App.workbenchTodos=function(role){
   function add(module,code,title,status,nextAction,target,deadline){rows.push({id:module+":"+code,module:module,businessCode:code,title:title,status:status,nextAction:nextAction,target:target,deadline:deadline||null});}
   (App.risks||[]).forEach(function(r){var d=r.draftVersion;if(!d)return;if(d.status==="已退回"&&role==="team_leader")add("risks",r.code,d.riskName||r.name,d.status,"修改后重新提交","risks.html?tab=ledger&risk="+encodeURIComponent(r.id));if(d.status==="待作业区负责人审核"&&role==="section_manager")add("risks",r.code,d.riskName||r.name,d.status,"审核风险点","risks.html?tab=ledger&risk="+encodeURIComponent(r.id));if(d.status==="待二级单位安全管理审核"&&role==="company_safety")add("risks",r.code,d.riskName||r.name,d.status,"审核风险点","risks.html?tab=ledger&risk="+encodeURIComponent(r.id));if(d.status==="待二级单位领导审批"&&role==="unit_leader")add("risks",r.code,d.riskName||r.name,d.status,"批准风险点","risks.html?tab=ledger&risk="+encodeURIComponent(r.id));});
   (App.hazards||[]).forEach(function(h){
-    if(h.status==="待受理"&&App.hazard.acceptRole(h)===role)add("hazards",h.code,h.title,h.status,"受理并分派","hazards.html?tab=ledger&st=待受理",h.deadline);
-    if(["待整改","整改中"].indexOf(h.status)>-1&&(h.responsibleUser===user||role==="team_leader"))add("hazards",h.code,h.title,h.status,"提交整改反馈","hazards.html?tab=mine-rect",h.deadline);
-    if(h.status==="待复查"&&role==="section_manager")add("hazards",h.code,h.title,h.status,"复查验收","hazards.html?tab=mine-review",h.deadline);
+    if(App.hazard.canAccept(h))add("hazards",h.code,h.title,h.status,h.status==="待上级受理"?"上级受理":"定级分配","hazards.html?tab=ledger&st="+encodeURIComponent(h.status),h.deadline);
+    if(App.hazard.canRectify(h))add("hazards",h.code,h.title,h.status,"提交整改反馈","hazards.html?tab=mine-rect",h.deadline);
+    if(App.hazard.canReview(h))add("hazards",h.code,h.title,"待复核","复核整改","hazards.html?tab=mine-review",h.deadline);
     if(h.source==="HSE_SUPERVISION"&&h.status==="驳回起草人"&&role==="group_safety")add("hazards",h.code,h.title,h.status,"维护后按原 OA 重提","hazards.html?tab=ledger&st=驳回起草人",h.deadline);
   });
   (App.tasks||[]).forEach(function(t){
@@ -1418,7 +1448,7 @@ App.dashboard=function(role){
   var majorCount=scopedRisks.filter(function(r){return r.level==="major"||r.level==="big";}).length;
   var hazards=App.hazards.filter(function(h){return inScope(h.org);});
   if(isTeam)hazards=hazards.filter(function(h){return h.status==="整改中"||h.status==="待整改";});
-  var pendingHazards=hazards.filter(function(h){return ["待受理","待整改","整改中","待复查"].indexOf(h.status)>-1;}).length;
+  var pendingHazards=hazards.filter(function(h){return ["待受理","待整改","整改中","待复核"].indexOf(h.status)>-1;}).length;
   var finalHazardStatuses=["已闭环","不受理关闭","已拒绝","已撤销","已终止","已作废"];
   var overdueHazards=hazards.filter(function(h){var due=h.deadline&&Date.parse(String(h.deadline).replace(/-/g,"/"));return due&&due<Date.now()&&finalHazardStatuses.indexOf(h.status)<0&&h.status!=="待受理";}).length;
   var activePermits=App.workPermits.filter(function(w){return inScope(w.org)&&["审批中","待监护确认","待开工","执行中","已暂停","资格校验失败","超时阻断","延期审批中"].indexOf(w.status)>-1;}).length;

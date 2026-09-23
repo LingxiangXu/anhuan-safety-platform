@@ -23,7 +23,7 @@ var NAV=[
   ]},
   {key:"hazards",name:"隐患治理与督办",icon:"hazard",href:"hazards.html",subs:[
     {key:"overview",name:"隐患总览"},{key:"ledger",name:"隐患台账"},{key:"mine-rect",name:"待我整改"},
-    {key:"mine-review",name:"待我复查",badge:1},{key:"professional",name:"专业检查台账"},{key:"supervision",name:"隐患督办",badge:1},{key:"stats",name:"统计分析"}
+    {key:"mine-review",name:"待我复核",badge:1},{key:"professional",name:"专业检查台账"},{key:"supervision",name:"隐患督办",badge:1},{key:"stats",name:"统计分析"}
   ]},
   {key:"permits",name:"特殊作业管控",icon:"permit",href:"work-permits.html",subs:[
     {key:"ledger",name:"作业票台账"},{key:"review",name:"待我审核"},{key:"approve",name:"待我审批"},
